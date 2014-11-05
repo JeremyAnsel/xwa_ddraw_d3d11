@@ -1,0 +1,50 @@
+Microsoft (R) COFF/PE Dumper Version 12.00.30501.0
+Copyright (C) Microsoft Corporation.  All rights reserved.
+
+
+Dump of file c:/windows/system32/ddraw.dll
+
+File Type: DLL
+
+  Section contains the following exports for DDRAW.dll
+
+    00000000 characteristics
+    5215DB0E time date stamp Thu Aug 22 11:34:06 2013
+        0.00 version
+           1 ordinal base
+          22 number of functions
+          22 number of names
+
+    ordinal hint RVA      name
+
+          1    0 00008648 AcquireDDThreadLock
+          2    1 000350D8 CompleteCreateSysmemSurface
+          3    2 00035928 D3DParseUnknownCommand
+          4    3 00037674 DDGetAttachedSurfaceLcl
+          5    4 00033D9C DDInternalLock
+          6    5 00033DB0 DDInternalUnlock
+          7    6 00038C88 DSoundHelp
+          8    7 00004360 DirectDrawCreate
+          9    8 0003B0A0 DirectDrawCreateClipper
+         10    9 00035A20 DirectDrawCreateEx
+         11    A 00035B24 DirectDrawEnumerateA
+         12    B 00035B60 DirectDrawEnumerateExA
+         13    C 00019AC0 DirectDrawEnumerateExW
+         14    D 0003605C DirectDrawEnumerateW
+         15    E 0003BF10 DllCanUnloadNow
+         16    F 0003BFD4 DllGetClassObject
+         17   10 0003534C GetDDSurfaceLocal
+         18   11 0003D88C GetOLEThunkData
+         19   12 0004154C GetSurfaceFromDC
+         20   13 00022010 RegisterSpecialCase
+         21   14 00008690 ReleaseDDThreadLock
+         22   15 0004B684 SetAppCompatData
+
+  Summary
+
+       67000 .data
+        3000 .idata
+        4000 .pdata
+        1000 .reloc
+        1000 .rsrc
+       83000 .text
