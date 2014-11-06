@@ -465,7 +465,7 @@ HRESULT DepthSurface::GetSurfaceDesc(
 		return DDERR_INVALIDPARAMS;
 	}
 
-	*lpDDSurfaceDesc = {};
+	memset(lpDDSurfaceDesc, 0, sizeof(DDSURFACEDESC));
 	lpDDSurfaceDesc->dwSize = sizeof(DDSURFACEDESC);
 	lpDDSurfaceDesc->dwFlags = DDSD_CAPS;
 	lpDDSurfaceDesc->ddsCaps.dwCaps = DDSCAPS_ZBUFFER | DDSCAPS_VIDEOMEMORY;

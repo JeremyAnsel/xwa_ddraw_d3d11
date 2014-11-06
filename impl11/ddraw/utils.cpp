@@ -294,7 +294,8 @@ void copySurface(char* dest, DWORD destWidth, DWORD destHeight, DWORD destBpp, c
 	}
 	else
 	{
-		rc = { 0, 0, srcWidth, srcHeight };
+		RECT r = { 0, 0, srcWidth, srcHeight };
+		rc = r;
 	}
 
 	int h = rc.bottom - rc.top;

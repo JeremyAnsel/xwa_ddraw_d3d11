@@ -344,7 +344,8 @@ HRESULT Direct3DTexture::Load(
 		return D3DERR_TEXTURE_LOAD_FAILED;
 	}
 
-	D3D11_SHADER_RESOURCE_VIEW_DESC textureViewDesc{};
+	D3D11_SHADER_RESOURCE_VIEW_DESC textureViewDesc;
+	memset(&textureViewDesc, 0, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
 	textureViewDesc.Format = textureDesc.Format;
 	textureViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	textureViewDesc.Texture2D.MipLevels = textureDesc.MipLevels;

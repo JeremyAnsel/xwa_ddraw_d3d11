@@ -126,7 +126,8 @@ public:
 
 	D3D11_BLEND_DESC GetBlendDesc()
 	{
-		D3D11_BLEND_DESC desc{};
+		D3D11_BLEND_DESC desc;
+		memset(&desc, 0, sizeof(D3D11_BLEND_DESC));
 
 		desc.AlphaToCoverageEnable = FALSE;
 		desc.IndependentBlendEnable = FALSE;
@@ -145,7 +146,8 @@ public:
 
 	D3D11_DEPTH_STENCIL_DESC GetDepthStencilDesc()
 	{
-		D3D11_DEPTH_STENCIL_DESC desc{};
+		D3D11_DEPTH_STENCIL_DESC desc;
+		memset(&desc, 0, sizeof(D3D11_DEPTH_STENCIL_DESC));
 
 		desc.DepthEnable = this->ZEnabled;
 		desc.DepthWriteMask = this->ZWriteEnabled ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
@@ -931,7 +933,9 @@ HRESULT Direct3DDevice::EnumTextureFormats(
 		return DDERR_INVALIDPARAMS;
 	}
 
-	DDSURFACEDESC sd{};
+	DDSURFACEDESC sd;
+	memset(&sd, 0, sizeof(DDSURFACEDESC));
+
 	sd.dwSize = sizeof(DDSURFACEDESC);
 	sd.dwFlags = DDSD_CAPS | DDSD_PIXELFORMAT;
 	sd.ddsCaps.dwCaps = DDSCAPS_TEXTURE;
