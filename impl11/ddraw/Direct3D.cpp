@@ -128,7 +128,8 @@ HRESULT Direct3D::EnumDevices(
 	if (FAILED(dxgiOutput->GetDesc(&outputDesc)))
 		return DDERR_INVALIDOBJECT;
 
-	D3DDEVICEDESC desc{};
+	D3DDEVICEDESC desc;
+	memset(&desc, 0, sizeof(D3DDEVICEDESC));
 	desc.dwSize = sizeof(D3DDEVICEDESC);
 
 	desc.dwFlags =

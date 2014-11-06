@@ -496,7 +496,7 @@ HRESULT OffscreenSurface::GetSurfaceDesc(
 		return DDERR_INVALIDPARAMS;
 	}
 
-	*lpDDSurfaceDesc = {};
+	memset(lpDDSurfaceDesc, 0, sizeof(DDSURFACEDESC));
 	lpDDSurfaceDesc->dwSize = sizeof(DDSURFACEDESC);
 	lpDDSurfaceDesc->dwFlags = DDSD_CAPS | DDSD_PIXELFORMAT | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PITCH;
 	lpDDSurfaceDesc->ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | DDSCAPS_SYSTEMMEMORY;
@@ -580,7 +580,7 @@ HRESULT OffscreenSurface::Lock(
 
 	if (lpDestRect == nullptr)
 	{
-		*lpDDSurfaceDesc = {};
+		memset(lpDDSurfaceDesc, 0, sizeof(DDSURFACEDESC));
 		lpDDSurfaceDesc->dwSize = sizeof(DDSURFACEDESC);
 		lpDDSurfaceDesc->dwFlags = DDSD_CAPS | DDSD_PIXELFORMAT | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PITCH | DDSD_LPSURFACE;
 		lpDDSurfaceDesc->ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | DDSCAPS_SYSTEMMEMORY;
