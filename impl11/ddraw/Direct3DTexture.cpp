@@ -5,7 +5,10 @@
 #include "MipmapSurface.h"
 #include <comdef.h>
 
-char* convertFormat(char* src, DWORD width, DWORD height, DXGI_FORMAT format)
+// not defined in june2010 dx sdk
+#define DXGI_FORMAT_B4G4R4A4_UNORM 115
+
+char* convertFormat(char* src, DWORD width, DWORD height, int format)
 {
 	int length = width * height;
 	char* buffer = new char[length * 4];
@@ -256,7 +259,7 @@ HRESULT Direct3DTexture::Load(
 
 	DWORD bpp = surface->_pixelFormat.dwRGBBitCount == 32 ? 4 : 2;
 
-	DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
+	int format = DXGI_FORMAT_UNKNOWN;
 
 	if (bpp == 4)
 	{
