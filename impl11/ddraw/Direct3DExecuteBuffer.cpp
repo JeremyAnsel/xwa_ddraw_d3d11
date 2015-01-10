@@ -10,7 +10,7 @@ Direct3DExecuteBuffer::Direct3DExecuteBuffer(DeviceResources* deviceResources, D
 
 	this->_bufferSize = bufferSize;
 	this->_buffer = new char[bufferSize];
-	memset(&this->_executeData, 0, sizeof(D3DEXECUTEDATA));
+	this->_executeData = { };
 }
 
 Direct3DExecuteBuffer::~Direct3DExecuteBuffer()

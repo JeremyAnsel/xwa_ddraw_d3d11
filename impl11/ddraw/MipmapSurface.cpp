@@ -514,7 +514,7 @@ HRESULT MipmapSurface::GetSurfaceDesc(
 		return DDERR_INVALIDPARAMS;
 	}
 
-	memset(lpDDSurfaceDesc, 0, sizeof(DDSURFACEDESC));
+	*lpDDSurfaceDesc = {};
 	lpDDSurfaceDesc->dwSize = sizeof(DDSURFACEDESC);
 	lpDDSurfaceDesc->dwFlags = DDSD_CAPS | DDSD_PIXELFORMAT | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PITCH | DDSD_MIPMAPCOUNT;
 	lpDDSurfaceDesc->ddsCaps.dwCaps = DDSCAPS_TEXTURE | DDSCAPS_MIPMAP | DDSCAPS_SYSTEMMEMORY;
@@ -594,7 +594,7 @@ HRESULT MipmapSurface::Lock(
 
 	if (lpDestRect == nullptr)
 	{
-		memset(lpDDSurfaceDesc, 0, sizeof(DDSURFACEDESC));
+		*lpDDSurfaceDesc = {};
 		lpDDSurfaceDesc->dwSize = sizeof(DDSURFACEDESC);
 		lpDDSurfaceDesc->dwFlags = DDSD_CAPS | DDSD_PIXELFORMAT | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PITCH | DDSD_LPSURFACE;
 		lpDDSurfaceDesc->ddsCaps.dwCaps = DDSCAPS_TEXTURE | DDSCAPS_SYSTEMMEMORY;

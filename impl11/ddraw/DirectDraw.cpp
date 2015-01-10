@@ -34,6 +34,10 @@ HRESULT DirectDraw::QueryInterface(
 	{
 		str << " IDirectDraw2";
 	}
+	else if (riid == IID_IDirectDraw4)
+	{
+		str << " IDirectDraw4";
+	}
 	else if (riid == IID_IDirect3D)
 	{
 		str << " IDirect3D";

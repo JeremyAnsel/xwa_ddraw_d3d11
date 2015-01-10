@@ -488,7 +488,7 @@ HRESULT PrimarySurface::Flip(
 					{
 						static bool messageShown = false;
 
-						if (!messageShown) 
+						if (!messageShown)
 						{
 							MessageBox(nullptr, _com_error(hr).ErrorMessage(), __FUNCTION__, MB_ICONERROR);
 						}
@@ -790,7 +790,7 @@ HRESULT PrimarySurface::GetSurfaceDesc(
 		return DDERR_INVALIDPARAMS;
 	}
 
-	memset(lpDDSurfaceDesc, 0, sizeof(DDSURFACEDESC));
+	*lpDDSurfaceDesc = {};
 	lpDDSurfaceDesc->dwSize = sizeof(DDSURFACEDESC);
 	lpDDSurfaceDesc->dwFlags = DDSD_CAPS | DDSD_PIXELFORMAT | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PITCH;
 	lpDDSurfaceDesc->ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE | DDSCAPS_VIDEOMEMORY;

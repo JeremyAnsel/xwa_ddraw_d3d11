@@ -638,7 +638,7 @@ HRESULT BackbufferSurface::GetSurfaceDesc(
 		return DDERR_INVALIDPARAMS;
 	}
 
-	memset(lpDDSurfaceDesc, 0, sizeof(DDSURFACEDESC));
+	*lpDDSurfaceDesc = {};
 	lpDDSurfaceDesc->dwSize = sizeof(DDSURFACEDESC);
 	lpDDSurfaceDesc->dwFlags = DDSD_CAPS | DDSD_PIXELFORMAT | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PITCH;
 	lpDDSurfaceDesc->ddsCaps.dwCaps = DDSCAPS_BACKBUFFER | DDSCAPS_VIDEOMEMORY;
@@ -726,8 +726,8 @@ HRESULT BackbufferSurface::Lock(
 	}
 
 	if (lpDestRect == nullptr)
-	{		
-		memset(lpDDSurfaceDesc, 0, sizeof(DDSURFACEDESC));
+	{
+		*lpDDSurfaceDesc = {};
 		lpDDSurfaceDesc->dwSize = sizeof(DDSURFACEDESC);
 		lpDDSurfaceDesc->dwFlags = DDSD_CAPS | DDSD_PIXELFORMAT | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PITCH | DDSD_LPSURFACE;
 		lpDDSurfaceDesc->ddsCaps.dwCaps = DDSCAPS_BACKBUFFER | DDSCAPS_VIDEOMEMORY;

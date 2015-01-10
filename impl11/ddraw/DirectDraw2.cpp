@@ -195,9 +195,7 @@ HRESULT DirectDraw2::EnumDisplayModes(
 		return DDERR_INVALIDPARAMS;
 	}
 
-	DDSURFACEDESC sd;
-	memset(&sd, 0, sizeof(DDSURFACEDESC));
-
+	DDSURFACEDESC sd{};
 	sd.dwSize = sizeof(DDSURFACEDESC);
 	sd.dwFlags = DDSD_PIXELFORMAT | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PITCH;
 

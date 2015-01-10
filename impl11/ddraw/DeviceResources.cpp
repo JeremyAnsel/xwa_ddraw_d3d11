@@ -53,8 +53,7 @@ DeviceResources::DeviceResources()
 
 	this->_backbufferWidth = 0;
 	this->_backbufferHeight = 0;
-	DXGI_RATIONAL t = { 0, 1 };
-	this->_refreshRate = t;
+	this->_refreshRate = { 0, 1 };
 
 	const float color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	memcpy(this->clearColor, &color, sizeof(color));
@@ -137,8 +136,8 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 	this->_offscreenBuffer.Release();
 	this->_backBuffer.Release();
 	this->_swapChain.Release();
-	DXGI_RATIONAL t = { 0, 1 }; 
-	this->_refreshRate = t;
+
+	this->_refreshRate = { 0, 1 };
 
 	if (hWnd != nullptr)
 	{
@@ -159,8 +158,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			}
 		}
 
-		DXGI_MODE_DESC md;
-		memset(&md, 0, sizeof(DXGI_MODE_DESC));
+		DXGI_MODE_DESC md{};
 
 		if (SUCCEEDED(hr))
 		{
@@ -171,8 +169,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 
 		if (SUCCEEDED(hr))
 		{
-			DXGI_SWAP_CHAIN_DESC sd;
-			memset(&sd, 0, sizeof(DXGI_SWAP_CHAIN_DESC));
+			DXGI_SWAP_CHAIN_DESC sd{};
 			sd.BufferCount = 2;
 			sd.SwapEffect = DXGI_SWAP_EFFECT_SEQUENTIAL;
 			sd.BufferDesc.Width = 0;
@@ -322,8 +319,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 
 		if (SUCCEEDED(hr))
 		{
-			D3D11_SHADER_RESOURCE_VIEW_DESC textureViewDesc;
-			memset(&textureViewDesc, 0, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
+			D3D11_SHADER_RESOURCE_VIEW_DESC textureViewDesc{};
 			textureViewDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
 			textureViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 			textureViewDesc.Texture2D.MipLevels = 1;
@@ -664,8 +660,7 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 
 			if (SUCCEEDED(hr))
 			{
-				D3D11_SHADER_RESOURCE_VIEW_DESC textureViewDesc;
-				memset(&textureViewDesc, 0, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
+				D3D11_SHADER_RESOURCE_VIEW_DESC textureViewDesc{};
 				textureViewDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
 				textureViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 				textureViewDesc.Texture2D.MipLevels = 1;
@@ -831,8 +826,6 @@ HRESULT DeviceResources::RetrieveBackBuffer(char* buffer, DWORD width, DWORD hei
 
 	return hr;
 }
-
-#define D3D_FL9_1_DEFAULT_MAX_ANISOTROPY 2
 
 UINT DeviceResources::GetMaxAnisotropy()
 {
