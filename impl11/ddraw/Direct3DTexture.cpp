@@ -217,16 +217,6 @@ HRESULT Direct3DTexture::Load(
 	Direct3DTexture* d3dTexture = (Direct3DTexture*)lpD3DTexture;
 	TextureSurface* surface = d3dTexture->_surface;
 
-	// debug texture vith name
-//	if (surface->_buffer[0] == 0 && surface->_buffer[1] != 0)
-//	{
-//#if LOGGER
-//		str.str("");
-//		str << "\ttex " << (const char*)(surface->_buffer + 1);
-//		LogText(str.str());
-//#endif
-//	}
-
 	if (d3dTexture->_textureView)
 	{
 #if LOGGER
