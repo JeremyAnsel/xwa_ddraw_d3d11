@@ -1,3 +1,6 @@
+// Copyright (c) 2014 Jérémy Ansel
+// Licensed under the MIT license. See LICENSE.txt
+
 
 Texture2D texture0 : register(t0);
 SamplerState sampler0 : register(s0);

@@ -1,7 +1,8 @@
-This is an implementation of ddraw.dll using Direct3D 11.
+﻿This is an implementation of ddraw.dll using Direct3D 11.
 It is intented to be used with the X-Wing Alliance game.
 More info at xwaupgrade.com:
 http://www.xwaupgrade.com/phpBB3008/viewtopic.php?f=10&t=11167
+
 
 *** Requirements ***
 
@@ -28,7 +29,9 @@ Note:
 You may want to use XWA Hacker by Reimar (http://sourceforge.net/projects/xwahacker/files/) to set the resolution.
 
 
-*** Known issues ***
+*** License ***
+
+xwa_ddraw_d3d11 is licensed under the MIT license. See LICENSE.txt
 
 
 *** Credits ***

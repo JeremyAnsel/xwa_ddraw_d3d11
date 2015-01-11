@@ -1,3 +1,6 @@
+// Copyright (c) 2014 Jérémy Ansel
+// Licensed under the MIT license. See LICENSE.txt
+
 #pragma once
 
 class Direct3DViewport : public IDirect3DViewport3
