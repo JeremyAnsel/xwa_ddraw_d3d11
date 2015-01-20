@@ -12,6 +12,8 @@ public:
 	bool MultisamplingAntialiasingEnabled;
 	bool AnisotropicFilteringEnabled;
 	bool WireframeFillMode;
+
+	float Concourse3DScale;
 };
 
 extern Config g_config;

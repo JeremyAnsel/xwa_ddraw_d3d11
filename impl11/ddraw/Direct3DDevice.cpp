@@ -574,12 +574,14 @@ HRESULT Direct3DDevice::Execute(
 		{
 			if (this->_deviceResources->_backbufferHeight * this->_deviceResources->_displayWidth <= this->_deviceResources->_backbufferWidth * this->_deviceResources->_displayHeight)
 			{
-				scale = 0.5f * (float)this->_deviceResources->_backbufferHeight / (float)this->_deviceResources->_displayHeight;
+				scale = (float)this->_deviceResources->_backbufferHeight / (float)this->_deviceResources->_displayHeight;
 			}
 			else
 			{
-				scale = 0.5f * (float)this->_deviceResources->_backbufferWidth / (float)this->_deviceResources->_displayWidth;
+				scale = (float)this->_deviceResources->_backbufferWidth / (float)this->_deviceResources->_displayWidth;
 			}
+
+			scale *= g_config.Concourse3DScale;
 		}
 
 		D3D11_VIEWPORT viewport;

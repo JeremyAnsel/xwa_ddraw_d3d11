@@ -19,6 +19,8 @@ Config::Config()
 	this->AnisotropicFilteringEnabled = true;
 	this->WireframeFillMode = false;
 
+	this->Concourse3DScale = 0.5f;
+
 	ifstream file("ddraw.cfg");
 
 	if (file.is_open())
@@ -65,6 +67,10 @@ Config::Config()
 			else if (name == "FillWireframe")
 			{
 				this->WireframeFillMode = stoi(value) != 0;
+			}
+			else if (name == "Concourse3DScale")
+			{
+				this->Concourse3DScale = stof(value);
 			}
 		}
 	}
