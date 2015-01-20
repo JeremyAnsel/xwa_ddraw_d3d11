@@ -682,10 +682,30 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 	this->_d3dDeviceContext->PSSetShader(this->_mainPixelShader, nullptr, 0);
 	this->_d3dDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	UINT w = g_config.AspectRatioPreserved ? (this->_backbufferHeight * width / height) : this->_backbufferWidth;
-	UINT h = this->_backbufferHeight;
+	UINT w;
+	UINT h;
+
+	if (g_config.AspectRatioPreserved)
+	{
+		if (this->_backbufferHeight * width <= this->_backbufferWidth * height)
+		{
+			w = this->_backbufferHeight * width / height;
+			h = this->_backbufferHeight;
+		}
+		else
+		{
+			w = this->_backbufferWidth;
+			h = this->_backbufferWidth * height / width;
+		}
+	}
+	else
+	{
+		w = this->_backbufferWidth;
+		h = this->_backbufferHeight;
+	}
+
 	UINT left = (this->_backbufferWidth - w) / 2;
-	UINT top = 0;
+	UINT top = (this->_backbufferHeight - h) / 2;
 
 	D3D11_VIEWPORT viewport;
 	viewport.TopLeftX = (float)left;

@@ -539,10 +539,30 @@ HRESULT Direct3DDevice::Execute(
 	{
 		step = "ConstantBuffer";
 
-		UINT w = g_config.AspectRatioPreserved ? (this->_deviceResources->_backbufferHeight * this->_deviceResources->_displayWidth / this->_deviceResources->_displayHeight) : this->_deviceResources->_backbufferWidth;
-		UINT h = this->_deviceResources->_backbufferHeight;
+		UINT w;
+		UINT h;
+
+		if (g_config.AspectRatioPreserved)
+		{
+			if (this->_deviceResources->_backbufferHeight * this->_deviceResources->_displayWidth <= this->_deviceResources->_backbufferWidth * this->_deviceResources->_displayHeight)
+			{
+				w = this->_deviceResources->_backbufferHeight * this->_deviceResources->_displayWidth / this->_deviceResources->_displayHeight;
+				h = this->_deviceResources->_backbufferHeight;
+			}
+			else
+			{
+				w = this->_deviceResources->_backbufferWidth;
+				h = this->_deviceResources->_backbufferWidth * this->_deviceResources->_displayHeight / this->_deviceResources->_displayWidth;
+			}
+		}
+		else
+		{
+			w = this->_deviceResources->_backbufferWidth;
+			h = this->_deviceResources->_backbufferHeight;
+		}
+
 		UINT left = (this->_deviceResources->_backbufferWidth - w) / 2;
-		UINT top = 0;
+		UINT top = (this->_deviceResources->_backbufferHeight - h) / 2;
 
 		float scale;
 
@@ -552,7 +572,14 @@ HRESULT Direct3DDevice::Execute(
 		}
 		else
 		{
-			scale = (float)this->_deviceResources->_backbufferHeight / (float)this->_deviceResources->_displayHeight;
+			if (this->_deviceResources->_backbufferHeight * this->_deviceResources->_displayWidth <= this->_deviceResources->_backbufferWidth * this->_deviceResources->_displayHeight)
+			{
+				scale = 0.5f * (float)this->_deviceResources->_backbufferHeight / (float)this->_deviceResources->_displayHeight;
+			}
+			else
+			{
+				scale = 0.5f * (float)this->_deviceResources->_backbufferWidth / (float)this->_deviceResources->_displayWidth;
+			}
 		}
 
 		D3D11_VIEWPORT viewport;

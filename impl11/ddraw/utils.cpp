@@ -486,8 +486,26 @@ void scaleSurface(char* dest, DWORD destWidth, DWORD destHeight, DWORD destBpp, 
 		Rect rc(0, 0, destWidth, destHeight);
 
 		Rect srcRc;
-		srcRc.Width = g_config.AspectRatioPreserved ? (srcHeight * destWidth / destHeight) : srcWidth;
-		srcRc.Height = srcHeight;
+
+		if (g_config.AspectRatioPreserved)
+		{
+			if (srcHeight * destWidth <= srcWidth * destHeight)
+			{
+				srcRc.Width = srcHeight * destWidth / destHeight;
+				srcRc.Height = srcHeight;
+			}
+			else
+			{
+				srcRc.Width = srcWidth;
+				srcRc.Height = srcWidth * destHeight / destWidth;
+			}
+		}
+		else
+		{
+			srcRc.Width = srcWidth;
+			srcRc.Height = srcHeight;
+		}
+
 		srcRc.X = (srcWidth - srcRc.Width) / 2;
 		srcRc.Y = (srcHeight - srcRc.Height) / 2;
 
