@@ -602,3 +602,71 @@ ColorConverterTables::ColorConverterTables()
 }
 
 ColorConverterTables g_colorConverterTables;
+
+#if LOGGER
+
+int GetEncoderClsid(const WCHAR* format, CLSID* pClsid)
+{
+	UINT num = 0;
+	UINT size = 0;
+
+	ImageCodecInfo* pImageCodecInfo = nullptr;
+
+	GetImageEncodersSize(&num, &size);
+	if (size == 0)
+		return -1;  // Failure
+
+	pImageCodecInfo = (ImageCodecInfo*)(malloc(size));
+	if (pImageCodecInfo == nullptr)
+		return -1;  // Failure
+
+	GetImageEncoders(num, size, pImageCodecInfo);
+
+	for (UINT j = 0; j < num; ++j)
+	{
+		if (wcscmp(pImageCodecInfo[j].MimeType, format) == 0)
+		{
+			*pClsid = pImageCodecInfo[j].Clsid;
+			free(pImageCodecInfo);
+			return j;  // Success
+		}
+	}
+
+	free(pImageCodecInfo);
+	return -1;  // Failure
+}
+
+void saveSurface(std::wstring name, char* buffer, DWORD width, DWORD height, DWORD bpp)
+{
+	if (g_gdiInitializer.hasError())
+		return;
+
+	static int index = 0;
+	std::wstring filename = name + std::to_wstring(index) + L".png";
+	index++;
+
+	char* image;
+
+	if (bpp == 2)
+	{
+		image = new char[width * height * 4];
+		copySurface(image, width, height, 4, buffer, width, height, bpp, 0, 0, nullptr, false);
+	}
+	else
+	{
+		image = buffer;
+	}
+
+	std::unique_ptr<Bitmap> bitmap(new Bitmap(width, height, width * 4, PixelFormat32bppRGB, (BYTE*)image));
+
+	CLSID pngClsid;
+	GetEncoderClsid(L"image/png", &pngClsid);
+	bitmap->Save(filename.c_str(), &pngClsid, nullptr);
+
+	if (bpp == 2)
+	{
+		delete[] image;
+	}
+}
+
+#endif
