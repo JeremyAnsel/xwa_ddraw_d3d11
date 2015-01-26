@@ -515,7 +515,25 @@ void scaleSurface(char* dest, DWORD destWidth, DWORD destHeight, DWORD destBpp, 
 
 			if (bitmap->LockBits(&rc, ImageLockModeRead, bitmap->GetPixelFormat(), &data) == 0)
 			{
-				memcpy(dest, data.Scan0, destWidth * destHeight * destBpp);
+				int rowLength = destWidth * destBpp;
+
+				if (rowLength == data.Stride)
+				{
+					memcpy(dest, data.Scan0, destHeight * rowLength);
+				}
+				else
+				{
+					char* srcBuffer = (char*)data.Scan0;
+					char* destBuffer = dest;
+
+					for (int y = 0; y < destHeight; y++)
+					{
+						memcpy(destBuffer, srcBuffer, rowLength);
+
+						srcBuffer += data.Stride;
+						destBuffer += rowLength;
+					}
+				}
 
 				bitmap->UnlockBits(&data);
 			}

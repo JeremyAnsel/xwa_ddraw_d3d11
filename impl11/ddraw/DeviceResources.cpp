@@ -544,6 +544,7 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 	char* tempBuffer = nullptr;
 	ComPtr<ID3D11Texture2D> tempTexture;
 	ComPtr<ID3D11ShaderResourceView> tempTextureView;
+	DWORD pitchDelta;
 
 	void* buffer = nullptr;
 
@@ -557,6 +558,7 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 			if (SUCCEEDED(hr))
 			{
 				buffer = displayMap.pData;
+				pitchDelta = displayMap.RowPitch - width * 4;
 			}
 		}
 		else
@@ -564,6 +566,7 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 			step = "tempTexture";
 			tempBuffer = new char[width * height * 4];
 			buffer = tempBuffer;
+			pitchDelta = 0;
 		}
 	}
 
@@ -575,33 +578,46 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 			{
 				unsigned short* srcColors = (unsigned short*)src;
 				unsigned int* colors = (unsigned int*)buffer;
-				int length = width * height;
 
-				for (int i = 0; i < length; i++)
+				for (int y = 0; y < height; y++)
 				{
-					unsigned short color16 = srcColors[i];
+					for (int x = 0; x < width; x++)
+					{
+						unsigned short color16 = *srcColors;
+						srcColors++;
 
-					if (color16 == 0x2000)
-					{
-						colors[i] = 0xff000000;
+						if (color16 == 0x2000)
+						{
+							*colors = 0xff000000;
+						}
+						else
+						{
+							*colors = convertColorB5G6R5toB8G8R8X8(color16);
+						}
+
+						colors++;
 					}
-					else
-					{
-						colors[i] = convertColorB5G6R5toB8G8R8X8(color16);
-					}
+
+					colors = (unsigned int*)((char*)colors + pitchDelta);
 				}
 			}
 			else
 			{
 				unsigned short* srcColors = (unsigned short*)src;
 				unsigned int* colors = (unsigned int*)buffer;
-				int length = width * height;
 
-				for (int i = 0; i < length; i++)
+				for (int y = 0; y < height; y++)
 				{
-					unsigned short color16 = srcColors[i];
+					for (int x = 0; x < width; x++)
+					{
+						unsigned short color16 = *srcColors;
+						srcColors++;
 
-					colors[i] = convertColorB5G6R5toB8G8R8X8(color16);
+						*colors = convertColorB5G6R5toB8G8R8X8(color16);
+						colors++;
+					}
+
+					colors = (unsigned int*)((char*)colors + pitchDelta);
 				}
 			}
 		}
@@ -611,25 +627,49 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 			{
 				unsigned int* srcColors = (unsigned int*)src;
 				unsigned int* colors = (unsigned int*)buffer;
-				int length = width * height;
 
-				for (int i = 0; i < length; i++)
+				for (int y = 0; y < height; y++)
 				{
-					unsigned int color32 = srcColors[i];
+					for (int x = 0; x < width; x++)
+					{
+						unsigned int color32 = *srcColors;
+						srcColors++;
 
-					if (color32 == 0x200000)
-					{
-						colors[i] = 0xff000000;
+						if (color32 == 0x200000)
+						{
+							*colors = 0xff000000;
+						}
+						else
+						{
+							*colors = color32 & 0xffffff;
+						}
+
+						colors++;
 					}
-					else
-					{
-						colors[i] = color32 & 0xffffff;
-					}
+
+					colors = (unsigned int*)((char*)colors + pitchDelta);
 				}
 			}
 			else
 			{
-				memcpy(buffer, src, width * height * 4);
+				if (pitchDelta == 0)
+				{
+					memcpy(buffer, src, width * height * 4);
+				}
+				else
+				{
+					unsigned int* srcColors = (unsigned int*)src;
+					unsigned int* colors = (unsigned int*)buffer;
+
+					for (int y = 0; y < height; y++)
+					{
+						memcpy(colors, srcColors, width * 4);
+						srcColors += width;
+						colors += width;
+
+						colors = (unsigned int*)((char*)colors + pitchDelta);
+					}
+				}
 			}
 		}
 	}
@@ -819,13 +859,35 @@ HRESULT DeviceResources::RetrieveBackBuffer(char* buffer, DWORD width, DWORD hei
 			{
 				step = "copy";
 
-				if (bpp == 4 && width == this->_backbufferWidth && height == this->_backbufferHeight)
+				if (bpp == 4 && width == this->_backbufferWidth && height == this->_backbufferHeight && this->_backbufferWidth * 4 == map.RowPitch)
 				{
 					memcpy(buffer, map.pData, width * height * 4);
 				}
 				else
 				{
-					scaleSurface(buffer, width, height, bpp, (char*)map.pData, this->_backbufferWidth, this->_backbufferHeight, 4);
+					if (this->_backbufferWidth * 4 == map.RowPitch)
+					{
+						scaleSurface(buffer, width, height, bpp, (char*)map.pData, this->_backbufferWidth, this->_backbufferHeight, 4);
+					}
+					else
+					{
+						char* buffer2 = new char[this->_backbufferWidth * this->_backbufferHeight * 4];
+
+						unsigned int* srcColors = (unsigned int*)map.pData;
+						unsigned int* colors = (unsigned int*)buffer2;
+
+						for (int y = 0; y < this->_backbufferHeight; y++)
+						{
+							memcpy(colors, srcColors, this->_backbufferWidth * 4);
+
+							srcColors = (unsigned int*)((char*)srcColors + map.RowPitch);
+							colors += this->_backbufferWidth;
+						}
+
+						scaleSurface(buffer, width, height, bpp, buffer2, this->_backbufferWidth, this->_backbufferHeight, 4);
+
+						delete[] buffer2;
+					}
 				}
 
 				this->_d3dDeviceContext->Unmap(texture, 0);
