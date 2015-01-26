@@ -19,7 +19,7 @@ Config::Config()
 	this->AnisotropicFilteringEnabled = true;
 	this->WireframeFillMode = false;
 
-	this->Concourse3DScale = 0.5f;
+	this->Concourse3DScale = 0.6f;
 
 	ifstream file("ddraw.cfg");
 
