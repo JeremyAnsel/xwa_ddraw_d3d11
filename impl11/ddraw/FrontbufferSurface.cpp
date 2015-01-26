@@ -265,9 +265,10 @@ HRESULT FrontbufferSurface::BltFast(
 			LogText(str.str());
 #endif
 
-			this->_deviceResources->RenderMain(this->_buffer2, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, 2);
-
 			this->_deviceResources->RetrieveBackBuffer(this->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, 2);
+			copySurface(this->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, 2, this->_buffer2, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, 2, 0, 0, nullptr, true);
+
+			this->_deviceResources->RenderMain(this->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, 2, false);
 
 			return DD_OK;
 		}

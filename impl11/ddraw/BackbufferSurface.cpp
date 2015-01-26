@@ -773,7 +773,6 @@ HRESULT BackbufferSurface::Lock(
 
 				this->_deviceResources->RetrieveBackBuffer(this->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, this->_deviceResources->_displayBpp);
 			}
-
 		}
 
 		return DD_OK;
