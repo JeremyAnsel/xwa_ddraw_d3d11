@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE.txt
 
 #include "config.h"
+#include "common.h"
 
 #include <string>
 #include <fstream>
@@ -22,7 +23,24 @@ Config::Config()
 
 	this->Concourse3DScale = 0.6f;
 
-	ifstream file("ddraw.cfg");
+	// Try to always load config from executable path, not CWD
+	char execPath[MAX_PATH] = "";
+	HMODULE module = GetModuleHandle(NULL);
+	if (module)
+	{
+		GetModuleFileNameA(module, execPath, sizeof(execPath));
+		char *end = strrchr(execPath, '\\');
+		if (end)
+		{
+			end[1] = 0;
+		}
+		else
+		{
+			execPath[0] = 0;
+		}
+	}
+
+	ifstream file(std::string(execPath) + "ddraw.cfg");
 
 	if (file.is_open())
 	{
