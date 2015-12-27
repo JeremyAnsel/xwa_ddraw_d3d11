@@ -445,9 +445,24 @@ HRESULT BackbufferSurface::GetAttachedSurface(
 {
 #if LOGGER
 	std::ostringstream str;
-	str << this << " " << __FUNCTION__;
+	str << this << " " << __FUNCTION__ << " " << lpDDSCaps->dwCaps;
 	LogText(str.str());
 #endif
+
+	if (lpDDSCaps->dwCaps == DDSCAPS_ZBUFFER && this->_deviceResources->_depthSurface)
+	{
+		if (lplpDDAttachedSurface)
+		{
+			*lplpDDAttachedSurface = (LPDIRECTDRAWSURFACE)this->_deviceResources->_depthSurface;
+		}
+
+#if LOGGER
+		str.str("\tDD_OK");
+		LogText(str.str());
+#endif
+
+		return DD_OK;
+	}
 
 #if LOGGER
 	str.str("\tDDERR_UNSUPPORTED");
