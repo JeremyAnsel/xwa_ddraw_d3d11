@@ -762,7 +762,9 @@ HRESULT BackbufferSurface::Lock(
 
 		if (this->_deviceResources->_frontbufferSurface != nullptr)
 		{
-			memset(this->_buffer, 0x80, this->_bufferSize);
+			// Do not clear to allow multiple Lock-Unlock sequences to work
+			// at least for _displayBpp == 2 (for == 4 the hack in Unlock breaks)
+			//memset(this->_buffer, 0x80, this->_bufferSize);
 			lpDDSurfaceDesc->lPitch = this->_deviceResources->_displayWidth * 2;
 		}
 		else
@@ -919,6 +921,7 @@ HRESULT BackbufferSurface::Unlock(
 	LogText(str.str());
 #endif
 
+	// Fixup briefing text when xwahacker was used to force _displayBpp == 4
 	if (this->_deviceResources->_frontbufferSurface != nullptr && this->_deviceResources->_displayBpp == 4)
 	{
 		int length = this->_deviceResources->_displayWidth * this->_deviceResources->_displayHeight;
