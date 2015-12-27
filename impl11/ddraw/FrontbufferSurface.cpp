@@ -366,7 +366,7 @@ HRESULT FrontbufferSurface::GetAttachedSurface(
 {
 #if LOGGER
 	std::ostringstream str;
-	str << this << " " << __FUNCTION__;
+	str << this << " " << __FUNCTION__ << " " << lpDDSCaps->dwCaps;
 	LogText(str.str());
 #endif
 
