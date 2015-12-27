@@ -13,6 +13,8 @@ public:
 	bool AnisotropicFilteringEnabled;
 	bool WireframeFillMode;
 
+	bool XWAMode;
+
 	float Concourse3DScale;
 };
 

@@ -566,7 +566,7 @@ HRESULT Direct3DDevice::Execute(
 
 		float scale;
 
-		if (this->_deviceResources->_frontbufferSurface == nullptr)
+		if (!g_config.XWAMode || this->_deviceResources->_frontbufferSurface == nullptr)
 		{
 			scale = 1.0f;
 		}

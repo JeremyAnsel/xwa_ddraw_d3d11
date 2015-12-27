@@ -18,6 +18,7 @@ Config::Config()
 	this->MultisamplingAntialiasingEnabled = true;
 	this->AnisotropicFilteringEnabled = true;
 	this->WireframeFillMode = false;
+	this->XWAMode = true;
 
 	this->Concourse3DScale = 0.6f;
 
@@ -67,6 +68,10 @@ Config::Config()
 			else if (name == "FillWireframe")
 			{
 				this->WireframeFillMode = stoi(value) != 0;
+			}
+			else if (name == "XWAMode")
+			{
+				this->XWAMode = stoi(value) != 0;
 			}
 			else if (name == "Concourse3DScale")
 			{

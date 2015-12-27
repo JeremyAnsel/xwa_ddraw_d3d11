@@ -398,7 +398,7 @@ HRESULT PrimarySurface::Flip(
 
 		if (lpDDSurfaceTargetOverride == this->_deviceResources->_backbufferSurface)
 		{
-			if (this->_deviceResources->_frontbufferSurface == nullptr)
+			if (!g_config.XWAMode || this->_deviceResources->_frontbufferSurface == nullptr)
 			{
 				if (FAILED(this->_deviceResources->RenderMain(this->_deviceResources->_backbufferSurface->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, this->_deviceResources->_displayBpp)))
 					return DDERR_GENERIC;

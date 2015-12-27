@@ -670,7 +670,7 @@ HRESULT BackbufferSurface::GetSurfaceDesc(
 	lpDDSurfaceDesc->dwWidth = this->_deviceResources->_displayWidth;
 	lpDDSurfaceDesc->lPitch = this->_deviceResources->_displayWidth * this->_deviceResources->_displayBpp;
 
-	if (this->_deviceResources->_frontbufferSurface)
+	if (g_config.XWAMode && this->_deviceResources->_frontbufferSurface)
 	{
 		lpDDSurfaceDesc->lPitch = this->_deviceResources->_displayWidth * 2;
 	}
@@ -760,11 +760,9 @@ HRESULT BackbufferSurface::Lock(
 		lpDDSurfaceDesc->lPitch = this->_deviceResources->_displayWidth * this->_deviceResources->_displayBpp;
 		lpDDSurfaceDesc->lpSurface = this->_buffer;
 
-		if (this->_deviceResources->_frontbufferSurface != nullptr)
+		if (g_config.XWAMode && this->_deviceResources->_frontbufferSurface != nullptr)
 		{
-			// Do not clear to allow multiple Lock-Unlock sequences to work
-			// at least for _displayBpp == 2 (for == 4 the hack in Unlock breaks)
-			//memset(this->_buffer, 0x80, this->_bufferSize);
+			memset(this->_buffer, 0x80, this->_bufferSize);
 			lpDDSurfaceDesc->lPitch = this->_deviceResources->_displayWidth * 2;
 		}
 		else
@@ -779,7 +777,7 @@ HRESULT BackbufferSurface::Lock(
 				this->_deviceResources->inSceneBackbufferLocked = true;
 			}
 
-			if (!this->_deviceResources->inScene && this->_deviceResources->sceneRenderedEmpty)
+			if (g_config.XWAMode && !this->_deviceResources->inScene && this->_deviceResources->sceneRenderedEmpty)
 			{
 				this->_deviceResources->sceneRenderedEmpty = false;
 
@@ -922,7 +920,7 @@ HRESULT BackbufferSurface::Unlock(
 #endif
 
 	// Fixup briefing text when xwahacker was used to force _displayBpp == 4
-	if (this->_deviceResources->_frontbufferSurface != nullptr && this->_deviceResources->_displayBpp == 4)
+	if (g_config.XWAMode && this->_deviceResources->_frontbufferSurface != nullptr && this->_deviceResources->_displayBpp == 4)
 	{
 		int length = this->_deviceResources->_displayWidth * this->_deviceResources->_displayHeight;
 
