@@ -529,6 +529,9 @@ HRESULT PrimarySurface::Flip(
 		{
 			hr = DD_OK;
 
+			// Draw pending backbuffer updates
+			this->_deviceResources->RenderMain(this->_deviceResources->_backbufferSurface->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, this->_deviceResources->_displayBpp);
+
 			this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0, this->_deviceResources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
 
 			if (FAILED(hr = this->_deviceResources->_swapChain->Present(1, 0)))
