@@ -7,6 +7,7 @@
 #include "Direct3DDevice.h"
 #include "FrontbufferSurface.h"
 #include "OffscreenSurface.h"
+#include "DepthSurface.h"
 
 BackbufferSurface::BackbufferSurface(DeviceResources* deviceResources)
 {
@@ -140,6 +141,8 @@ HRESULT BackbufferSurface::AddAttachedSurface(
 		str.str("\tDD_OK");
 		LogText(str.str());
 #endif
+
+		this->_deviceResources->_depthSurface->AddRef();
 
 		return DD_OK;
 	}
