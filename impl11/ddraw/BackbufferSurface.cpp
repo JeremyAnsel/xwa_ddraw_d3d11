@@ -200,18 +200,18 @@ HRESULT BackbufferSurface::Blt(
 			return DDERR_INVALIDPARAMS;
 		}
 
-		//if (this->_deviceResources->_displayBpp == 2)
-		//{
-		//	unsigned short* buffer = (unsigned short*)this->_buffer;
-		//	int length = this->_bufferSize / 2;
-		//	unsigned short color = (unsigned short)lpDDBltFx->dwFillColor;
+		unsigned short color = (unsigned short)lpDDBltFx->dwFillColor;
+		if (color != 0 && this->_deviceResources->_displayBpp == 2)
+		{
+			unsigned short* buffer = (unsigned short*)this->_buffer;
+			int length = this->_bufferSize / 2;
 
-		//	for (int i = 0; i < length; i++)
-		//	{
-		//		buffer[i] = color;
-		//	}
-		//}
-		//else
+			for (int i = 0; i < length; i++)
+			{
+				buffer[i] = color;
+			}
+		}
+		else
 		//{
 		//	unsigned int* buffer = (unsigned int*)this->_buffer;
 		//	int length = this->_bufferSize / 4;
