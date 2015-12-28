@@ -7,12 +7,14 @@
 #ifdef _DEBUG
 #include "..\Debug\MainVertexShader.h"
 #include "..\Debug\MainPixelShader.h"
+#include "..\Debug\SmoothScalePixelShader.h"
 #include "..\Debug\VertexShader.h"
 #include "..\Debug\PixelShaderTexture.h"
 #include "..\Debug\PixelShaderSolid.h"
 #else
 #include "..\Release\MainVertexShader.h"
 #include "..\Release\MainPixelShader.h"
+#include "..\Release\SmoothScalePixelShader.h"
 #include "..\Release\VertexShader.h"
 #include "..\Release\PixelShaderTexture.h"
 #include "..\Release\PixelShaderSolid.h"
@@ -371,8 +373,16 @@ HRESULT DeviceResources::LoadMainResources()
 	if (FAILED(hr = this->_d3dDevice->CreateInputLayout(vertexLayoutDesc, ARRAYSIZE(vertexLayoutDesc), g_MainVertexShader, sizeof(g_MainVertexShader), &_mainInputLayout)))
 		return hr;
 
-	if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_MainPixelShader, sizeof(g_MainPixelShader), nullptr, &_mainPixelShader)))
-		return hr;
+	if (g_config.ScalingType)
+	{
+		if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_SmoothScalePixelShader, sizeof(g_SmoothScalePixelShader), nullptr, &_mainPixelShader)))
+			return hr;
+	}
+	else
+	{
+		if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_MainPixelShader, sizeof(g_MainPixelShader), nullptr, &_mainPixelShader)))
+			return hr;
+	}
 
 	D3D11_RASTERIZER_DESC rsDesc;
 	rsDesc.FillMode = D3D11_FILL_SOLID;
@@ -414,6 +424,14 @@ HRESULT DeviceResources::LoadMainResources()
 	blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
 	blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_ZERO;
 	blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+
+	if (g_config.ScalingType)
+	{
+		blendDesc.RenderTarget[0].BlendEnable = TRUE;
+		blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_INV_SRC_ALPHA;
+		blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_SRC_ALPHA;
+	}
+
 	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
 	blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
 	blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
@@ -764,6 +782,27 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 		this->_d3dDeviceContext->RSSetState(this->_mainRasterizerState);
 
 		this->_d3dDeviceContext->PSSetSamplers(0, 1, this->_mainSamplerState.GetAddressOf());
+
+		if (g_config.ScalingType)
+		{
+			float texsize[4] = { static_cast<float>(width), static_cast<float>(height) };
+			D3D11_BUFFER_DESC cbDesc;
+			cbDesc.ByteWidth = 16; // We only use 8, but 16 is the minimum
+			cbDesc.Usage = D3D11_USAGE_IMMUTABLE;
+			cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+			cbDesc.CPUAccessFlags = 0;
+			cbDesc.MiscFlags = 0;
+			cbDesc.StructureByteStride = 0;
+			D3D11_SUBRESOURCE_DATA InitData;
+			InitData.pSysMem = texsize;
+			InitData.SysMemPitch = 0;
+			InitData.SysMemSlicePitch = 0;
+
+			ID3D11Buffer *texsizeBuf = NULL;
+			hr = this->_d3dDevice->CreateBuffer(&cbDesc, &InitData, &texsizeBuf);
+
+			this->_d3dDeviceContext->PSSetConstantBuffers(0, 1, &texsizeBuf);
+		}
 
 		const FLOAT factors[] = { 0.0f, 0.0f, 0.0f, 0.0f };
 		UINT mask = 0xffffffff;

@@ -12,6 +12,7 @@ public:
 	bool MultisamplingAntialiasingEnabled;
 	bool AnisotropicFilteringEnabled;
 	bool WireframeFillMode;
+	int ScalingType;
 
 	bool XWAMode;
 

@@ -87,6 +87,10 @@ Config::Config()
 			{
 				this->WireframeFillMode = stoi(value) != 0;
 			}
+			else if (name == "ScalingType")
+			{
+				this->ScalingType = stoi(value);
+			}
 			else if (name == "XWAMode")
 			{
 				this->XWAMode = stoi(value) != 0;
