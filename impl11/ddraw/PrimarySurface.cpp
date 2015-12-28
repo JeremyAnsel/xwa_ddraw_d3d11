@@ -768,6 +768,16 @@ HRESULT PrimarySurface::GetPixelFormat(
 	LogText(str.str());
 #endif
 
+	if (lpDDPixelFormat)
+	{
+		lpDDPixelFormat->dwFlags = DDPF_RGB;
+		lpDDPixelFormat->dwRGBBitCount = 16;
+		lpDDPixelFormat->dwRBitMask = 0xF800;
+		lpDDPixelFormat->dwGBitMask = 0x7E0;
+		lpDDPixelFormat->dwBBitMask = 0x1F;
+		return DD_OK;
+	}
+
 #if LOGGER
 	str.str("\tDDERR_UNSUPPORTED");
 	LogText(str.str());
