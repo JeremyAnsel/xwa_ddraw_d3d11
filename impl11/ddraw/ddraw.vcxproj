@@ -100,6 +100,7 @@
     <ClCompile Include="Direct3D.cpp" />
     <ClCompile Include="Direct3DDevice.cpp" />
     <ClCompile Include="Direct3DExecuteBuffer.cpp" />
+    <ClCompile Include="Direct3DMaterial.cpp" />
     <ClCompile Include="Direct3DTexture.cpp" />
     <ClCompile Include="Direct3DViewport.cpp" />
     <ClCompile Include="DirectDraw.cpp" />
@@ -125,6 +126,7 @@
     <ClInclude Include="Direct3D.h" />
     <ClInclude Include="Direct3DDevice.h" />
     <ClInclude Include="Direct3DExecuteBuffer.h" />
+    <ClInclude Include="Direct3DMaterial.h" />
     <ClInclude Include="Direct3DTexture.h" />
     <ClInclude Include="Direct3DViewport.h" />
     <ClInclude Include="DirectDraw.h" />

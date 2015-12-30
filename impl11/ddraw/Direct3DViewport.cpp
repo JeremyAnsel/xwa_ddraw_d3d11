@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "DeviceResources.h"
+#include "Direct3DMaterial.h"
 #include "Direct3DViewport.h"
 
 Direct3DViewport::Direct3DViewport(DeviceResources* deviceResources)
@@ -182,12 +183,12 @@ HRESULT Direct3DViewport::SetBackground(
 	LogText(str.str());
 #endif
 
-#if LOGGER
-	str.str("\tDDERR_UNSUPPORTED");
-	LogText(str.str());
-#endif
+	clearColor[0] = ((Direct3DMaterial *)hMat)->material.diffuse.r;
+	clearColor[1] = ((Direct3DMaterial *)hMat)->material.diffuse.g;
+	clearColor[2] = ((Direct3DMaterial *)hMat)->material.diffuse.b;
+	clearColor[3] = ((Direct3DMaterial *)hMat)->material.diffuse.a;
 
-	return DDERR_UNSUPPORTED;
+	return DD_OK;
 }
 
 HRESULT Direct3DViewport::GetBackground(
@@ -258,12 +259,9 @@ HRESULT Direct3DViewport::Clear(
 	LogText(str.str());
 #endif
 
-#if LOGGER
-	str.str("\tDDERR_UNSUPPORTED");
-	LogText(str.str());
-#endif
+	std::copy(clearColor, clearColor + 4, this->_deviceResources->clearColor);
 
-	return DDERR_UNSUPPORTED;
+	return DD_OK;
 }
 
 HRESULT Direct3DViewport::AddLight(

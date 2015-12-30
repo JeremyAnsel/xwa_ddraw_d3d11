@@ -4,6 +4,7 @@
 #include "common.h"
 #include "DeviceResources.h"
 #include "Direct3D.h"
+#include "Direct3DMaterial.h"
 #include "Direct3DViewport.h"
 
 Direct3D::Direct3D(DeviceResources* deviceResources)
@@ -273,12 +274,19 @@ HRESULT Direct3D::CreateMaterial(
 	LogText(str.str());
 #endif
 
+	if (lplpDirect3DMaterial == nullptr)
+	{
 #if LOGGER
-	str.str("\tDDERR_UNSUPPORTED");
-	LogText(str.str());
+		str.str("\tDDERR_INVALIDPARAMS");
+		LogText(str.str());
 #endif
 
-	return DDERR_UNSUPPORTED;
+		return DDERR_INVALIDPARAMS;
+	}
+
+	*lplpDirect3DMaterial = new Direct3DMaterial();
+
+	return DD_OK;
 }
 
 HRESULT Direct3D::CreateViewport(

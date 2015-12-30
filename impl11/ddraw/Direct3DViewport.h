@@ -58,4 +58,5 @@ public:
 	ULONG _refCount;
 
 	DeviceResources* _deviceResources;
+	float clearColor[4];
 };
