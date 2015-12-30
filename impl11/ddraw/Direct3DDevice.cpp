@@ -27,6 +27,10 @@ public:
 		this->ZWriteEnabled = TRUE;
 		this->ZFunc = D3DCMP_GREATER;
 
+		this->AlphaTestEnabled = false;
+		this->AlphaFunc = D3DCMP_ALWAYS;
+		this->AlphaRef = 0;
+
 		this->SamplerDescChanged = true;
 		this->BlendDescChanged = true;
 		this->DepthStencilDescChanged = true;
@@ -234,6 +238,9 @@ public:
 	bool SamplerDescChanged;
 	bool BlendDescChanged;
 	bool DepthStencilDescChanged;
+	bool AlphaTestEnabled;
+	D3DCMPFUNC AlphaFunc;
+	DWORD AlphaRef;
 
 private:
 	DeviceResources* _deviceResources;
@@ -486,6 +493,42 @@ HRESULT Direct3DDevice::GetStats(
 	return DDERR_UNSUPPORTED;
 }
 
+void Direct3DDevice::UpdatePixelShader(ID3D11DeviceContext *context, ID3D11PixelShader *&currentPixelShader, Direct3DTexture *texture)
+{
+	ID3D11PixelShader* pixelShader;
+
+	if (texture == nullptr)
+	{
+		ID3D11ShaderResourceView* view = nullptr;
+		context->PSSetShaderResources(0, 1, &view);
+
+		pixelShader = this->_deviceResources->_pixelShaderSolid;
+	}
+	else if (!this->_renderStates->AlphaTestEnabled || this->_renderStates->AlphaFunc == D3DCMP_ALWAYS)
+	{
+		context->PSSetShaderResources(0, 1, texture->_textureView.GetAddressOf());
+
+		pixelShader = this->_deviceResources->_pixelShaderTexture;
+	}
+	else
+	{
+		context->PSSetShaderResources(0, 1, texture->_textureView.GetAddressOf());
+
+#if LOGGER
+		if (this->_renderStates->AlphaFunc != D3DCMP_NOTEQUAL || this->_renderStates->AlphaRef != 0)
+			LogText("Unsupported alpha test setting!");
+#endif
+		pixelShader = this->_deviceResources->_pixelShaderAtestTexture;
+	}
+
+	if (currentPixelShader != pixelShader)
+	{
+		context->PSSetShader(pixelShader, nullptr, 0);
+		currentPixelShader = pixelShader;
+	}
+}
+
+
 HRESULT Direct3DDevice::Execute(
 	LPDIRECT3DEXECUTEBUFFER lpDirect3DExecuteBuffer,
 	LPDIRECT3DVIEWPORT lpDirect3DViewport,
@@ -683,6 +726,7 @@ HRESULT Direct3DDevice::Execute(
 
 		context->PSSetShader(this->_deviceResources->_pixelShaderTexture, nullptr, 0);
 		ID3D11PixelShader* currentPixelShader = this->_deviceResources->_pixelShaderTexture;
+		Direct3DTexture* currentTexture = nullptr;
 
 		UINT currentIndexLocation = 0;
 
@@ -703,29 +747,8 @@ HRESULT Direct3DDevice::Execute(
 					{
 					case D3DRENDERSTATE_TEXTUREHANDLE:
 					{
-						Direct3DTexture* texture = g_config.WireframeFillMode ? nullptr : (Direct3DTexture*)state->dwArg[0];
-						ID3D11PixelShader* pixelShader;
-
-						if (texture == nullptr)
-						{
-							ID3D11ShaderResourceView* view = nullptr;
-							context->PSSetShaderResources(0, 1, &view);
-
-							pixelShader = this->_deviceResources->_pixelShaderSolid;
-						}
-						else
-						{
-							context->PSSetShaderResources(0, 1, texture->_textureView.GetAddressOf());
-
-							pixelShader = this->_deviceResources->_pixelShaderTexture;
-						}
-
-						if (currentPixelShader != pixelShader)
-						{
-							context->PSSetShader(pixelShader, nullptr, 0);
-							currentPixelShader = pixelShader;
-						}
-
+						currentTexture = g_config.WireframeFillMode ? nullptr : (Direct3DTexture*)state->dwArg[0];
+						UpdatePixelShader(context, currentPixelShader, currentTexture);
 						break;
 					}
 
@@ -745,7 +768,18 @@ HRESULT Direct3DDevice::Execute(
 					case D3DRENDERSTATE_DESTBLEND:
 						this->_renderStates->SetDestBlend((D3DBLEND)state->dwArg[0]);
 						break;
-
+					case D3DRENDERSTATE_ALPHATESTENABLE:
+						this->_renderStates->AlphaTestEnabled = state->dwArg[0] != 0;
+						UpdatePixelShader(context, currentPixelShader, currentTexture);
+						break;
+					case D3DRENDERSTATE_ALPHAFUNC:
+						this->_renderStates->AlphaFunc = (D3DCMPFUNC)state->dwArg[0];
+						UpdatePixelShader(context, currentPixelShader, currentTexture);
+						break;
+					case D3DRENDERSTATE_ALPHAREF:
+						this->_renderStates->AlphaRef = state->dwArg[0];
+						UpdatePixelShader(context, currentPixelShader, currentTexture);
+						break;
 					case D3DRENDERSTATE_ZENABLE:
 						this->_renderStates->SetZEnabled(state->dwArg[0]);
 						break;

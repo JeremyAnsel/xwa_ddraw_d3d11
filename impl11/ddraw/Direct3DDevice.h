@@ -3,6 +3,8 @@
 
 #pragma once
 
+class Direct3DTexture;
+struct ID3D11DeviceContext;
 class RenderStates;
 
 class Direct3DDevice : IDirect3DDevice
@@ -69,4 +71,7 @@ public:
 	DWORD _maxExecuteBufferSize;
 	ComPtr<ID3D11Buffer> _vertexBuffer;
 	ComPtr<ID3D11Buffer> _indexBuffer;
+
+private:
+	void UpdatePixelShader(ID3D11DeviceContext *context, ID3D11PixelShader *&currentPixelShader, Direct3DTexture *texture);
 };
