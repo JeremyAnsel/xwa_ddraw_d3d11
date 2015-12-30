@@ -64,6 +64,7 @@ DeviceResources::DeviceResources()
 	memcpy(this->clearColor, &color, sizeof(color));
 
 	this->clearDepth = 1.0f;
+	this->clearDepthSet = true;
 
 	this->sceneRendered = false;
 	this->sceneRenderedEmpty = false;

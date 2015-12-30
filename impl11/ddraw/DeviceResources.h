@@ -73,6 +73,7 @@ public:
 
 	float clearColor[4];
 	float clearDepth;
+	bool clearDepthSet;
 	bool sceneRendered;
 	bool sceneRenderedEmpty;
 	bool inScene;

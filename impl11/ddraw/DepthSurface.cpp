@@ -141,6 +141,7 @@ HRESULT DepthSurface::Blt(
 	if ((dwFlags & DDBLT_DEPTHFILL) != 0 && lpDDBltFx != nullptr)
 	{
 		this->_deviceResources->clearDepth = *(D3DVALUE*)&lpDDBltFx->dwFillDepth;
+		this->_deviceResources->clearDepthSet = true;
 	}
 
 	return DD_OK;

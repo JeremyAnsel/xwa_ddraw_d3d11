@@ -412,6 +412,7 @@ HRESULT Direct3DViewport::Clear2(
 #endif
 
 	this->_deviceResources->clearDepth = dvZ;
+	this->_deviceResources->clearDepthSet = true;
 
 	return D3D_OK;
 }

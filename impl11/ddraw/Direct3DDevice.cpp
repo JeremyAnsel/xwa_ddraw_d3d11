@@ -1141,7 +1141,11 @@ HRESULT Direct3DDevice::BeginScene()
 		// Clear only directly after flip
 		context->ClearRenderTargetView(this->_deviceResources->_renderTargetView, this->_deviceResources->clearColor);
 	}
-	context->ClearDepthStencilView(this->_deviceResources->_depthStencilView, D3D11_CLEAR_DEPTH, this->_deviceResources->clearDepth, 0);
+	if (!this->_deviceResources->sceneRendered || this->_deviceResources->clearDepthSet)
+	{
+	    context->ClearDepthStencilView(this->_deviceResources->_depthStencilView, D3D11_CLEAR_DEPTH, this->_deviceResources->clearDepth, 0);
+		this->_deviceResources->clearDepthSet = false;
+    }
 
 	if (FAILED(this->_deviceResources->RenderMain(this->_deviceResources->_backbufferSurface->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, this->_deviceResources->_displayBpp)))
 		return D3DERR_SCENE_BEGIN_FAILED;
