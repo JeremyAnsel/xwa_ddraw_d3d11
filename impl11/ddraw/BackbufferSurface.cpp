@@ -187,10 +187,16 @@ HRESULT BackbufferSurface::Blt(
 	str << tostr_RECT(lpDestRect);
 	str << " " << lpDDSrcSurface;
 	str << tostr_RECT(lpSrcRect);
+	str << " " << dwFlags;
 
 	if ((dwFlags & DDBLT_COLORFILL) != 0 && lpDDBltFx != nullptr)
 	{
 		str << " " << (void*)lpDDBltFx->dwFillColor;
+	}
+
+	if ((dwFlags & DDBLT_ROP) != 0)
+	{
+		str << " ROP:" << lpDDBltFx->dwROP;
 	}
 
 	LogText(str.str());
@@ -234,6 +240,15 @@ HRESULT BackbufferSurface::Blt(
 
 		memset(this->_buffer, 0, this->_bufferSize);
 
+		return DD_OK;
+	}
+
+	if (lpDDSrcSurface == this->_deviceResources->_frontbufferSurface &&
+        lpDestRect->right - lpDestRect->left == lpSrcRect->right - lpSrcRect->left &&
+		lpDestRect->bottom - lpDestRect->top == lpSrcRect->bottom - lpSrcRect->top &&
+		dwFlags == DDBLT_ROP && lpDDBltFx->dwROP == SRCCOPY)
+	{
+		BltFast(lpDestRect->left, lpDestRect->top, lpDDSrcSurface, lpSrcRect, DDBLTFAST_WAIT);
 		return DD_OK;
 	}
 
