@@ -531,6 +531,11 @@ HRESULT DepthSurface::Lock(
 	LogText(str.str());
 #endif
 
+	// For now assume lock was used to clear depth
+	// Otherwise the CMD image might incorrectly use the main
+	// view depth at least in XvT/BoP
+	this->_deviceResources->clearDepthSet = true;
+
 #if LOGGER
 	str.str("\tDDERR_UNSUPPORTED");
 	LogText(str.str());
