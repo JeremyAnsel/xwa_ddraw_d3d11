@@ -243,8 +243,7 @@ HRESULT BackbufferSurface::Blt(
 		return DD_OK;
 	}
 
-	if (lpDDSrcSurface == this->_deviceResources->_frontbufferSurface &&
-        lpDestRect->right - lpDestRect->left == lpSrcRect->right - lpSrcRect->left &&
+	if (lpDestRect->right - lpDestRect->left == lpSrcRect->right - lpSrcRect->left &&
 		lpDestRect->bottom - lpDestRect->top == lpSrcRect->bottom - lpSrcRect->top &&
 		dwFlags == DDBLT_ROP && lpDDBltFx->dwROP == SRCCOPY)
 	{
@@ -337,16 +336,17 @@ HRESULT BackbufferSurface::BltFast(
 
 	if (lpDDSrcSurface != nullptr)
 	{
+		DWORD srcBpp = this->_deviceResources->_displayBpp == 1 ? 1 : 2;
 		if (lpDDSrcSurface == this->_deviceResources->_frontbufferSurface)
 		{
-			copySurface(this->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, this->_deviceResources->_displayBpp, this->_deviceResources->_frontbufferSurface->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, 2, dwX, dwY, lpSrcRect, (dwTrans & DDBLTFAST_SRCCOLORKEY) != 0);
+			copySurface(this->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, this->_deviceResources->_displayBpp, this->_deviceResources->_frontbufferSurface->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, srcBpp, dwX, dwY, lpSrcRect, (dwTrans & DDBLTFAST_SRCCOLORKEY) != 0);
 			this->_deviceResources->_frontbufferSurface->wasBltFastCalled = true;
 			return DD_OK;
 		}
 
 		if (lpDDSrcSurface == this->_deviceResources->_offscreenSurface)
 		{
-			copySurface(this->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, this->_deviceResources->_displayBpp, this->_deviceResources->_offscreenSurface->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, 2, dwX, dwY, lpSrcRect, (dwTrans & DDBLTFAST_SRCCOLORKEY) != 0);
+			copySurface(this->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, this->_deviceResources->_displayBpp, this->_deviceResources->_offscreenSurface->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, srcBpp, dwX, dwY, lpSrcRect, (dwTrans & DDBLTFAST_SRCCOLORKEY) != 0);
 			return DD_OK;
 		}
 	}
@@ -751,19 +751,7 @@ HRESULT BackbufferSurface::Lock(
 
 	if (lpDestRect == nullptr)
 	{
-		*lpDDSurfaceDesc = {};
-		lpDDSurfaceDesc->dwSize = sizeof(DDSURFACEDESC);
-		lpDDSurfaceDesc->dwFlags = DDSD_CAPS | DDSD_PIXELFORMAT | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PITCH | DDSD_LPSURFACE;
-		lpDDSurfaceDesc->ddsCaps.dwCaps = DDSCAPS_BACKBUFFER | DDSCAPS_VIDEOMEMORY;
-		lpDDSurfaceDesc->ddpfPixelFormat.dwSize = sizeof(DDPIXELFORMAT);
-		lpDDSurfaceDesc->ddpfPixelFormat.dwFlags = DDPF_RGB;
-		lpDDSurfaceDesc->ddpfPixelFormat.dwRGBBitCount = 16;
-		lpDDSurfaceDesc->ddpfPixelFormat.dwRBitMask = 0xF800;
-		lpDDSurfaceDesc->ddpfPixelFormat.dwGBitMask = 0x7E0;
-		lpDDSurfaceDesc->ddpfPixelFormat.dwBBitMask = 0x1F;
-		lpDDSurfaceDesc->dwHeight = this->_deviceResources->_displayHeight;
-		lpDDSurfaceDesc->dwWidth = this->_deviceResources->_displayWidth;
-		lpDDSurfaceDesc->lPitch = this->_deviceResources->_displayWidth * this->_deviceResources->_displayBpp;
+		this->_deviceResources->DefaultSurfaceDesc(lpDDSurfaceDesc);
 		lpDDSurfaceDesc->lpSurface = this->_buffer;
 
 		if (g_config.XWAMode && this->_deviceResources->_frontbufferSurface != nullptr)

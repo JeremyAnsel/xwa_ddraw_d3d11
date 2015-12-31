@@ -303,7 +303,22 @@ void copySurface(char* dest, DWORD destWidth, DWORD destHeight, DWORD destBpp, c
 	int h = rc.bottom - rc.top;
 	int w = rc.right - rc.left;
 
-	if (destBpp == 2)
+	if (destBpp == 1)
+	{
+		if (srcBpp == 1)
+		{
+			const char* srcBuffer = src + rc.top * srcWidth + rc.left;
+			char* destBuffer = dest + dwY * destWidth + dwX;
+			for (int y = 0; y < h; y++)
+			{
+				for (int x = 0; x < w; x++)
+				{
+					destBuffer[y * destWidth + x] = srcBuffer[y * srcWidth + x];
+				}
+			}
+		}
+	}
+	else if (destBpp == 2)
 	{
 		if (srcBpp == 2)
 		{
@@ -374,7 +389,23 @@ void copySurface(char* dest, DWORD destWidth, DWORD destHeight, DWORD destBpp, c
 	}
 	else
 	{
-		if (srcBpp == 2)
+		if (srcBpp == 1)
+		{
+			const char* srcBuffer = src + rc.top * srcWidth + rc.left;
+			unsigned int* destBuffer = (unsigned int*)dest + dwY * destWidth + dwX;
+			const unsigned *palette = nullptr;// (_primarySurface && _primarySurface->palette) ? _primarySurface->palette->palette : nullptr;
+
+			for (int y = 0; y < h; y++)
+			{
+				for (int x = 0; x < w; x++)
+				{
+					unsigned char color8 = srcBuffer[y * srcWidth + x];
+
+					destBuffer[y * destWidth + x] = palette ? palette[color8] : (color8 << 16) | (color8 << 8) | color8;
+				}
+			}
+		}
+		else if (srcBpp == 2)
 		{
 			unsigned short* srcBuffer = (unsigned short*)src + rc.top * srcWidth + rc.left;
 			unsigned int* destBuffer = (unsigned int*)dest + dwY * destWidth + dwX;
