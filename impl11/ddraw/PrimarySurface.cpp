@@ -551,6 +551,14 @@ HRESULT PrimarySurface::Flip(
 
 				hr = DDERR_SURFACELOST;
 			}
+#if 0
+			// This seems to fix 8 bit rendering in X-Wing 95.
+			// But not sure this is correct, and it's not exactly an important feature,
+			// so do not enable it for now.
+			DDBLTFX fx = {};
+			fx.dwSize = sizeof(DDBLTFX);
+			this->_deviceResources->_backbufferSurface->Blt(nullptr, nullptr, nullptr, DDBLT_COLORFILL, &fx);
+#endif
 		}
 		else
 		{
