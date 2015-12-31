@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "DeviceResources.h"
+#include "DirectDrawPalette.h"
 #include "PrimarySurface.h"
 #include "BackbufferSurface.h"
 #include "FrontbufferSurface.h"
@@ -806,13 +807,14 @@ HRESULT PrimarySurface::GetSurfaceDesc(
 		return DDERR_INVALIDPARAMS;
 	}
 
+	unsigned bpp = this->_deviceResources->_displayBpp;
 	*lpDDSurfaceDesc = {};
 	lpDDSurfaceDesc->dwSize = sizeof(DDSURFACEDESC);
 	lpDDSurfaceDesc->dwFlags = DDSD_CAPS | DDSD_PIXELFORMAT | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PITCH;
 	lpDDSurfaceDesc->ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE | DDSCAPS_VIDEOMEMORY;
 	lpDDSurfaceDesc->ddpfPixelFormat.dwSize = sizeof(DDPIXELFORMAT);
-	lpDDSurfaceDesc->ddpfPixelFormat.dwFlags = DDPF_RGB;
-	lpDDSurfaceDesc->ddpfPixelFormat.dwRGBBitCount = 16;
+	lpDDSurfaceDesc->ddpfPixelFormat.dwFlags = bpp = 1 ? DDPF_PALETTEINDEXED8 : DDPF_RGB;
+	lpDDSurfaceDesc->ddpfPixelFormat.dwRGBBitCount = bpp == 1 ? 8 : 16;
 	lpDDSurfaceDesc->ddpfPixelFormat.dwRBitMask = 0xF800;
 	lpDDSurfaceDesc->ddpfPixelFormat.dwGBitMask = 0x7E0;
 	lpDDSurfaceDesc->ddpfPixelFormat.dwBBitMask = 0x1F;
@@ -985,12 +987,12 @@ HRESULT PrimarySurface::SetPalette(
 	LogText(str.str());
 #endif
 
-#if LOGGER
-	str.str("\tDDERR_UNSUPPORTED");
-	LogText(str.str());
-#endif
+	DirectDrawPalette *pal = (DirectDrawPalette *)lpDDPalette;
+	pal->AddRef();
+	if (palette != nullptr) palette->Release();
+	palette = pal;
 
-	return DDERR_UNSUPPORTED;
+	return DD_OK;
 }
 
 HRESULT PrimarySurface::Unlock(

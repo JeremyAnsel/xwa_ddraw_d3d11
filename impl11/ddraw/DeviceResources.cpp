@@ -3,6 +3,8 @@
 
 #include "common.h"
 #include "DeviceResources.h"
+#include "DirectDrawPalette.h"
+#include "PrimarySurface.h"
 
 #ifdef _DEBUG
 #include "..\Debug\MainVertexShader.h"
@@ -596,7 +598,29 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 
 	if (SUCCEEDED(hr))
 	{
-		if (bpp == 2)
+		if (bpp == 1)
+		{
+			const char* srcColors = src;
+			unsigned int* colors = (unsigned int*)buffer;
+			const unsigned *palette = _primarySurface->palette->palette;
+
+			for (int y = 0; y < height; y++)
+			{
+				for (int x = 0; x < width; x++)
+				{
+					unsigned char color8 = *srcColors;
+					srcColors++;
+
+					*colors = palette[color8];
+
+					colors++;
+				}
+
+				colors = (unsigned int*)((char*)colors + pitchDelta);
+			}
+
+		}
+		else if(bpp == 2)
 		{
 			if (useColorKey)
 			{

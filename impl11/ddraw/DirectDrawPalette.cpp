@@ -136,7 +136,7 @@ HRESULT DirectDrawPalette::GetEntries(DWORD, DWORD, DWORD, LPPALETTEENTRY)
 	return DDERR_UNSUPPORTED;
 }
 
-HRESULT DirectDrawPalette::SetEntries(DWORD, DWORD, DWORD, LPPALETTEENTRY)
+HRESULT DirectDrawPalette::SetEntries(DWORD flags, DWORD start, DWORD count, LPPALETTEENTRY e)
 {
 #if LOGGER
 	std::ostringstream str;
@@ -144,5 +144,15 @@ HRESULT DirectDrawPalette::SetEntries(DWORD, DWORD, DWORD, LPPALETTEENTRY)
 	LogText(str.str());
 #endif
 
-	return DDERR_UNSUPPORTED;
+	if (flags != 0 || start >= 256 || count > 256 || start + count > 256 || e == nullptr)
+	{
+		return DDERR_INVALIDPARAMS;
+	}
+	for (int i = 0; i < count; ++i)
+	{
+		PALETTEENTRY *cur = e + i;
+		palette[start + i] = (cur->peRed << 16) | (cur->peGreen << 8) | cur->peBlue;
+	}
+
+	return DD_OK;
 }

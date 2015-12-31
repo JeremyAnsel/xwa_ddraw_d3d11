@@ -4,6 +4,7 @@
 #pragma once
 
 class BackbufferSurface;
+class DirectDrawPalette;
 
 class PrimarySurface : public IDirectDrawSurface
 {
@@ -96,4 +97,6 @@ public:
 	ComPtr<BackbufferSurface> _backbufferSurface;
 
 	UINT _flipFrames;
+
+	DirectDrawPalette *palette;
 };

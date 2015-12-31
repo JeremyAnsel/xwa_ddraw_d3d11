@@ -26,4 +26,6 @@ public:
 	STDMETHOD(SetEntries)(THIS_ DWORD, DWORD, DWORD, LPPALETTEENTRY);
 
 	ULONG _refCount;
+
+	unsigned palette[256];
 };
