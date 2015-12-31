@@ -22,6 +22,7 @@ PrimarySurface::PrimarySurface(DeviceResources* deviceResources, bool hasBackbuf
 	}
 
 	this->_flipFrames = 0;
+	palette = nullptr;
 }
 
 PrimarySurface::~PrimarySurface()
@@ -38,6 +39,8 @@ PrimarySurface::~PrimarySurface()
 	{
 		this->_deviceResources->_primarySurface = nullptr;
 	}
+	if (palette) palette->Release();
+	palette = nullptr;
 }
 
 HRESULT PrimarySurface::QueryInterface(
