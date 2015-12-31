@@ -105,4 +105,7 @@ public:
 
 	ComPtr<MipmapSurface> _mipmap;
 	ComPtr<Direct3DTexture> _d3dTexture;
+
+	bool hasColorKey;
+	DWORD colorKey;
 };

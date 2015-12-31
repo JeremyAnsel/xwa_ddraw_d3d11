@@ -18,6 +18,7 @@ TextureSurface::TextureSurface(DeviceResources* deviceResources, bool allocOnLoa
 	this->_height = height;
 	this->_pixelFormat = pixelFormat;
 	this->_mipmapCount = mipmapCount;
+	this->hasColorKey = false;
 
 	if (this->_allocOnLoad)
 	{
@@ -722,9 +723,20 @@ HRESULT TextureSurface::SetColorKey(
 #if LOGGER
 	std::ostringstream str;
 	str << this << " " << __FUNCTION__;
+	str << " " << dwFlags;
+	str << " " << lpDDColorKey->dwColorSpaceLowValue;
+	str << "-" << lpDDColorKey->dwColorSpaceHighValue;
 	LogText(str.str());
 #endif
-
+	if (dwFlags == DDCKEY_SRCBLT &&
+		this->_pixelFormat.dwRGBAlphaBitMask == 0 &&
+		lpDDColorKey != nullptr &&
+		lpDDColorKey->dwColorSpaceLowValue == lpDDColorKey->dwColorSpaceHighValue)
+	{
+		this->hasColorKey = true;
+		this->colorKey = lpDDColorKey->dwColorSpaceLowValue;
+		return DD_OK;
+	}
 #if LOGGER
 	str.str("\tDDERR_UNSUPPORTED");
 	LogText(str.str());

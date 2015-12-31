@@ -8,7 +8,7 @@
 #include "MipmapSurface.h"
 #include <comdef.h>
 
-char* convertFormat(char* src, DWORD width, DWORD height, DXGI_FORMAT format)
+char* convertFormat(char* src, DWORD width, DWORD height, DXGI_FORMAT format, bool useColorKey, DWORD colorKey)
 {
 	int length = width * height;
 	char* buffer = new char[length * 4];
@@ -50,7 +50,7 @@ char* convertFormat(char* src, DWORD width, DWORD height, DXGI_FORMAT format)
 		{
 			unsigned short color16 = srcBuffer[i];
 
-			destBuffer[i] = convertColorB5G6R5toB8G8R8A8(color16);
+			destBuffer[i] = (useColorKey && color16 == colorKey) ? 0 : convertColorB5G6R5toB8G8R8A8(color16);
 		}
 	}
 	else
@@ -244,6 +244,8 @@ HRESULT Direct3DTexture::Load(
 	str << " " << (void*)surface->_pixelFormat.dwGBitMask;
 	str << " " << (void*)surface->_pixelFormat.dwBBitMask;
 	str << " " << (void*)surface->_pixelFormat.dwRGBAlphaBitMask;
+	if (this->_surface->hasColorKey)
+		str << " colorkey " << (void*)this->_surface->colorKey;
 	LogText(str.str());
 #endif
 
@@ -289,7 +291,7 @@ HRESULT Direct3DTexture::Load(
 	D3D11_SUBRESOURCE_DATA* textureData = new D3D11_SUBRESOURCE_DATA[textureDesc.MipLevels];
 	char** buffers = new char*[textureDesc.MipLevels];
 
-	buffers[0] = convertFormat(surface->_buffer, surface->_width, surface->_height, format);
+	buffers[0] = convertFormat(surface->_buffer, surface->_width, surface->_height, format, this->_surface->hasColorKey, this->_surface->colorKey);
 
 	textureData[0].pSysMem = buffers[0];
 	textureData[0].SysMemPitch = surface->_width * 4;
@@ -298,7 +300,7 @@ HRESULT Direct3DTexture::Load(
 	MipmapSurface* mipmap = surface->_mipmap;
 	for (DWORD i = 1; i < textureDesc.MipLevels; i++)
 	{
-		buffers[i] = convertFormat(mipmap->_buffer, mipmap->_width, mipmap->_height, format);
+		buffers[i] = convertFormat(mipmap->_buffer, mipmap->_width, mipmap->_height, format, this->_surface->hasColorKey, this->_surface->colorKey);
 
 		textureData[i].pSysMem = buffers[i];
 		textureData[i].SysMemPitch = mipmap->_width * 4;
