@@ -183,6 +183,9 @@ HRESULT Direct3DViewport::SetBackground(
 	LogText(str.str());
 #endif
 
+	// Not 100% sure this is correct, but seems to avoid crashes in XvT.
+	((Direct3DMaterial *)hMat)->AddRef();
+
 	clearColor[0] = ((Direct3DMaterial *)hMat)->material.diffuse.r;
 	clearColor[1] = ((Direct3DMaterial *)hMat)->material.diffuse.g;
 	clearColor[2] = ((Direct3DMaterial *)hMat)->material.diffuse.b;
