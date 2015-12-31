@@ -810,20 +810,7 @@ HRESULT PrimarySurface::GetSurfaceDesc(
 		return DDERR_INVALIDPARAMS;
 	}
 
-	unsigned bpp = this->_deviceResources->_displayBpp;
-	*lpDDSurfaceDesc = {};
-	lpDDSurfaceDesc->dwSize = sizeof(DDSURFACEDESC);
-	lpDDSurfaceDesc->dwFlags = DDSD_CAPS | DDSD_PIXELFORMAT | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PITCH;
-	lpDDSurfaceDesc->ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE | DDSCAPS_VIDEOMEMORY;
-	lpDDSurfaceDesc->ddpfPixelFormat.dwSize = sizeof(DDPIXELFORMAT);
-	lpDDSurfaceDesc->ddpfPixelFormat.dwFlags = bpp = 1 ? DDPF_PALETTEINDEXED8 : DDPF_RGB;
-	lpDDSurfaceDesc->ddpfPixelFormat.dwRGBBitCount = bpp == 1 ? 8 : 16;
-	lpDDSurfaceDesc->ddpfPixelFormat.dwRBitMask = 0xF800;
-	lpDDSurfaceDesc->ddpfPixelFormat.dwGBitMask = 0x7E0;
-	lpDDSurfaceDesc->ddpfPixelFormat.dwBBitMask = 0x1F;
-	lpDDSurfaceDesc->dwHeight = this->_deviceResources->_displayHeight;
-	lpDDSurfaceDesc->dwWidth = this->_deviceResources->_displayWidth;
-	lpDDSurfaceDesc->lPitch = this->_deviceResources->_displayWidth * 2;
+	this->_deviceResources->DefaultSurfaceDesc(lpDDSurfaceDesc);
 
 #if LOGGER
 	str.str("");

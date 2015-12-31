@@ -499,19 +499,7 @@ HRESULT OffscreenSurface::GetSurfaceDesc(
 		return DDERR_INVALIDPARAMS;
 	}
 
-	*lpDDSurfaceDesc = {};
-	lpDDSurfaceDesc->dwSize = sizeof(DDSURFACEDESC);
-	lpDDSurfaceDesc->dwFlags = DDSD_CAPS | DDSD_PIXELFORMAT | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PITCH;
-	lpDDSurfaceDesc->ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | DDSCAPS_SYSTEMMEMORY;
-	lpDDSurfaceDesc->ddpfPixelFormat.dwSize = sizeof(DDPIXELFORMAT);
-	lpDDSurfaceDesc->ddpfPixelFormat.dwFlags = DDPF_RGB;
-	lpDDSurfaceDesc->ddpfPixelFormat.dwRGBBitCount = 16;
-	lpDDSurfaceDesc->ddpfPixelFormat.dwRBitMask = 0xF800;
-	lpDDSurfaceDesc->ddpfPixelFormat.dwGBitMask = 0x7E0;
-	lpDDSurfaceDesc->ddpfPixelFormat.dwBBitMask = 0x1F;
-	lpDDSurfaceDesc->dwHeight = this->_deviceResources->_displayHeight;
-	lpDDSurfaceDesc->dwWidth = this->_deviceResources->_displayWidth;
-	lpDDSurfaceDesc->lPitch = this->_deviceResources->_displayWidth * 2;
+	this->_deviceResources->DefaultSurfaceDesc(lpDDSurfaceDesc);
 
 #if LOGGER
 	str.str("");

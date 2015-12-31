@@ -674,19 +674,7 @@ HRESULT BackbufferSurface::GetSurfaceDesc(
 		return DDERR_INVALIDPARAMS;
 	}
 
-	*lpDDSurfaceDesc = {};
-	lpDDSurfaceDesc->dwSize = sizeof(DDSURFACEDESC);
-	lpDDSurfaceDesc->dwFlags = DDSD_CAPS | DDSD_PIXELFORMAT | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PITCH;
-	lpDDSurfaceDesc->ddsCaps.dwCaps = DDSCAPS_BACKBUFFER | DDSCAPS_VIDEOMEMORY;
-	lpDDSurfaceDesc->ddpfPixelFormat.dwSize = sizeof(DDPIXELFORMAT);
-	lpDDSurfaceDesc->ddpfPixelFormat.dwFlags = DDPF_RGB;
-	lpDDSurfaceDesc->ddpfPixelFormat.dwRGBBitCount = 16;
-	lpDDSurfaceDesc->ddpfPixelFormat.dwRBitMask = 0xF800;
-	lpDDSurfaceDesc->ddpfPixelFormat.dwGBitMask = 0x7E0;
-	lpDDSurfaceDesc->ddpfPixelFormat.dwBBitMask = 0x1F;
-	lpDDSurfaceDesc->dwHeight = this->_deviceResources->_displayHeight;
-	lpDDSurfaceDesc->dwWidth = this->_deviceResources->_displayWidth;
-	lpDDSurfaceDesc->lPitch = this->_deviceResources->_displayWidth * this->_deviceResources->_displayBpp;
+	this->_deviceResources->DefaultSurfaceDesc(lpDDSurfaceDesc);
 
 	if (g_config.XWAMode && this->_deviceResources->_frontbufferSurface)
 	{

@@ -30,6 +30,8 @@ public:
 
 	void CheckMultisamplingSupport();
 
+	void DefaultSurfaceDesc(LPDDSURFACEDESC);
+
 	DWORD _displayWidth;
 	DWORD _displayHeight;
 	DWORD _displayBpp;
