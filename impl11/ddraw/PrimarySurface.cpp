@@ -818,7 +818,7 @@ HRESULT PrimarySurface::GetSurfaceDesc(
 		return DDERR_INVALIDPARAMS;
 	}
 
-	this->_deviceResources->DefaultSurfaceDesc(lpDDSurfaceDesc);
+	this->_deviceResources->DefaultSurfaceDesc(lpDDSurfaceDesc, DDSCAPS_PRIMARYSURFACE | DDSCAPS_VIDEOMEMORY);
 
 #if LOGGER
 	str.str("");

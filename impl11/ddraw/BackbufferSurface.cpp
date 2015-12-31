@@ -674,7 +674,7 @@ HRESULT BackbufferSurface::GetSurfaceDesc(
 		return DDERR_INVALIDPARAMS;
 	}
 
-	this->_deviceResources->DefaultSurfaceDesc(lpDDSurfaceDesc);
+	this->_deviceResources->DefaultSurfaceDesc(lpDDSurfaceDesc, DDSCAPS_BACKBUFFER | DDSCAPS_VIDEOMEMORY);
 
 	if (g_config.XWAMode && this->_deviceResources->_frontbufferSurface)
 	{
@@ -751,7 +751,8 @@ HRESULT BackbufferSurface::Lock(
 
 	if (lpDestRect == nullptr)
 	{
-		this->_deviceResources->DefaultSurfaceDesc(lpDDSurfaceDesc);
+		this->_deviceResources->DefaultSurfaceDesc(lpDDSurfaceDesc, DDSCAPS_BACKBUFFER | DDSCAPS_VIDEOMEMORY);
+		lpDDSurfaceDesc->dwFlags |= DDSD_LPSURFACE;
 		lpDDSurfaceDesc->lpSurface = this->_buffer;
 
 		if (g_config.XWAMode && this->_deviceResources->_frontbufferSurface != nullptr)

@@ -562,7 +562,7 @@ HRESULT FrontbufferSurface::GetSurfaceDesc(
 		return DDERR_INVALIDPARAMS;
 	}
 
-	this->_deviceResources->DefaultSurfaceDesc(lpDDSurfaceDesc);
+	this->_deviceResources->DefaultSurfaceDesc(lpDDSurfaceDesc, DDSCAPS_OFFSCREENPLAIN | DDSCAPS_SYSTEMMEMORY);
 
 #if LOGGER
 	str.str("");
@@ -634,19 +634,8 @@ HRESULT FrontbufferSurface::Lock(
 
 	if (lpDestRect == nullptr)
 	{
-		*lpDDSurfaceDesc = {};
-		lpDDSurfaceDesc->dwSize = sizeof(DDSURFACEDESC);
-		lpDDSurfaceDesc->dwFlags = DDSD_CAPS | DDSD_PIXELFORMAT | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PITCH | DDSD_LPSURFACE;
-		lpDDSurfaceDesc->ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | DDSCAPS_SYSTEMMEMORY;
-		lpDDSurfaceDesc->ddpfPixelFormat.dwSize = sizeof(DDPIXELFORMAT);
-		lpDDSurfaceDesc->ddpfPixelFormat.dwFlags = DDPF_RGB;
-		lpDDSurfaceDesc->ddpfPixelFormat.dwRGBBitCount = 16;
-		lpDDSurfaceDesc->ddpfPixelFormat.dwRBitMask = 0xF800;
-		lpDDSurfaceDesc->ddpfPixelFormat.dwGBitMask = 0x7E0;
-		lpDDSurfaceDesc->ddpfPixelFormat.dwBBitMask = 0x1F;
-		lpDDSurfaceDesc->dwHeight = this->_deviceResources->_displayHeight;
-		lpDDSurfaceDesc->dwWidth = this->_deviceResources->_displayWidth;
-		lpDDSurfaceDesc->lPitch = this->_deviceResources->_displayWidth * 2;
+		this->_deviceResources->DefaultSurfaceDesc(lpDDSurfaceDesc, DDSCAPS_OFFSCREENPLAIN | DDSCAPS_SYSTEMMEMORY);
+		lpDDSurfaceDesc->dwFlags |= DDSD_LPSURFACE;
 		lpDDSurfaceDesc->lpSurface = this->_buffer;
 
 		return DD_OK;

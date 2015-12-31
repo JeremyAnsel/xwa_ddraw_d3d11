@@ -1030,13 +1030,13 @@ void DeviceResources::CheckMultisamplingSupport()
 	}
 }
 
-void DeviceResources::DefaultSurfaceDesc(LPDDSURFACEDESC lpDDSurfaceDesc)
+void DeviceResources::DefaultSurfaceDesc(LPDDSURFACEDESC lpDDSurfaceDesc, DWORD caps)
 {
 	unsigned bpp = this->_displayBpp;
 	*lpDDSurfaceDesc = {};
 	lpDDSurfaceDesc->dwSize = sizeof(DDSURFACEDESC);
 	lpDDSurfaceDesc->dwFlags = DDSD_CAPS | DDSD_PIXELFORMAT | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PITCH;
-	lpDDSurfaceDesc->ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE | DDSCAPS_VIDEOMEMORY | (bpp == 1 ? DDSCAPS_PALETTE : 0);
+	lpDDSurfaceDesc->ddsCaps.dwCaps = caps | (bpp == 1 ? DDSCAPS_PALETTE : 0);
 	lpDDSurfaceDesc->ddpfPixelFormat.dwSize = sizeof(DDPIXELFORMAT);
 	lpDDSurfaceDesc->ddpfPixelFormat.dwFlags = bpp == 1 ? DDPF_PALETTEINDEXED8 : DDPF_RGB;
 	lpDDSurfaceDesc->ddpfPixelFormat.dwRGBBitCount = 16;
