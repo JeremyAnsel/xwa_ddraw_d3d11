@@ -1038,7 +1038,7 @@ void DeviceResources::DefaultSurfaceDesc(LPDDSURFACEDESC lpDDSurfaceDesc)
 	lpDDSurfaceDesc->dwFlags = DDSD_CAPS | DDSD_PIXELFORMAT | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PITCH;
 	lpDDSurfaceDesc->ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE | DDSCAPS_VIDEOMEMORY | (bpp == 1 ? DDSCAPS_PALETTE : 0);
 	lpDDSurfaceDesc->ddpfPixelFormat.dwSize = sizeof(DDPIXELFORMAT);
-	lpDDSurfaceDesc->ddpfPixelFormat.dwFlags = bpp = 1 ? DDPF_PALETTEINDEXED8 : DDPF_RGB;
+	lpDDSurfaceDesc->ddpfPixelFormat.dwFlags = bpp == 1 ? DDPF_PALETTEINDEXED8 : DDPF_RGB;
 	lpDDSurfaceDesc->ddpfPixelFormat.dwRGBBitCount = 16;
 	lpDDSurfaceDesc->ddpfPixelFormat.dwRBitMask = 0xF800;
 	lpDDSurfaceDesc->ddpfPixelFormat.dwGBitMask = 0x7E0;
