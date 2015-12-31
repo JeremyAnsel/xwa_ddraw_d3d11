@@ -1045,5 +1045,5 @@ void DeviceResources::DefaultSurfaceDesc(LPDDSURFACEDESC lpDDSurfaceDesc)
 	lpDDSurfaceDesc->ddpfPixelFormat.dwBBitMask = 0x1F;
 	lpDDSurfaceDesc->dwHeight = this->_displayHeight;
 	lpDDSurfaceDesc->dwWidth = this->_displayWidth;
-	lpDDSurfaceDesc->lPitch = this->_displayWidth * 2;
+	lpDDSurfaceDesc->lPitch = this->_displayWidth * (bpp == 1 ? 1 : 2);
 }
