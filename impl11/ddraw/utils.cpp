@@ -297,7 +297,7 @@ void copySurface(char* dest, DWORD destWidth, DWORD destHeight, DWORD destBpp, c
 	}
 	else
 	{
-		rc = { 0, 0, srcWidth, srcHeight };
+		rc = { 0, 0, static_cast<LONG>(srcWidth), static_cast<LONG>(srcHeight) };
 	}
 
 	int h = rc.bottom - rc.top;
@@ -526,7 +526,7 @@ void scaleSurface(char* dest, DWORD destWidth, DWORD destHeight, DWORD destBpp, 
 					char* srcBuffer = (char*)data.Scan0;
 					char* destBuffer = dest;
 
-					for (int y = 0; y < destHeight; y++)
+					for (DWORD y = 0; y < destHeight; y++)
 					{
 						memcpy(destBuffer, srcBuffer, rowLength);
 

@@ -579,9 +579,9 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 				unsigned short* srcColors = (unsigned short*)src;
 				unsigned int* colors = (unsigned int*)buffer;
 
-				for (int y = 0; y < height; y++)
+				for (DWORD y = 0; y < height; y++)
 				{
-					for (int x = 0; x < width; x++)
+					for (DWORD x = 0; x < width; x++)
 					{
 						unsigned short color16 = *srcColors;
 						srcColors++;
@@ -606,9 +606,9 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 				unsigned short* srcColors = (unsigned short*)src;
 				unsigned int* colors = (unsigned int*)buffer;
 
-				for (int y = 0; y < height; y++)
+				for (DWORD y = 0; y < height; y++)
 				{
-					for (int x = 0; x < width; x++)
+					for (DWORD x = 0; x < width; x++)
 					{
 						unsigned short color16 = *srcColors;
 						srcColors++;
@@ -628,9 +628,9 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 				unsigned int* srcColors = (unsigned int*)src;
 				unsigned int* colors = (unsigned int*)buffer;
 
-				for (int y = 0; y < height; y++)
+				for (DWORD y = 0; y < height; y++)
 				{
-					for (int x = 0; x < width; x++)
+					for (DWORD x = 0; x < width; x++)
 					{
 						unsigned int color32 = *srcColors;
 						srcColors++;
@@ -661,7 +661,7 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 					unsigned int* srcColors = (unsigned int*)src;
 					unsigned int* colors = (unsigned int*)buffer;
 
-					for (int y = 0; y < height; y++)
+					for (DWORD y = 0; y < height; y++)
 					{
 						memcpy(colors, srcColors, width * 4);
 						srcColors += width;
@@ -876,7 +876,7 @@ HRESULT DeviceResources::RetrieveBackBuffer(char* buffer, DWORD width, DWORD hei
 						unsigned int* srcColors = (unsigned int*)map.pData;
 						unsigned int* colors = (unsigned int*)buffer2;
 
-						for (int y = 0; y < this->_backbufferHeight; y++)
+						for (DWORD y = 0; y < this->_backbufferHeight; y++)
 						{
 							memcpy(colors, srcColors, this->_backbufferWidth * 4);
 
