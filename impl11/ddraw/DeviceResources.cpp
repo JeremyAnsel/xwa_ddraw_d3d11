@@ -148,6 +148,12 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 	this->_renderTargetView.Release();
 	this->_offscreenBuffer.Release();
 	this->_backBuffer.Release();
+	// Releasing a swap chain is only allowed after switching
+	// to windowed mode.
+	if (this->_swapChain)
+	{
+		this->_swapChain->SetFullscreenState(FALSE, NULL);
+	}
 	this->_swapChain.Release();
 
 	this->_refreshRate = { 0, 1 };
@@ -193,7 +199,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			sd.OutputWindow = hWnd;
 			sd.SampleDesc.Count = 1;
 			sd.SampleDesc.Quality = 0;
-			sd.Windowed = TRUE;
+			sd.Windowed = !g_config.Fullscreen;
 
 			ComPtr<IDXGIFactory> dxgiFactory;
 			hr = dxgiAdapter->GetParent(IID_PPV_ARGS(&dxgiFactory));

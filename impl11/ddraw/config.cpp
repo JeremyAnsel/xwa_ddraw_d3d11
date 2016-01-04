@@ -19,6 +19,7 @@ Config::Config()
 	this->MultisamplingAntialiasingEnabled = true;
 	this->AnisotropicFilteringEnabled = true;
 	this->WireframeFillMode = false;
+	this->Fullscreen = false;
 	this->XWAMode = true;
 
 	this->Concourse3DScale = 0.6f;
@@ -90,6 +91,10 @@ Config::Config()
 			else if (name == "ScalingType")
 			{
 				this->ScalingType = stoi(value);
+			}
+			else if (name == "Fullscreen")
+			{
+				this->Fullscreen = stoi(value) != 0;
 			}
 			else if (name == "XWAMode")
 			{
