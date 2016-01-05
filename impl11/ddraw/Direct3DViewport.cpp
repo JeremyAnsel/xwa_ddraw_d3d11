@@ -263,6 +263,7 @@ HRESULT Direct3DViewport::Clear(
 #endif
 
 	std::copy(clearColor, clearColor + 4, this->_deviceResources->clearColor);
+	this->_deviceResources->clearColorSet = true;
 
 	return DD_OK;
 }

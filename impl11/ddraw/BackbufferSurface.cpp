@@ -240,6 +240,8 @@ HRESULT BackbufferSurface::Blt(
 
 		memset(this->_buffer, 0, this->_bufferSize);
 
+		this->_deviceResources->clearColorSet = true;
+
 		return DD_OK;
 	}
 

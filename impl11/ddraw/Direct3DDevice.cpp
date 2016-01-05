@@ -1170,10 +1170,11 @@ HRESULT Direct3DDevice::BeginScene()
 	auto& device = this->_deviceResources->_d3dDevice;
 	auto& context = this->_deviceResources->_d3dDeviceContext;
 
-	if (!this->_deviceResources->sceneRendered)
+	if (!this->_deviceResources->sceneRendered || this->_deviceResources->clearColorSet)
 	{
 		// Clear only directly after flip
 		context->ClearRenderTargetView(this->_deviceResources->_renderTargetView, this->_deviceResources->clearColor);
+		this->_deviceResources->clearColorSet = false;
 	}
 	if (!this->_deviceResources->sceneRendered || this->_deviceResources->clearDepthSet)
 	{

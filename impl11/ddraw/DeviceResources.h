@@ -75,6 +75,7 @@ public:
 	DXGI_RATIONAL _refreshRate;
 
 	float clearColor[4];
+	bool clearColorSet;
 	float clearDepth;
 	bool clearDepthSet;
 	bool sceneRendered;

@@ -66,6 +66,7 @@ DeviceResources::DeviceResources()
 
 	const float color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	memcpy(this->clearColor, &color, sizeof(color));
+	this->clearColorSet = true;
 
 	this->clearDepth = 1.0f;
 	this->clearDepthSet = true;
