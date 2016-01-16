@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE.txt
 
 #include "config.h"
+#include "common.h"
 
 #include <string>
 #include <fstream>
@@ -18,10 +19,29 @@ Config::Config()
 	this->MultisamplingAntialiasingEnabled = true;
 	this->AnisotropicFilteringEnabled = true;
 	this->WireframeFillMode = false;
+	this->Fullscreen = false;
+	this->XWAMode = true;
 
 	this->Concourse3DScale = 0.6f;
 
-	ifstream file("ddraw.cfg");
+	// Try to always load config from executable path, not CWD
+	char execPath[MAX_PATH] = "";
+	HMODULE module = GetModuleHandle(NULL);
+	if (module)
+	{
+		GetModuleFileNameA(module, execPath, sizeof(execPath));
+		char *end = strrchr(execPath, '\\');
+		if (end)
+		{
+			end[1] = 0;
+		}
+		else
+		{
+			execPath[0] = 0;
+		}
+	}
+
+	ifstream file(std::string(execPath) + "ddraw.cfg");
 
 	if (file.is_open())
 	{
@@ -67,6 +87,18 @@ Config::Config()
 			else if (name == "FillWireframe")
 			{
 				this->WireframeFillMode = stoi(value) != 0;
+			}
+			else if (name == "ScalingType")
+			{
+				this->ScalingType = stoi(value);
+			}
+			else if (name == "Fullscreen")
+			{
+				this->Fullscreen = stoi(value) != 0;
+			}
+			else if (name == "XWAMode")
+			{
+				this->XWAMode = stoi(value) != 0;
 			}
 			else if (name == "Concourse3DScale")
 			{

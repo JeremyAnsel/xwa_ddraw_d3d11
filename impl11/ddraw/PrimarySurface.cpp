@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "DeviceResources.h"
+#include "DirectDrawPalette.h"
 #include "PrimarySurface.h"
 #include "BackbufferSurface.h"
 #include "FrontbufferSurface.h"
@@ -21,6 +22,7 @@ PrimarySurface::PrimarySurface(DeviceResources* deviceResources, bool hasBackbuf
 	}
 
 	this->_flipFrames = 0;
+	palette = nullptr;
 }
 
 PrimarySurface::~PrimarySurface()
@@ -37,6 +39,8 @@ PrimarySurface::~PrimarySurface()
 	{
 		this->_deviceResources->_primarySurface = nullptr;
 	}
+	if (palette) palette->Release();
+	palette = nullptr;
 }
 
 HRESULT PrimarySurface::QueryInterface(
@@ -378,10 +382,12 @@ HRESULT PrimarySurface::Flip(
 	this->_deviceResources->sceneRenderedEmpty = this->_deviceResources->sceneRendered == false;
 	this->_deviceResources->sceneRendered = false;
 
-	if (this->_deviceResources->sceneRenderedEmpty && this->_deviceResources->_frontbufferSurface != nullptr && this->_deviceResources->_frontbufferSurface->wasBltFastCalled)
+	if (this->_deviceResources->sceneRenderedEmpty)
 	{
 		this->_deviceResources->_d3dDeviceContext->ClearRenderTargetView(this->_deviceResources->_renderTargetView, this->_deviceResources->clearColor);
+		this->_deviceResources->clearColorSet = false;
 		this->_deviceResources->_d3dDeviceContext->ClearDepthStencilView(this->_deviceResources->_depthStencilView, D3D11_CLEAR_DEPTH, this->_deviceResources->clearDepth, 0);
+		this->_deviceResources->clearDepthSet = false;
 	}
 
 	if (lpDDSurfaceTargetOverride != nullptr)
@@ -398,7 +404,7 @@ HRESULT PrimarySurface::Flip(
 
 		if (lpDDSurfaceTargetOverride == this->_deviceResources->_backbufferSurface)
 		{
-			if (this->_deviceResources->_frontbufferSurface == nullptr)
+			if (!g_config.XWAMode || this->_deviceResources->_frontbufferSurface == nullptr)
 			{
 				if (FAILED(this->_deviceResources->RenderMain(this->_deviceResources->_backbufferSurface->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, this->_deviceResources->_displayBpp)))
 					return DDERR_GENERIC;
@@ -529,6 +535,9 @@ HRESULT PrimarySurface::Flip(
 		{
 			hr = DD_OK;
 
+			// Draw pending backbuffer updates
+			this->_deviceResources->RenderMain(this->_deviceResources->_backbufferSurface->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, this->_deviceResources->_displayBpp);
+
 			this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0, this->_deviceResources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
 
 			if (FAILED(hr = this->_deviceResources->_swapChain->Present(1, 0)))
@@ -544,6 +553,14 @@ HRESULT PrimarySurface::Flip(
 
 				hr = DDERR_SURFACELOST;
 			}
+#if 0
+			// This seems to fix 8 bit rendering in X-Wing 95.
+			// But not sure this is correct, and it's not exactly an important feature,
+			// so do not enable it for now.
+			DDBLTFX fx = {};
+			fx.dwSize = sizeof(DDBLTFX);
+			this->_deviceResources->_backbufferSurface->Blt(nullptr, nullptr, nullptr, DDBLT_COLORFILL, &fx);
+#endif
 		}
 		else
 		{
@@ -765,6 +782,16 @@ HRESULT PrimarySurface::GetPixelFormat(
 	LogText(str.str());
 #endif
 
+	if (lpDDPixelFormat)
+	{
+		lpDDPixelFormat->dwFlags = DDPF_RGB;
+		lpDDPixelFormat->dwRGBBitCount = 16;
+		lpDDPixelFormat->dwRBitMask = 0xF800;
+		lpDDPixelFormat->dwGBitMask = 0x7E0;
+		lpDDPixelFormat->dwBBitMask = 0x1F;
+		return DD_OK;
+	}
+
 #if LOGGER
 	str.str("\tDDERR_UNSUPPORTED");
 	LogText(str.str());
@@ -793,19 +820,7 @@ HRESULT PrimarySurface::GetSurfaceDesc(
 		return DDERR_INVALIDPARAMS;
 	}
 
-	*lpDDSurfaceDesc = {};
-	lpDDSurfaceDesc->dwSize = sizeof(DDSURFACEDESC);
-	lpDDSurfaceDesc->dwFlags = DDSD_CAPS | DDSD_PIXELFORMAT | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PITCH;
-	lpDDSurfaceDesc->ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE | DDSCAPS_VIDEOMEMORY;
-	lpDDSurfaceDesc->ddpfPixelFormat.dwSize = sizeof(DDPIXELFORMAT);
-	lpDDSurfaceDesc->ddpfPixelFormat.dwFlags = DDPF_RGB;
-	lpDDSurfaceDesc->ddpfPixelFormat.dwRGBBitCount = 16;
-	lpDDSurfaceDesc->ddpfPixelFormat.dwRBitMask = 0xF800;
-	lpDDSurfaceDesc->ddpfPixelFormat.dwGBitMask = 0x7E0;
-	lpDDSurfaceDesc->ddpfPixelFormat.dwBBitMask = 0x1F;
-	lpDDSurfaceDesc->dwHeight = this->_deviceResources->_displayHeight;
-	lpDDSurfaceDesc->dwWidth = this->_deviceResources->_displayWidth;
-	lpDDSurfaceDesc->lPitch = this->_deviceResources->_displayWidth * 2;
+	this->_deviceResources->DefaultSurfaceDesc(lpDDSurfaceDesc, DDSCAPS_PRIMARYSURFACE | DDSCAPS_VIDEOMEMORY);
 
 #if LOGGER
 	str.str("");
@@ -972,12 +987,12 @@ HRESULT PrimarySurface::SetPalette(
 	LogText(str.str());
 #endif
 
-#if LOGGER
-	str.str("\tDDERR_UNSUPPORTED");
-	LogText(str.str());
-#endif
+	DirectDrawPalette *pal = (DirectDrawPalette *)lpDDPalette;
+	pal->AddRef();
+	if (palette != nullptr) palette->Release();
+	palette = pal;
 
-	return DDERR_UNSUPPORTED;
+	return DD_OK;
 }
 
 HRESULT PrimarySurface::Unlock(

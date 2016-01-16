@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "DeviceResources.h"
+#include "Direct3DMaterial.h"
 #include "Direct3DViewport.h"
 
 Direct3DViewport::Direct3DViewport(DeviceResources* deviceResources)
@@ -182,12 +183,15 @@ HRESULT Direct3DViewport::SetBackground(
 	LogText(str.str());
 #endif
 
-#if LOGGER
-	str.str("\tDDERR_UNSUPPORTED");
-	LogText(str.str());
-#endif
+	// Not 100% sure this is correct, but seems to avoid crashes in XvT.
+	((Direct3DMaterial *)hMat)->AddRef();
 
-	return DDERR_UNSUPPORTED;
+	clearColor[0] = ((Direct3DMaterial *)hMat)->material.diffuse.r;
+	clearColor[1] = ((Direct3DMaterial *)hMat)->material.diffuse.g;
+	clearColor[2] = ((Direct3DMaterial *)hMat)->material.diffuse.b;
+	clearColor[3] = ((Direct3DMaterial *)hMat)->material.diffuse.a;
+
+	return DD_OK;
 }
 
 HRESULT Direct3DViewport::GetBackground(
@@ -258,12 +262,10 @@ HRESULT Direct3DViewport::Clear(
 	LogText(str.str());
 #endif
 
-#if LOGGER
-	str.str("\tDDERR_UNSUPPORTED");
-	LogText(str.str());
-#endif
+	std::copy(clearColor, clearColor + 4, this->_deviceResources->clearColor);
+	this->_deviceResources->clearColorSet = true;
 
-	return DDERR_UNSUPPORTED;
+	return DD_OK;
 }
 
 HRESULT Direct3DViewport::AddLight(
@@ -412,6 +414,7 @@ HRESULT Direct3DViewport::Clear2(
 #endif
 
 	this->_deviceResources->clearDepth = dvZ;
+	this->_deviceResources->clearDepthSet = true;
 
 	return D3D_OK;
 }

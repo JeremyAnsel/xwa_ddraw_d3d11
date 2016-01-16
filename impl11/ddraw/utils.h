@@ -26,14 +26,6 @@ public:
 
 	unsigned char X8toX5[0x100];
 	unsigned char X8toX6[0x100];
-
-	unsigned int B5G6R5toB8G8R8X8[0x10000];
-
-	unsigned int B4G4R4A4toB8G8R8A8[0x10000];
-
-	unsigned int B5G5R5A1toB8G8R8A8[0x10000];
-
-	unsigned int B5G6R5toB8G8R8A8[0x10000];
 };
 
 extern ColorConverterTables g_colorConverterTables;
@@ -53,22 +45,49 @@ inline unsigned short convertColorB8G8R8X8toB5G6R5(unsigned int color32)
 
 inline unsigned int convertColorB5G6R5toB8G8R8X8(unsigned short color16)
 {
-	return g_colorConverterTables.B5G6R5toB8G8R8X8[color16];
+	unsigned red = color16 >> 11;
+	red |= red << 5;
+	red >>= 2;
+	unsigned green = (color16 >> 5) & 0x3f;
+	green |= green << 6;
+	green >>= 4;
+	unsigned blue = color16 & 0x1f;
+	blue |= blue << 5;
+	blue >>= 2;
+	return (red << 16) | (green << 8) | blue;
 }
 
 inline unsigned int convertColorB4G4R4A4toB8G8R8A8(unsigned short color16)
 {
-	return g_colorConverterTables.B4G4R4A4toB8G8R8A8[color16];
+	unsigned alpha = color16 >> 12;
+	alpha |= alpha << 4;
+	unsigned red = (color16 >> 8) & 0xf;
+	red |= red << 4;
+	unsigned green = (color16 >> 4) & 0xf;
+	green |= green << 4;
+	unsigned blue = color16 & 0xf;
+	blue |= blue << 4;
+	return (alpha << 24) | (red << 16) | (green << 8) | blue;
 }
 
 inline unsigned int convertColorB5G5R5A1toB8G8R8A8(unsigned short color16)
 {
-	return g_colorConverterTables.B5G5R5A1toB8G8R8A8[color16];
+	unsigned red = (color16 >> 10) & 0x1f;
+	red |= red << 5;
+	red >>= 2;
+	unsigned green = (color16 >> 5) & 0x1f;
+	green |= green << 5;
+	green >>= 2;
+	unsigned blue = color16 & 0x1f;
+	blue |= blue << 5;
+	blue >>= 2;
+	unsigned alpha = (color16 & 0x8000u) ? 0xff000000u : 0;
+	return alpha | (red << 16) | (green << 8) | blue;
 }
 
 inline unsigned int convertColorB5G6R5toB8G8R8A8(unsigned short color16)
 {
-	return g_colorConverterTables.B5G6R5toB8G8R8A8[color16];
+	return convertColorB5G6R5toB8G8R8X8(color16) | 0xff000000u;
 }
 
 #if LOGGER

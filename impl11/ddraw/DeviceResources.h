@@ -30,6 +30,8 @@ public:
 
 	void CheckMultisamplingSupport();
 
+	void DefaultSurfaceDesc(LPDDSURFACEDESC, DWORD caps);
+
 	DWORD _displayWidth;
 	DWORD _displayHeight;
 	DWORD _displayBpp;
@@ -60,6 +62,7 @@ public:
 	ComPtr<ID3D11VertexShader> _vertexShader;
 	ComPtr<ID3D11InputLayout> _inputLayout;
 	ComPtr<ID3D11PixelShader> _pixelShaderTexture;
+	ComPtr<ID3D11PixelShader> _pixelShaderAtestTexture;
 	ComPtr<ID3D11PixelShader> _pixelShaderSolid;
 	ComPtr<ID3D11RasterizerState> _rasterizerState;
 	ComPtr<ID3D11Buffer> _constantBuffer;
@@ -72,7 +75,9 @@ public:
 	DXGI_RATIONAL _refreshRate;
 
 	float clearColor[4];
+	bool clearColorSet;
 	float clearDepth;
+	bool clearDepthSet;
 	bool sceneRendered;
 	bool sceneRenderedEmpty;
 	bool inScene;

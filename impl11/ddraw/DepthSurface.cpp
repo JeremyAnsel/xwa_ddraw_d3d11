@@ -140,7 +140,9 @@ HRESULT DepthSurface::Blt(
 
 	if ((dwFlags & DDBLT_DEPTHFILL) != 0 && lpDDBltFx != nullptr)
 	{
-		this->_deviceResources->clearDepth = *(D3DVALUE*)&lpDDBltFx->dwFillDepth;
+		// To do this correctly we'd need to know the exact buffer format
+		this->_deviceResources->clearDepth = lpDDBltFx->dwFillDepth > 0 ? 1.0f : 0.0f;
+		this->_deviceResources->clearDepthSet = true;
 	}
 
 	return DD_OK;
@@ -529,6 +531,11 @@ HRESULT DepthSurface::Lock(
 	str << this << " " << __FUNCTION__;
 	LogText(str.str());
 #endif
+
+	// For now assume lock was used to clear depth
+	// Otherwise the CMD image might incorrectly use the main
+	// view depth at least in XvT/BoP
+	this->_deviceResources->clearDepthSet = true;
 
 #if LOGGER
 	str.str("\tDDERR_UNSUPPORTED");

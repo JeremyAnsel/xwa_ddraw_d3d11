@@ -12,6 +12,10 @@ public:
 	bool MultisamplingAntialiasingEnabled;
 	bool AnisotropicFilteringEnabled;
 	bool WireframeFillMode;
+	int ScalingType;
+
+	bool Fullscreen;
+	bool XWAMode;
 
 	float Concourse3DScale;
 };

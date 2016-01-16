@@ -5,6 +5,7 @@
 #include "DeviceResources.h"
 #include "DirectDraw.h"
 #include "DirectDraw2.h"
+#include "DirectDrawPalette.h"
 #include "Direct3D.h"
 #include "PrimarySurface.h"
 #include "DepthSurface.h"
@@ -223,7 +224,8 @@ HRESULT DirectDraw::CreatePalette(
 
 	if (lplpDDPalette != nullptr)
 	{
-		*lplpDDPalette = nullptr;
+		*lplpDDPalette = new DirectDrawPalette();
+		return DD_OK;
 	}
 
 #if LOGGER

@@ -7,6 +7,7 @@
 #include "Direct3DDevice.h"
 #include "FrontbufferSurface.h"
 #include "OffscreenSurface.h"
+#include "DepthSurface.h"
 
 BackbufferSurface::BackbufferSurface(DeviceResources* deviceResources)
 {
@@ -141,6 +142,8 @@ HRESULT BackbufferSurface::AddAttachedSurface(
 		LogText(str.str());
 #endif
 
+		this->_deviceResources->_depthSurface->AddRef();
+
 		return DD_OK;
 	}
 
@@ -184,10 +187,16 @@ HRESULT BackbufferSurface::Blt(
 	str << tostr_RECT(lpDestRect);
 	str << " " << lpDDSrcSurface;
 	str << tostr_RECT(lpSrcRect);
+	str << " " << dwFlags;
 
 	if ((dwFlags & DDBLT_COLORFILL) != 0 && lpDDBltFx != nullptr)
 	{
 		str << " " << (void*)lpDDBltFx->dwFillColor;
+	}
+
+	if ((dwFlags & DDBLT_ROP) != 0)
+	{
+		str << " ROP:" << lpDDBltFx->dwROP;
 	}
 
 	LogText(str.str());
@@ -200,18 +209,18 @@ HRESULT BackbufferSurface::Blt(
 			return DDERR_INVALIDPARAMS;
 		}
 
-		//if (this->_deviceResources->_displayBpp == 2)
-		//{
-		//	unsigned short* buffer = (unsigned short*)this->_buffer;
-		//	int length = this->_bufferSize / 2;
-		//	unsigned short color = (unsigned short)lpDDBltFx->dwFillColor;
+		unsigned short color = (unsigned short)lpDDBltFx->dwFillColor;
+		if (color != 0 && this->_deviceResources->_displayBpp == 2)
+		{
+			unsigned short* buffer = (unsigned short*)this->_buffer;
+			int length = this->_bufferSize / 2;
 
-		//	for (int i = 0; i < length; i++)
-		//	{
-		//		buffer[i] = color;
-		//	}
-		//}
-		//else
+			for (int i = 0; i < length; i++)
+			{
+				buffer[i] = color;
+			}
+		}
+		else
 		//{
 		//	unsigned int* buffer = (unsigned int*)this->_buffer;
 		//	int length = this->_bufferSize / 4;
@@ -231,6 +240,16 @@ HRESULT BackbufferSurface::Blt(
 
 		memset(this->_buffer, 0, this->_bufferSize);
 
+		this->_deviceResources->clearColorSet = true;
+
+		return DD_OK;
+	}
+
+	if (lpDestRect->right - lpDestRect->left == lpSrcRect->right - lpSrcRect->left &&
+		lpDestRect->bottom - lpDestRect->top == lpSrcRect->bottom - lpSrcRect->top &&
+		dwFlags == DDBLT_ROP && lpDDBltFx->dwROP == SRCCOPY)
+	{
+		BltFast(lpDestRect->left, lpDestRect->top, lpDDSrcSurface, lpSrcRect, DDBLTFAST_WAIT);
 		return DD_OK;
 	}
 
@@ -319,16 +338,17 @@ HRESULT BackbufferSurface::BltFast(
 
 	if (lpDDSrcSurface != nullptr)
 	{
+		DWORD srcBpp = this->_deviceResources->_displayBpp == 1 ? 1 : 2;
 		if (lpDDSrcSurface == this->_deviceResources->_frontbufferSurface)
 		{
-			copySurface(this->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, this->_deviceResources->_displayBpp, this->_deviceResources->_frontbufferSurface->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, 2, dwX, dwY, lpSrcRect, (dwTrans & DDBLTFAST_SRCCOLORKEY) != 0);
+			copySurface(this->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, this->_deviceResources->_displayBpp, this->_deviceResources->_frontbufferSurface->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, srcBpp, dwX, dwY, lpSrcRect, (dwTrans & DDBLTFAST_SRCCOLORKEY) != 0);
 			this->_deviceResources->_frontbufferSurface->wasBltFastCalled = true;
 			return DD_OK;
 		}
 
 		if (lpDDSrcSurface == this->_deviceResources->_offscreenSurface)
 		{
-			copySurface(this->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, this->_deviceResources->_displayBpp, this->_deviceResources->_offscreenSurface->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, 2, dwX, dwY, lpSrcRect, (dwTrans & DDBLTFAST_SRCCOLORKEY) != 0);
+			copySurface(this->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, this->_deviceResources->_displayBpp, this->_deviceResources->_offscreenSurface->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, srcBpp, dwX, dwY, lpSrcRect, (dwTrans & DDBLTFAST_SRCCOLORKEY) != 0);
 			return DD_OK;
 		}
 	}
@@ -445,9 +465,24 @@ HRESULT BackbufferSurface::GetAttachedSurface(
 {
 #if LOGGER
 	std::ostringstream str;
-	str << this << " " << __FUNCTION__;
+	str << this << " " << __FUNCTION__ << " " << lpDDSCaps->dwCaps;
 	LogText(str.str());
 #endif
+
+	if (lpDDSCaps->dwCaps == DDSCAPS_ZBUFFER && this->_deviceResources->_depthSurface)
+	{
+		if (lplpDDAttachedSurface)
+		{
+			*lplpDDAttachedSurface = (LPDIRECTDRAWSURFACE)this->_deviceResources->_depthSurface;
+		}
+
+#if LOGGER
+		str.str("\tDD_OK");
+		LogText(str.str());
+#endif
+
+		return DD_OK;
+	}
 
 #if LOGGER
 	str.str("\tDDERR_UNSUPPORTED");
@@ -641,21 +676,9 @@ HRESULT BackbufferSurface::GetSurfaceDesc(
 		return DDERR_INVALIDPARAMS;
 	}
 
-	*lpDDSurfaceDesc = {};
-	lpDDSurfaceDesc->dwSize = sizeof(DDSURFACEDESC);
-	lpDDSurfaceDesc->dwFlags = DDSD_CAPS | DDSD_PIXELFORMAT | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PITCH;
-	lpDDSurfaceDesc->ddsCaps.dwCaps = DDSCAPS_BACKBUFFER | DDSCAPS_VIDEOMEMORY;
-	lpDDSurfaceDesc->ddpfPixelFormat.dwSize = sizeof(DDPIXELFORMAT);
-	lpDDSurfaceDesc->ddpfPixelFormat.dwFlags = DDPF_RGB;
-	lpDDSurfaceDesc->ddpfPixelFormat.dwRGBBitCount = 16;
-	lpDDSurfaceDesc->ddpfPixelFormat.dwRBitMask = 0xF800;
-	lpDDSurfaceDesc->ddpfPixelFormat.dwGBitMask = 0x7E0;
-	lpDDSurfaceDesc->ddpfPixelFormat.dwBBitMask = 0x1F;
-	lpDDSurfaceDesc->dwHeight = this->_deviceResources->_displayHeight;
-	lpDDSurfaceDesc->dwWidth = this->_deviceResources->_displayWidth;
-	lpDDSurfaceDesc->lPitch = this->_deviceResources->_displayWidth * this->_deviceResources->_displayBpp;
+	this->_deviceResources->DefaultSurfaceDesc(lpDDSurfaceDesc, DDSCAPS_BACKBUFFER | DDSCAPS_VIDEOMEMORY);
 
-	if (this->_deviceResources->_frontbufferSurface)
+	if (g_config.XWAMode && this->_deviceResources->_frontbufferSurface)
 	{
 		lpDDSurfaceDesc->lPitch = this->_deviceResources->_displayWidth * 2;
 	}
@@ -730,22 +753,11 @@ HRESULT BackbufferSurface::Lock(
 
 	if (lpDestRect == nullptr)
 	{
-		*lpDDSurfaceDesc = {};
-		lpDDSurfaceDesc->dwSize = sizeof(DDSURFACEDESC);
-		lpDDSurfaceDesc->dwFlags = DDSD_CAPS | DDSD_PIXELFORMAT | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PITCH | DDSD_LPSURFACE;
-		lpDDSurfaceDesc->ddsCaps.dwCaps = DDSCAPS_BACKBUFFER | DDSCAPS_VIDEOMEMORY;
-		lpDDSurfaceDesc->ddpfPixelFormat.dwSize = sizeof(DDPIXELFORMAT);
-		lpDDSurfaceDesc->ddpfPixelFormat.dwFlags = DDPF_RGB;
-		lpDDSurfaceDesc->ddpfPixelFormat.dwRGBBitCount = 16;
-		lpDDSurfaceDesc->ddpfPixelFormat.dwRBitMask = 0xF800;
-		lpDDSurfaceDesc->ddpfPixelFormat.dwGBitMask = 0x7E0;
-		lpDDSurfaceDesc->ddpfPixelFormat.dwBBitMask = 0x1F;
-		lpDDSurfaceDesc->dwHeight = this->_deviceResources->_displayHeight;
-		lpDDSurfaceDesc->dwWidth = this->_deviceResources->_displayWidth;
-		lpDDSurfaceDesc->lPitch = this->_deviceResources->_displayWidth * this->_deviceResources->_displayBpp;
+		this->_deviceResources->DefaultSurfaceDesc(lpDDSurfaceDesc, DDSCAPS_BACKBUFFER | DDSCAPS_VIDEOMEMORY);
+		lpDDSurfaceDesc->dwFlags |= DDSD_LPSURFACE;
 		lpDDSurfaceDesc->lpSurface = this->_buffer;
 
-		if (this->_deviceResources->_frontbufferSurface != nullptr)
+		if (g_config.XWAMode && this->_deviceResources->_frontbufferSurface != nullptr)
 		{
 			memset(this->_buffer, 0x80, this->_bufferSize);
 			lpDDSurfaceDesc->lPitch = this->_deviceResources->_displayWidth * 2;
@@ -762,7 +774,7 @@ HRESULT BackbufferSurface::Lock(
 				this->_deviceResources->inSceneBackbufferLocked = true;
 			}
 
-			if (!this->_deviceResources->inScene && this->_deviceResources->sceneRenderedEmpty)
+			if (g_config.XWAMode && !this->_deviceResources->inScene && this->_deviceResources->sceneRenderedEmpty)
 			{
 				this->_deviceResources->sceneRenderedEmpty = false;
 
@@ -904,7 +916,8 @@ HRESULT BackbufferSurface::Unlock(
 	LogText(str.str());
 #endif
 
-	if (this->_deviceResources->_frontbufferSurface != nullptr && this->_deviceResources->_displayBpp == 4)
+	// Fixup briefing text when xwahacker was used to force _displayBpp == 4
+	if (g_config.XWAMode && this->_deviceResources->_frontbufferSurface != nullptr && this->_deviceResources->_displayBpp == 4)
 	{
 		int length = this->_deviceResources->_displayWidth * this->_deviceResources->_displayHeight;
 

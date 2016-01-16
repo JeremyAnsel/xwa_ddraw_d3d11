@@ -3,17 +3,23 @@
 
 #include "common.h"
 #include "DeviceResources.h"
+#include "DirectDrawPalette.h"
+#include "PrimarySurface.h"
 
 #ifdef _DEBUG
 #include "..\Debug\MainVertexShader.h"
 #include "..\Debug\MainPixelShader.h"
+#include "..\Debug\SmoothScalePixelShader.h"
 #include "..\Debug\VertexShader.h"
+#include "..\Debug\PixelShaderAtestTexture.h"
 #include "..\Debug\PixelShaderTexture.h"
 #include "..\Debug\PixelShaderSolid.h"
 #else
 #include "..\Release\MainVertexShader.h"
 #include "..\Release\MainPixelShader.h"
+#include "..\Release\SmoothScalePixelShader.h"
 #include "..\Release\VertexShader.h"
+#include "..\Release\PixelShaderAtestTexture.h"
 #include "..\Release\PixelShaderTexture.h"
 #include "..\Release\PixelShaderSolid.h"
 #endif
@@ -60,8 +66,10 @@ DeviceResources::DeviceResources()
 
 	const float color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	memcpy(this->clearColor, &color, sizeof(color));
+	this->clearColorSet = true;
 
 	this->clearDepth = 1.0f;
+	this->clearDepthSet = true;
 
 	this->sceneRendered = false;
 	this->sceneRenderedEmpty = false;
@@ -141,6 +149,12 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 	this->_renderTargetView.Release();
 	this->_offscreenBuffer.Release();
 	this->_backBuffer.Release();
+	// Releasing a swap chain is only allowed after switching
+	// to windowed mode.
+	if (this->_swapChain)
+	{
+		this->_swapChain->SetFullscreenState(FALSE, NULL);
+	}
 	this->_swapChain.Release();
 
 	this->_refreshRate = { 0, 1 };
@@ -186,7 +200,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			sd.OutputWindow = hWnd;
 			sd.SampleDesc.Count = 1;
 			sd.SampleDesc.Quality = 0;
-			sd.Windowed = TRUE;
+			sd.Windowed = !g_config.Fullscreen;
 
 			ComPtr<IDXGIFactory> dxgiFactory;
 			hr = dxgiAdapter->GetParent(IID_PPV_ARGS(&dxgiFactory));
@@ -371,8 +385,16 @@ HRESULT DeviceResources::LoadMainResources()
 	if (FAILED(hr = this->_d3dDevice->CreateInputLayout(vertexLayoutDesc, ARRAYSIZE(vertexLayoutDesc), g_MainVertexShader, sizeof(g_MainVertexShader), &_mainInputLayout)))
 		return hr;
 
-	if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_MainPixelShader, sizeof(g_MainPixelShader), nullptr, &_mainPixelShader)))
-		return hr;
+	if (g_config.ScalingType)
+	{
+		if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_SmoothScalePixelShader, sizeof(g_SmoothScalePixelShader), nullptr, &_mainPixelShader)))
+			return hr;
+	}
+	else
+	{
+		if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_MainPixelShader, sizeof(g_MainPixelShader), nullptr, &_mainPixelShader)))
+			return hr;
+	}
 
 	D3D11_RASTERIZER_DESC rsDesc;
 	rsDesc.FillMode = D3D11_FILL_SOLID;
@@ -414,6 +436,14 @@ HRESULT DeviceResources::LoadMainResources()
 	blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
 	blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_ZERO;
 	blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+
+	if (g_config.ScalingType)
+	{
+		blendDesc.RenderTarget[0].BlendEnable = TRUE;
+		blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_INV_SRC_ALPHA;
+		blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_SRC_ALPHA;
+	}
+
 	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
 	blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
 	blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
@@ -501,6 +531,9 @@ HRESULT DeviceResources::LoadResources()
 	if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_PixelShaderTexture, sizeof(g_PixelShaderTexture), nullptr, &_pixelShaderTexture)))
 		return hr;
 
+	if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_PixelShaderAtestTexture, sizeof(g_PixelShaderAtestTexture), nullptr, &_pixelShaderAtestTexture)))
+		return hr;
+
 	if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_PixelShaderSolid, sizeof(g_PixelShaderSolid), nullptr, &_pixelShaderSolid)))
 		return hr;
 
@@ -572,7 +605,29 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 
 	if (SUCCEEDED(hr))
 	{
-		if (bpp == 2)
+		if (bpp == 1)
+		{
+			const char* srcColors = src;
+			unsigned int* colors = (unsigned int*)buffer;
+			const unsigned *palette = (_primarySurface && _primarySurface->palette) ? _primarySurface->palette->palette : nullptr;
+
+			for (int y = 0; y < height; y++)
+			{
+				for (int x = 0; x < width; x++)
+				{
+					unsigned char color8 = *srcColors;
+					srcColors++;
+
+					*colors = palette ? palette[color8] : (color8 << 16) | (color8 << 8) | color8;
+
+					colors++;
+				}
+
+				colors = (unsigned int*)((char*)colors + pitchDelta);
+			}
+
+		}
+		else if(bpp == 2)
 		{
 			if (useColorKey)
 			{
@@ -764,6 +819,27 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 		this->_d3dDeviceContext->RSSetState(this->_mainRasterizerState);
 
 		this->_d3dDeviceContext->PSSetSamplers(0, 1, this->_mainSamplerState.GetAddressOf());
+
+		if (g_config.ScalingType)
+		{
+			float texsize[4] = { static_cast<float>(width), static_cast<float>(height) };
+			D3D11_BUFFER_DESC cbDesc;
+			cbDesc.ByteWidth = 16; // We only use 8, but 16 is the minimum
+			cbDesc.Usage = D3D11_USAGE_IMMUTABLE;
+			cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+			cbDesc.CPUAccessFlags = 0;
+			cbDesc.MiscFlags = 0;
+			cbDesc.StructureByteStride = 0;
+			D3D11_SUBRESOURCE_DATA InitData;
+			InitData.pSysMem = texsize;
+			InitData.SysMemPitch = 0;
+			InitData.SysMemSlicePitch = 0;
+
+			ID3D11Buffer *texsizeBuf = NULL;
+			hr = this->_d3dDevice->CreateBuffer(&cbDesc, &InitData, &texsizeBuf);
+
+			this->_d3dDeviceContext->PSSetConstantBuffers(0, 1, &texsizeBuf);
+		}
 
 		const FLOAT factors[] = { 0.0f, 0.0f, 0.0f, 0.0f };
 		UINT mask = 0xffffffff;
@@ -959,4 +1035,22 @@ void DeviceResources::CheckMultisamplingSupport()
 	{
 		this->_useMultisampling = FALSE;
 	}
+}
+
+void DeviceResources::DefaultSurfaceDesc(LPDDSURFACEDESC lpDDSurfaceDesc, DWORD caps)
+{
+	unsigned bpp = this->_displayBpp;
+	*lpDDSurfaceDesc = {};
+	lpDDSurfaceDesc->dwSize = sizeof(DDSURFACEDESC);
+	lpDDSurfaceDesc->dwFlags = DDSD_CAPS | DDSD_PIXELFORMAT | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PITCH;
+	lpDDSurfaceDesc->ddsCaps.dwCaps = caps | (bpp == 1 ? DDSCAPS_PALETTE : 0);
+	lpDDSurfaceDesc->ddpfPixelFormat.dwSize = sizeof(DDPIXELFORMAT);
+	lpDDSurfaceDesc->ddpfPixelFormat.dwFlags = bpp == 1 ? DDPF_PALETTEINDEXED8 : DDPF_RGB;
+	lpDDSurfaceDesc->ddpfPixelFormat.dwRGBBitCount = 16;
+	lpDDSurfaceDesc->ddpfPixelFormat.dwRBitMask = 0xF800;
+	lpDDSurfaceDesc->ddpfPixelFormat.dwGBitMask = 0x7E0;
+	lpDDSurfaceDesc->ddpfPixelFormat.dwBBitMask = 0x1F;
+	lpDDSurfaceDesc->dwHeight = this->_displayHeight;
+	lpDDSurfaceDesc->dwWidth = this->_displayWidth;
+	lpDDSurfaceDesc->lPitch = this->_displayWidth * (bpp == 1 ? 1 : 2);
 }
