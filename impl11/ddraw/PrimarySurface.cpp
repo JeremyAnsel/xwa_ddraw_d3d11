@@ -485,7 +485,7 @@ HRESULT PrimarySurface::Flip(
 				UINT interval = numerator / rate;
 				this->_flipFrames = numerator % rate;
 
-				interval = max(interval, 1);
+				interval = std::max(interval, 1u);
 
 				hr = DD_OK;
 

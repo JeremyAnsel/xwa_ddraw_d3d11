@@ -21,7 +21,7 @@ MipmapSurface::MipmapSurface(DeviceResources* deviceResources, DWORD width, DWOR
 
 	if (this->_mipmapCount > 1)
 	{
-		*this->_mipmap.GetAddressOf() = new MipmapSurface(this->_deviceResources, max(this->_width / 2, 1), max(this->_height / 2, 1), this->_pixelFormat, this->_mipmapCount - 1, this->_buffer + this->_bufferSize);
+		*this->_mipmap.GetAddressOf() = new MipmapSurface(this->_deviceResources, std::max(this->_width / 2, 1ul), std::max(this->_height / 2, 1ul), this->_pixelFormat, this->_mipmapCount - 1, this->_buffer + this->_bufferSize);
 	}
 }
 
