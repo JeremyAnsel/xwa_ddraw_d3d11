@@ -18,11 +18,9 @@
 #pragma comment(lib, "dxguid")
 #pragma comment(lib, "ddraw")
 
-using namespace std;
-
 static BOOL CALLBACK enum_direct_draw_objects_callback(GUID* lpGUID, LPSTR lpDriverDescription, LPSTR lpDriverName, LPVOID lpContext, HMONITOR hm)
 {
-	cout << "\t" << lpDriverName << "\t" << lpDriverDescription << endl;
+	std::cout << "\t" << lpDriverName << "\t" << lpDriverDescription << std::endl;
 
 	return DDENUMRET_OK;
 }
@@ -69,14 +67,14 @@ HRESULT get_available_video_memory()
 	if (FAILED(hr = ddraw2->GetAvailableVidMem(&caps, &vidMemTotal, &vidMemFree)))
 		return hr;
 
-	cout << "\t" << vidMemTotal << endl;
+	std::cout << "\t" << vidMemTotal << std::endl;
 
 	return S_OK;
 }
 
 static HRESULT CALLBACK enum_display_modes_callback(LPDDSURFACEDESC lpDDSurfaceDesc, LPVOID lpContext)
 {
-	cout << "\t" << lpDDSurfaceDesc->dwWidth << "x" << lpDDSurfaceDesc->dwHeight << endl;
+	std::cout << "\t" << lpDDSurfaceDesc->dwWidth << "x" << lpDDSurfaceDesc->dwHeight << std::endl;
 
 	return DDENUMRET_OK;
 }
@@ -118,7 +116,7 @@ HRESULT set_display_mode()
 
 static HRESULT CALLBACK enum_d3d_devices_callback(LPGUID lpGuid, LPSTR lpDeviceDescription, LPSTR lpDeviceName, LPD3DDEVICEDESC lpD3DHWDeviceDesc, LPD3DDEVICEDESC lpD3DHELDeviceDesc, LPVOID lpContext)
 {
-	cout << "\t" << lpDeviceName << "\t" << lpDeviceDescription << endl;
+	std::cout << "\t" << lpDeviceName << "\t" << lpDeviceDescription << std::endl;
 
 	return D3DENUMRET_OK;
 }
@@ -143,17 +141,17 @@ HRESULT enum_d3d_devices()
 
 HRESULT CALLBACK enum_texture_formats_callback(LPDDSURFACEDESC lpDdsd, LPVOID lpContext)
 {
-	cout << "\t" << lpDdsd->ddpfPixelFormat.dwRGBBitCount;
-	cout << " R:" << (void*)lpDdsd->ddpfPixelFormat.dwRBitMask;
-	cout << " G:" << (void*)lpDdsd->ddpfPixelFormat.dwGBitMask;
-	cout << " B:" << (void*)lpDdsd->ddpfPixelFormat.dwBBitMask;
+	std::cout << "\t" << lpDdsd->ddpfPixelFormat.dwRGBBitCount;
+	std::cout << " R:" << (void*)lpDdsd->ddpfPixelFormat.dwRBitMask;
+	std::cout << " G:" << (void*)lpDdsd->ddpfPixelFormat.dwGBitMask;
+	std::cout << " B:" << (void*)lpDdsd->ddpfPixelFormat.dwBBitMask;
 
 	if (lpDdsd->ddpfPixelFormat.dwRGBAlphaBitMask != 0)
 	{
-		cout << " A:" << (void*)lpDdsd->ddpfPixelFormat.dwRGBAlphaBitMask;
+		std::cout << " A:" << (void*)lpDdsd->ddpfPixelFormat.dwRGBAlphaBitMask;
 	}
 
-	cout << endl;
+	std::cout << std::endl;
 
 	return D3DENUMRET_OK;
 }
@@ -456,12 +454,12 @@ HRESULT create_texture()
 #define RUN_TEST(fct) \
 	{ \
 	HRESULT hr; \
-	cout << "*** " << #fct << " ***" << endl; \
+	std::cout << "*** " << #fct << " ***" << std::endl; \
 	if(FAILED(hr = (fct))) \
 									{ \
-		cout << "\t* failed " << (void*)hr << ": " << _com_error(hr).ErrorMessage() << endl; \
+		std::cout << "\t* failed " << (void*)hr << ": " << _com_error(hr).ErrorMessage() << std::endl; \
 									} else { \
-		cout << "\t* passed" << endl; \
+		std::cout << "\t* passed" << std::endl; \
 	} \
 }
 
@@ -475,7 +473,7 @@ void main()
 	DDCOLORKEY colorkey;
 	DDBLTFX ddBltFx;
 
-#define CALL(fct) cout << #fct << endl; if(FAILED(hr = (fct))) { cout << (void*)hr << ": " << _com_error(hr).ErrorMessage() << endl; return; }
+#define CALL(fct) std::cout << #fct << std::endl; if(FAILED(hr = (fct))) { std::cout << (void*)hr << ": " << _com_error(hr).ErrorMessage() << std::endl; return; }
 
 	ComPtr<IDirectDraw> ddraw;
 	CALL(DirectDrawCreate(nullptr, &ddraw, nullptr));
