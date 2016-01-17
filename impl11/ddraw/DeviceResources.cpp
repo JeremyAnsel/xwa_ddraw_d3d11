@@ -142,7 +142,7 @@ HRESULT DeviceResources::Initialize()
 HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 {
 	HRESULT hr;
-	char* step = "";
+	const char* step = "";
 
 	this->_depthStencilView.Release();
 	this->_depthStencil.Release();
@@ -571,7 +571,7 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 	bool useMainDisplayTexture = (width == this->_displayWidth) && (height == this->_displayHeight);
 
 	HRESULT hr = S_OK;
-	char* step = "";
+	const char* step = "";
 
 	D3D11_MAPPED_SUBRESOURCE displayMap;
 	char* tempBuffer = nullptr;
@@ -897,7 +897,7 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 HRESULT DeviceResources::RetrieveBackBuffer(char* buffer, DWORD width, DWORD height, DWORD bpp)
 {
 	HRESULT hr = S_OK;
-	char* step = "";
+	const char* step = "";
 
 	memset(buffer, 0, width * height * bpp);
 
