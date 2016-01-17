@@ -15,7 +15,7 @@
 // based implamentations.
 // In addition it avoids issues due to ambiguity between
 // multiple isspace overloads when used in a template context.
-static bool isspace_wrapper(char c)
+static int isspace_wrapper(char c)
 {
     return std::isspace(static_cast<unsigned char>(c));
 }

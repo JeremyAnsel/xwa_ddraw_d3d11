@@ -148,7 +148,7 @@ HRESULT DirectDrawPalette::SetEntries(DWORD flags, DWORD start, DWORD count, LPP
 	{
 		return DDERR_INVALIDPARAMS;
 	}
-	for (int i = 0; i < count; ++i)
+	for (unsigned i = 0; i < count; ++i)
 	{
 		PALETTEENTRY *cur = e + i;
 		palette[start + i] = (cur->peRed << 16) | (cur->peGreen << 8) | cur->peBlue;

@@ -557,7 +557,7 @@ void scaleSurface(char* dest, DWORD destWidth, DWORD destHeight, DWORD destBpp, 
 					char* srcBuffer = (char*)data.Scan0;
 					char* destBuffer = dest;
 
-					for (int y = 0; y < destHeight; y++)
+					for (unsigned y = 0; y < destHeight; y++)
 					{
 						memcpy(destBuffer, srcBuffer, rowLength);
 
