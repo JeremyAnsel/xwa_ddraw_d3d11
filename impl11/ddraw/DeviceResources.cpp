@@ -273,7 +273,10 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 	if (SUCCEEDED(hr))
 	{
 		step = "RenderTargetView";
-		CD3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc(this->_useMultisampling ? D3D11_RTV_DIMENSION_TEXTURE2DMS : D3D11_RTV_DIMENSION_TEXTURE2D);
+		D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc;
+		renderTargetViewDesc.Format = DXGI_FORMAT_UNKNOWN;
+		renderTargetViewDesc.Texture2D.MipSlice = 0;
+		renderTargetViewDesc.ViewDimension = this->_useMultisampling ? D3D11_RTV_DIMENSION_TEXTURE2DMS : D3D11_RTV_DIMENSION_TEXTURE2D;
 		hr = this->_d3dDevice->CreateRenderTargetView(this->_offscreenBuffer, &renderTargetViewDesc, &this->_renderTargetView);
 	}
 
@@ -298,7 +301,11 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		if (SUCCEEDED(hr))
 		{
 			step = "DepthStencilView";
-			CD3D11_DEPTH_STENCIL_VIEW_DESC depthStencilViewDesc(this->_useMultisampling ? D3D11_DSV_DIMENSION_TEXTURE2DMS : D3D11_DSV_DIMENSION_TEXTURE2D);
+			D3D11_DEPTH_STENCIL_VIEW_DESC depthStencilViewDesc;
+			depthStencilViewDesc.Format = DXGI_FORMAT_UNKNOWN;
+			depthStencilViewDesc.Flags = 0;
+			depthStencilViewDesc.Texture2D.MipSlice = 0;
+			depthStencilViewDesc.ViewDimension = this->_useMultisampling ? D3D11_DSV_DIMENSION_TEXTURE2DMS : D3D11_DSV_DIMENSION_TEXTURE2D;
 			hr = this->_d3dDevice->CreateDepthStencilView(this->_depthStencil, &depthStencilViewDesc, &this->_depthStencilView);
 		}
 	}

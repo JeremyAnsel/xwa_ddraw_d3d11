@@ -13,6 +13,11 @@
 #include <dxgi.h>
 #include <d3d11.h>
 
+#ifdef MINGW_HAS_SECURE_API
+// Bug workaround to fix compilation
+// of comdef.h
+#include <stdio.h>
+#endif
 #include <comdef.h>
 
 #include <string>
