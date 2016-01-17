@@ -3,6 +3,7 @@
 class Direct3DMaterial : public IDirect3DMaterial
 {
 public:
+	virtual ~Direct3DMaterial() {}
 	/*** IUnknown methods ***/
 
 	STDMETHOD(QueryInterface) (THIS_ REFIID riid, LPVOID FAR * ppvObj);
