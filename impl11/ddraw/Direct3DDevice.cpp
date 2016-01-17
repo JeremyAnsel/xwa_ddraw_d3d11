@@ -561,7 +561,7 @@ HRESULT Direct3DDevice::Execute(
 	auto& context = this->_deviceResources->_d3dDeviceContext;
 
 	HRESULT hr = S_OK;
-	char* step = "";
+	const char* step = "";
 
 	context->IASetInputLayout(this->_deviceResources->_inputLayout);
 	context->VSSetShader(this->_deviceResources->_vertexShader, nullptr, 0);
