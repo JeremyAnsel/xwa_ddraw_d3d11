@@ -9,8 +9,6 @@
 #include <algorithm>
 #include <cctype>
 
-using namespace std;
-
 Config g_config;
 
 Config::Config()
@@ -41,11 +39,11 @@ Config::Config()
 		}
 	}
 
-	ifstream file(std::string(execPath) + "ddraw.cfg");
+	std::ifstream file(std::string(execPath) + "ddraw.cfg");
 
 	if (file.is_open())
 	{
-		string line;
+		std::string line;
 
 		while (std::getline(file, line))
 		{
@@ -61,10 +59,10 @@ Config::Config()
 
 			int pos = line.find("=");
 
-			string name = line.substr(0, pos);
+			std::string name = line.substr(0, pos);
 			name.erase(remove_if(name.begin(), name.end(), std::isspace), name.end());
 
-			string value = line.substr(pos + 1);
+			std::string value = line.substr(pos + 1);
 			value.erase(remove_if(value.begin(), value.end(), std::isspace), value.end());
 
 			if (!name.length() || !value.length())
