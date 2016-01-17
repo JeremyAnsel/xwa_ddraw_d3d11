@@ -9,6 +9,17 @@
 #include <algorithm>
 #include <cctype>
 
+// Wrapper to avoid undefined behaviour due to
+// sign-extending char to int when passing to isspace.
+// That would be undefined behaviour and crashes with table
+// based implamentations.
+// In addition it avoids issues due to ambiguity between
+// multiple isspace overloads when used in a template context.
+static bool isspace_wrapper(char c)
+{
+    return std::isspace(static_cast<unsigned char>(c));
+}
+
 Config g_config;
 
 Config::Config()
@@ -60,10 +71,10 @@ Config::Config()
 			int pos = line.find("=");
 
 			std::string name = line.substr(0, pos);
-			name.erase(remove_if(name.begin(), name.end(), std::isspace), name.end());
+			name.erase(remove_if(name.begin(), name.end(), isspace_wrapper), name.end());
 
 			std::string value = line.substr(pos + 1);
-			value.erase(remove_if(value.begin(), value.end(), std::isspace), value.end());
+			value.erase(remove_if(value.begin(), value.end(), isspace_wrapper), value.end());
 
 			if (!name.length() || !value.length())
 			{
