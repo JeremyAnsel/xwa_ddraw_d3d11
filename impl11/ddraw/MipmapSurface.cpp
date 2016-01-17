@@ -6,6 +6,11 @@
 #include "MipmapSurface.h"
 #include "Direct3DTexture.h"
 
+// defining NOMINMAX unfortunately breaks compilation of some DX headers
+#undef min
+#undef max
+#include <algorithm>
+
 MipmapSurface::MipmapSurface(DeviceResources* deviceResources, DWORD width, DWORD height, DDPIXELFORMAT& pixelFormat, DWORD mipmapCount, char* buffer)
 {
 	this->_refCount = 1;

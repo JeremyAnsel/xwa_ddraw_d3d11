@@ -8,6 +8,11 @@
 #include "BackbufferSurface.h"
 #include "FrontbufferSurface.h"
 
+// defining NOMINMAX unfortunately breaks compilation of some DX headers
+#undef min
+#undef max
+#include <algorithm>
+
 PrimarySurface::PrimarySurface(DeviceResources* deviceResources, bool hasBackbufferAttached)
 {
 	this->_refCount = 1;
