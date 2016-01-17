@@ -35,54 +35,31 @@ public:
 
 static LibraryWrapper ddraw("ddraw.dll");
 
-extern "C" __declspec(naked) void AcquireDDThreadLock()
-{
-	static void(*ddraw_proc)() = (void(*)())GetProcAddress(ddraw._module, "AcquireDDThreadLock");
+#ifdef __MINGW32__
+#define ASMJMP(name) __asm("jmp %0\n" :: "m"(name))
+#else
+#define ASMJMP(name) __asm { jmp name }
+#endif
 
-	__asm jmp ddraw_proc;
+// Note: Do not put variable into function, as that would allow
+// it to be initialized at first call instead of startup.
+// We want the function to only consist of the jmp.
+// MSVC at least currently together with "naked" does this
+// automatically, but better not to rely on it.
+#define WRAP_FUNCTION(name) \
+static void (*ddraw_proc_##name)() = (void(*)())GetProcAddress(ddraw._module, #name); \
+extern "C" __declspec(naked) void name() \
+{ \
+    ASMJMP(ddraw_proc_##name); \
 }
 
-extern "C" __declspec(naked) void CompleteCreateSysmemSurface()
-{
-	static void(*ddraw_proc)() = (void(*)())GetProcAddress(ddraw._module, "CompleteCreateSysmemSurface");
-
-	__asm jmp ddraw_proc;
-}
-
-extern "C" __declspec(naked) void D3DParseUnknownCommand()
-{
-	static void(*ddraw_proc)() = (void(*)())GetProcAddress(ddraw._module, "D3DParseUnknownCommand");
-
-	__asm jmp ddraw_proc;
-}
-
-extern "C" __declspec(naked) void DDGetAttachedSurfaceLcl()
-{
-	static void(*ddraw_proc)() = (void(*)())GetProcAddress(ddraw._module, "DDGetAttachedSurfaceLcl");
-
-	__asm jmp ddraw_proc;
-}
-
-extern "C" __declspec(naked) void DDInternalLock()
-{
-	static void(*ddraw_proc)() = (void(*)())GetProcAddress(ddraw._module, "DDInternalLock");
-
-	__asm jmp ddraw_proc;
-}
-
-extern "C" __declspec(naked) void DDInternalUnlock()
-{
-	static void(*ddraw_proc)() = (void(*)())GetProcAddress(ddraw._module, "DDInternalUnlock");
-
-	__asm jmp ddraw_proc;
-}
-
-extern "C" __declspec(naked) void DSoundHelp()
-{
-	static void(*ddraw_proc)() = (void(*)())GetProcAddress(ddraw._module, "DSoundHelp");
-
-	__asm jmp ddraw_proc;
-}
+WRAP_FUNCTION(AcquireDDThreadLock)
+WRAP_FUNCTION(CompleteCreateSysmemSurface)
+WRAP_FUNCTION(D3DParseUnknownCommand)
+WRAP_FUNCTION(DDGetAttachedSurfaceLcl)
+WRAP_FUNCTION(DDInternalLock)
+WRAP_FUNCTION(DDInternalUnlock)
+WRAP_FUNCTION(DSoundHelp)
 
 extern "C" HRESULT WINAPI DirectDrawCreate(
 	_In_   GUID FAR *lpGUID,
@@ -289,44 +266,9 @@ extern "C" HRESULT WINAPI DirectDrawEnumerateW(
 	return ddraw_proc(lpCallback, lpContext);
 }
 
-extern "C" __declspec(naked) void GetDDSurfaceLocal()
-{
-	static void(*ddraw_proc)() = (void(*)())GetProcAddress(ddraw._module, "GetDDSurfaceLocal");
-
-	__asm jmp ddraw_proc;
-}
-
-extern "C" __declspec(naked) void GetOLEThunkData()
-{
-	static void(*ddraw_proc)() = (void(*)())GetProcAddress(ddraw._module, "GetOLEThunkData");
-
-	__asm jmp ddraw_proc;
-}
-
-extern "C" __declspec(naked) void GetSurfaceFromDC()
-{
-	static void(*ddraw_proc)() = (void(*)())GetProcAddress(ddraw._module, "GetSurfaceFromDC");
-
-	__asm jmp ddraw_proc;
-}
-
-extern "C" __declspec(naked) void RegisterSpecialCase()
-{
-	static void(*ddraw_proc)() = (void(*)())GetProcAddress(ddraw._module, "RegisterSpecialCase");
-
-	__asm jmp ddraw_proc;
-}
-
-extern "C" __declspec(naked) void ReleaseDDThreadLock()
-{
-	static void(*ddraw_proc)() = (void(*)())GetProcAddress(ddraw._module, "ReleaseDDThreadLock");
-
-	__asm jmp ddraw_proc;
-}
-
-extern "C" __declspec(naked) void SetAppCompatData()
-{
-	static void(*ddraw_proc)() = (void(*)())GetProcAddress(ddraw._module, "SetAppCompatData");
-
-	__asm jmp ddraw_proc;
-}
+WRAP_FUNCTION(GetDDSurfaceLocal)
+WRAP_FUNCTION(GetOLEThunkData)
+WRAP_FUNCTION(GetSurfaceFromDC)
+WRAP_FUNCTION(RegisterSpecialCase)
+WRAP_FUNCTION(ReleaseDDThreadLock)
+WRAP_FUNCTION(SetAppCompatData)
