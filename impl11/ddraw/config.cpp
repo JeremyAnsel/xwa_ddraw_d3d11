@@ -30,6 +30,7 @@ Config::Config()
 	this->WireframeFillMode = false;
 	this->Fullscreen = false;
 	this->XWAMode = true;
+	int XWAModeInt = -1;
 
 	this->Concourse3DScale = 0.6f;
 
@@ -107,12 +108,23 @@ Config::Config()
 			}
 			else if (name == "XWAMode")
 			{
-				this->XWAMode = stoi(value) != 0;
+				XWAModeInt = stoi(value);
 			}
 			else if (name == "Concourse3DScale")
 			{
 				this->Concourse3DScale = stof(value);
 			}
 		}
+	}
+	if (XWAModeInt == -1)
+	{
+		char name[4096] = {};
+		GetModuleFileNameA(NULL, name, sizeof(name));
+		int len = strlen(name);
+		this->XWAMode = len >= 17 && _stricmp(name + len - 17, "xwingalliance.exe") == 0;
+	}
+	else
+	{
+		this->XWAMode = XWAModeInt != 0;
 	}
 }
