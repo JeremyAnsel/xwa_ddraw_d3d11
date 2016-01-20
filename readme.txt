@@ -2,20 +2,18 @@ This is an implementation of ddraw.dll using Direct3D 11.
 It is intented to be used with the X-Wing Alliance game.
 More info at xwaupgrade.com:
 http://www.xwaupgrade.com/phpBB3008/viewtopic.php?f=10&t=11167
+It also works with the other games from the series:
+X-Wing95, TIE95, X-Wing vs. TIE Fighter and Balanace of Power
 
 
 *** Requirements ***
 
 This dll requires:
 - DirectX 11
-- Visual C++ 2013 Runtime (x86)
 - a CPU with SSE2 support
 
 How to install the latest version of DirectX
 http://support.microsoft.com/kb/179113/en
-
-Visual C++ Redistributable Packages for Visual Studio 2013: vcredist_x86.exe
-http://www.microsoft.com/en-us/download/details.aspx?id=40784
 
 
 *** Usage ***
@@ -46,6 +44,9 @@ xwa_ddraw_d3d11 is licensed under the MIT license. See LICENSE.txt
 
 The source code of xwa_ddraw_d3d11 is situated at:
 https://github.com/JeremyAnsel/xwa_ddraw_d3d11
+
+This version was created from a fork at:
+https://github.com/rdoeffinger/xwa_ddraw_d3d11
 
 
 *** Credits ***
