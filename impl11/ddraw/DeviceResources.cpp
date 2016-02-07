@@ -7,21 +7,21 @@
 #include "PrimarySurface.h"
 
 #ifdef _DEBUG
-#include "..\Debug\MainVertexShader.h"
-#include "..\Debug\MainPixelShader.h"
-#include "..\Debug\SmoothScalePixelShader.h"
-#include "..\Debug\VertexShader.h"
-#include "..\Debug\PixelShaderAtestTexture.h"
-#include "..\Debug\PixelShaderTexture.h"
-#include "..\Debug\PixelShaderSolid.h"
+#include "../Debug/MainVertexShader.h"
+#include "../Debug/MainPixelShader.h"
+#include "../Debug/SmoothScalePixelShader.h"
+#include "../Debug/VertexShader.h"
+#include "../Debug/PixelShaderAtestTexture.h"
+#include "../Debug/PixelShaderTexture.h"
+#include "../Debug/PixelShaderSolid.h"
 #else
-#include "..\Release\MainVertexShader.h"
-#include "..\Release\MainPixelShader.h"
-#include "..\Release\SmoothScalePixelShader.h"
-#include "..\Release\VertexShader.h"
-#include "..\Release\PixelShaderAtestTexture.h"
-#include "..\Release\PixelShaderTexture.h"
-#include "..\Release\PixelShaderSolid.h"
+#include "../Release/MainVertexShader.h"
+#include "../Release/MainPixelShader.h"
+#include "../Release/SmoothScalePixelShader.h"
+#include "../Release/VertexShader.h"
+#include "../Release/PixelShaderAtestTexture.h"
+#include "../Release/PixelShaderTexture.h"
+#include "../Release/PixelShaderSolid.h"
 #endif
 
 struct MainVertex
