@@ -1167,7 +1167,6 @@ HRESULT Direct3DDevice::BeginScene()
 	this->_deviceResources->inScene = true;
 	this->_deviceResources->inSceneBackbufferLocked = false;
 
-	auto& device = this->_deviceResources->_d3dDevice;
 	auto& context = this->_deviceResources->_d3dDeviceContext;
 
 	if (!this->_deviceResources->sceneRendered || this->_deviceResources->clearColorSet)
