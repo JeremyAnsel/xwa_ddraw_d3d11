@@ -618,19 +618,28 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 			unsigned int* colors = (unsigned int*)buffer;
 			const unsigned *palette = (_primarySurface && _primarySurface->palette) ? _primarySurface->palette->palette : nullptr;
 
-			for (unsigned y = 0; y < height; y++)
+			if (palette)
 			{
-				for (unsigned x = 0; x < width; x++)
+				for (unsigned y = 0; y < height; y++)
 				{
-					unsigned char color8 = *srcColors;
-					srcColors++;
-
-					*colors = palette ? palette[color8] : (color8 << 16) | (color8 << 8) | color8;
-
-					colors++;
+					for (unsigned x = 0; x < width; x++)
+					{
+						unsigned char color8 = *srcColors++;
+						*colors++ = palette[color8];
+					}
+					colors = (unsigned int*)((char*)colors + pitchDelta);
 				}
-
-				colors = (unsigned int*)((char*)colors + pitchDelta);
+			}
+			else {
+				for (unsigned y = 0; y < height; y++)
+				{
+					for (unsigned x = 0; x < width; x++)
+					{
+						unsigned char color8 = *srcColors++;
+						*colors++ = (color8 << 16) | (color8 << 8) | color8;
+					}
+					colors = (unsigned int*)((char*)colors + pitchDelta);
+				}
 			}
 
 		}
