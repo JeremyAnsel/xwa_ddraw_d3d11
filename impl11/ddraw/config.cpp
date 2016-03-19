@@ -31,6 +31,7 @@ Config::Config()
 	this->Fullscreen = false;
 	this->XWAMode = true;
 	int XWAModeInt = -1;
+	int ProcessAffinity = -1;
 
 	this->Concourse3DScale = 0.6f;
 
@@ -114,6 +115,10 @@ Config::Config()
 			{
 				this->Concourse3DScale = stof(value);
 			}
+			else if (name == "ProcessAffinity")
+			{
+				ProcessAffinity = stoi(value);
+			}
 		}
 	}
 	if (XWAModeInt == -1)
@@ -126,5 +131,17 @@ Config::Config()
 	else
 	{
 		this->XWAMode = XWAModeInt != 0;
+	}
+	if (ProcessAffinity != 0) {
+		DWORD_PTR CurProcessAffinity, SystemAffinity;
+		HANDLE mod = GetCurrentProcess();
+		if (GetProcessAffinityMask(mod, &CurProcessAffinity, &SystemAffinity)) {
+			if (ProcessAffinity > 0) {
+				ProcessAffinity &= SystemAffinity;
+			} else {
+				ProcessAffinity = (SystemAffinity & 2) ? 2 : 1;
+			}
+		}
+		SetProcessAffinityMask(mod, ProcessAffinity);
 	}
 }
