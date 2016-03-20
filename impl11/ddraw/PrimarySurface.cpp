@@ -572,6 +572,9 @@ HRESULT PrimarySurface::Flip(
 			hr = DD_OK;
 		}
 
+		if (g_config.PresentSleepTime >= 0) {
+			Sleep(g_config.PresentSleepTime);
+		}
 		return hr;
 	}
 

@@ -35,6 +35,8 @@ Config::Config()
 
 	this->Concourse3DScale = 0.6f;
 
+	this->PresentSleepTime = -1;
+
 	// Try to always load config from executable path, not CWD
 	char execPath[MAX_PATH] = "";
 	HMODULE module = GetModuleHandle(NULL);
@@ -118,6 +120,10 @@ Config::Config()
 			else if (name == "ProcessAffinity")
 			{
 				ProcessAffinity = stoi(value);
+			}
+			else if (name == "PresentSleepTime")
+			{
+				this->PresentSleepTime = stoi(value);
 			}
 		}
 	}

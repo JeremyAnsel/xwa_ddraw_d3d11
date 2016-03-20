@@ -18,6 +18,8 @@ public:
 	bool XWAMode;
 
 	float Concourse3DScale;
+
+	int PresentSleepTime;
 };
 
 extern Config g_config;
