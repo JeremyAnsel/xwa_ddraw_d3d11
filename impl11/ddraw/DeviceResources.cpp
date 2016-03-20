@@ -924,16 +924,6 @@ HRESULT DeviceResources::RetrieveBackBuffer(char* buffer, DWORD width, DWORD hei
 	textureDescription.SampleDesc.Count = 1;
 	textureDescription.SampleDesc.Quality = 0;
 
-	ComPtr<ID3D11Texture2D> backBuffer;
-	textureDescription.Usage = D3D11_USAGE_DEFAULT;
-	textureDescription.CPUAccessFlags = 0;
-
-	step = "Resolve BackBuffer";
-
-	if (SUCCEEDED(hr = this->_d3dDevice->CreateTexture2D(&textureDescription, nullptr, &backBuffer)))
-	{
-		this->_d3dDeviceContext->ResolveSubresource(backBuffer, D3D11CalcSubresource(0, 0, 1), this->_backBuffer, D3D11CalcSubresource(0, 0, 1), textureDescription.Format);
-
 		step = "Staging Texture2D";
 
 		ComPtr<ID3D11Texture2D> texture;
@@ -942,7 +932,7 @@ HRESULT DeviceResources::RetrieveBackBuffer(char* buffer, DWORD width, DWORD hei
 
 		if (SUCCEEDED(hr = this->_d3dDevice->CreateTexture2D(&textureDescription, nullptr, &texture)))
 		{
-			this->_d3dDeviceContext->CopyResource(texture, backBuffer);
+			this->_d3dDeviceContext->CopyResource(texture, this->_backBuffer);
 
 			step = "Map";
 
@@ -985,7 +975,6 @@ HRESULT DeviceResources::RetrieveBackBuffer(char* buffer, DWORD width, DWORD hei
 				this->_d3dDeviceContext->Unmap(texture, 0);
 			}
 		}
-	}
 
 	if (FAILED(hr))
 	{
