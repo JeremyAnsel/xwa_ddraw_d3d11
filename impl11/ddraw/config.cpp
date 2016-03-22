@@ -28,6 +28,7 @@ Config::Config()
 	this->MultisamplingAntialiasingEnabled = true;
 	this->AnisotropicFilteringEnabled = true;
 	this->WireframeFillMode = false;
+	this->ScalingType = 0;
 	this->Fullscreen = false;
 	this->XWAMode = true;
 	int XWAModeInt = -1;

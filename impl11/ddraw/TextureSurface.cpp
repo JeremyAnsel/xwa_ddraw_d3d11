@@ -24,6 +24,7 @@ TextureSurface::TextureSurface(DeviceResources* deviceResources, bool allocOnLoa
 	this->_pixelFormat = pixelFormat;
 	this->_mipmapCount = mipmapCount;
 	this->hasColorKey = false;
+	this->colorKey = 0;
 
 	if (this->_allocOnLoad)
 	{

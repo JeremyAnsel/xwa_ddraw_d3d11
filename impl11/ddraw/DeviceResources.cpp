@@ -48,6 +48,12 @@ struct MainVertex
 
 DeviceResources::DeviceResources()
 {
+	this->_displayWidth = 0;
+	this->_displayHeight = 0;
+	this->_displayBpp = 0;
+
+	this->_d3dDriverType = D3D_DRIVER_TYPE_UNKNOWN;
+	this->_d3dFeatureLevel = D3D_FEATURE_LEVEL_9_1;
 	this->_primarySurface = nullptr;
 	this->_depthSurface = nullptr;
 	this->_backbufferSurface = nullptr;
@@ -74,6 +80,7 @@ DeviceResources::DeviceResources()
 	this->sceneRendered = false;
 	this->sceneRenderedEmpty = false;
 	this->inScene = false;
+	this->inSceneBackbufferLocked = false;
 }
 
 HRESULT DeviceResources::Initialize()

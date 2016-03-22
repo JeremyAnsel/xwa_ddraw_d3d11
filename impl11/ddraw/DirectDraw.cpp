@@ -18,6 +18,7 @@ DirectDraw::DirectDraw(DeviceResources* deviceResources)
 {
 	this->_refCount = 1;
 	this->_deviceResources = deviceResources;
+	this->_hWnd = NULL;
 }
 
 DirectDraw::~DirectDraw()
