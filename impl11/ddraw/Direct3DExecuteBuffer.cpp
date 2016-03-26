@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE.txt
 
 #include "common.h"
+#include <emmintrin.h>
 #include "DeviceResources.h"
 #include "Direct3DExecuteBuffer.h"
 #include "BackbufferSurface.h"
@@ -153,7 +154,27 @@ HRESULT Direct3DExecuteBuffer::Lock(
 
 			unsigned short* buffer16 = (unsigned short*)this->_deviceResources->_backbufferSurface->_buffer;
 
-			for (int i = length - 1; i >= 0; i--)
+			int i;
+			// The loop condition shouldn't need to be so obfuscated,
+			// but MSVC is stupid and generates slow loop conditions otherwise
+			for (i = 16; i <= length; i += 16)
+			{
+				__m128i color16 = _mm_loadu_si128((const __m128i *)(buffer16 + i - 16));
+				__m128i color16_2 = _mm_loadu_si128((const __m128i *)(buffer16 + i - 8));
+				__m128i transparent = _mm_cmpeq_epi16(color16, _mm_set1_epi16(0));
+				color16 = _mm_andnot_si128(transparent, color16);
+				transparent = _mm_and_si128(transparent, _mm_set1_epi16(0x2000));
+				color16 = _mm_or_si128(color16, transparent);
+				_mm_storeu_si128((__m128i *)(buffer16 + i - 16), color16);
+
+				transparent = _mm_cmpeq_epi16(color16_2, _mm_set1_epi16(0));
+				color16_2 = _mm_andnot_si128(transparent, color16_2);
+				transparent = _mm_and_si128(transparent, _mm_set1_epi16(0x2000));
+				color16_2 = _mm_or_si128(color16_2, transparent);
+				_mm_storeu_si128((__m128i *)(buffer16 + i - 8), color16_2);
+			}
+			i -= 16;
+			for (; i < length; i++)
 			{
 				unsigned short color16 = buffer16[i];
 
