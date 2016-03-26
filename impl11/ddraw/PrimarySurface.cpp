@@ -529,6 +529,10 @@ HRESULT PrimarySurface::Flip(
 				this->_deviceResources->_frontbufferSurface->wasBltFastCalled = false;
 			}
 
+			if (g_config.PresentSleepTime >= 0) {
+				Sleep(g_config.PresentSleepTime);
+			}
+
 			return hr;
 		}
 	}
