@@ -7,7 +7,7 @@ VERSION:=1.4.1
 .SUFFIXES:
 
 WARN_FLAGS:=-Wall -Wextra -pedantic -Wno-unused-parameter -Wno-switch -Wno-missing-field-initializers
-CXXFLAGS:=-std=c++11 -pipe -O2 -DNDEBUG=1 -DMINGW_HAS_SECURE_API=1 -DD3D11_MIN_DEPTH=0.0f -DD3D11_MAX_DEPTH=1.0f -DD3DCOLORVALUE_DEFINED
+CXXFLAGS:=-msse -msse2 -std=c++11 -pipe -O2 -DNDEBUG=1 -DMINGW_HAS_SECURE_API=1 -DD3D11_MIN_DEPTH=0.0f -DD3D11_MAX_DEPTH=1.0f -DD3DCOLORVALUE_DEFINED
 LDFLAGS:=-s -shared -Bsymbolic -static-libgcc -static-libstdc++
 
 all: ddraw.dll
