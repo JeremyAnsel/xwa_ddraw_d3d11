@@ -559,6 +559,8 @@ HRESULT DirectDraw::GetScanLine(
 	return DDERR_UNSUPPORTED;
 }
 
+static bool vblank;
+
 HRESULT DirectDraw::GetVerticalBlankStatus(
 	LPBOOL lpbIsInVB
 	)
@@ -574,7 +576,14 @@ HRESULT DirectDraw::GetVerticalBlankStatus(
 	LogText(str.str());
 #endif
 
-	return DDERR_CURRENTLYNOTAVAIL;
+	if (!_deviceResources || !_deviceResources->_output)
+		return DDERR_UNSUPPORTED;
+	*lpbIsInVB = vblank;
+	if (vblank && _deviceResources->_output->WaitForVBlank() != S_OK)
+		return DDERR_UNSUPPORTED;
+	vblank = !vblank;
+
+	return DD_OK;
 }
 
 HRESULT DirectDraw::Initialize(

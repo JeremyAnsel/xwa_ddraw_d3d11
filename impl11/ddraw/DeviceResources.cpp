@@ -172,7 +172,6 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		step = "RenderTarget SwapChain";
 		ComPtr<IDXGIDevice> dxgiDevice;
 		ComPtr<IDXGIAdapter> dxgiAdapter;
-		ComPtr<IDXGIOutput> dxgiOutput;
 
 		hr = this->_d3dDevice.As(&dxgiDevice);
 
@@ -182,7 +181,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 
 			if (SUCCEEDED(hr))
 			{
-				hr = dxgiAdapter->EnumOutputs(0, &dxgiOutput);
+				hr = dxgiAdapter->EnumOutputs(0, &_output);
 			}
 		}
 
@@ -192,7 +191,9 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		{
 			md.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
 
-			hr = dxgiOutput->FindClosestMatchingMode(&md, &md, nullptr);
+			hr = _output->FindClosestMatchingMode(&md, &md, nullptr);
+		} else {
+			_output = NULL;
 		}
 
 		if (SUCCEEDED(hr))

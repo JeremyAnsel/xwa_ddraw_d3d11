@@ -41,6 +41,7 @@ public:
 	ComPtr<ID3D11Device> _d3dDevice;
 	ComPtr<ID3D11DeviceContext> _d3dDeviceContext;
 	ComPtr<IDXGISwapChain> _swapChain;
+	ComPtr<IDXGIOutput> _output;
 	ComPtr<ID3D11Texture2D> _backBuffer;
 	ComPtr<ID3D11Texture2D> _offscreenBuffer;
 	ComPtr<ID3D11RenderTargetView> _renderTargetView;
