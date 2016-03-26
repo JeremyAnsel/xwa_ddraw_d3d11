@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE.txt
 
 #include "common.h"
+#include <emmintrin.h>
 #include "DeviceResources.h"
 #include "DirectDrawPalette.h"
 #include "PrimarySurface.h"
@@ -659,23 +660,45 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 
 				for (unsigned y = 0; y < height; y++)
 				{
-					for (unsigned x = 0; x < width; x++)
+					unsigned x;
+					for (x = 0; x + 7 < width; x += 8)
 					{
-						unsigned short color16 = *srcColors;
-						srcColors++;
+						__m128i red = _mm_loadu_si128((const __m128i *)(srcColors + x));
+						__m128i transparent = _mm_cmpeq_epi16(red, _mm_set1_epi16(0x2000));
+						__m128i blue = _mm_and_si128(red, _mm_set1_epi16(0x1f));
+						blue = _mm_or_si128(blue, _mm_slli_epi16(blue, 5));
+						blue = _mm_srli_epi16(blue, 2);
+						__m128i green = _mm_srli_epi16(red, 5);
+						green = _mm_and_si128(green, _mm_set1_epi16(0x3f));
+						green = _mm_or_si128(green, _mm_slli_epi16(green, 6));
+						green = _mm_srli_epi16(green, 4);
+						green = _mm_slli_epi16(green, 8);
+						green = _mm_or_si128(green, blue);
+						green = _mm_andnot_si128(transparent, green);
+						red = _mm_srli_epi16(red, 11);
+						red = _mm_or_si128(red, _mm_slli_epi16(red, 5));
+						red = _mm_srli_epi16(red, 2);
+						red = _mm_andnot_si128(transparent, red);
+						transparent = _mm_slli_epi16(transparent, 8);
+						red = _mm_or_si128(red, transparent);
+						_mm_storeu_si128((__m128i *)(colors + x), _mm_unpacklo_epi16(green, red));
+						_mm_storeu_si128((__m128i *)(colors + x + 4), _mm_unpackhi_epi16(green, red));
+					}
+					for (; x < width; x++) {
+						unsigned short color16 = srcColors[x];
 
 						if (color16 == 0x2000)
 						{
-							*colors = 0xff000000;
+							colors[x] = 0xff000000;
 						}
 						else
 						{
-							*colors = convertColorB5G6R5toB8G8R8X8(color16);
+							colors[x] = convertColorB5G6R5toB8G8R8X8(color16);
 						}
-
-						colors++;
 					}
 
+					srcColors += width;
+					colors += width;
 					colors = (unsigned int*)((char*)colors + pitchDelta);
 				}
 			}
