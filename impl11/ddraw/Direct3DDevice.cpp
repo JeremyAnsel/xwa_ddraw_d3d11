@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE.txt
 
 #include "common.h"
+#include <emmintrin.h>
 #include "DeviceResources.h"
 #include "Direct3DDevice.h"
 #include "Direct3DExecuteBuffer.h"
@@ -1189,7 +1190,20 @@ HRESULT Direct3DDevice::BeginScene()
 		unsigned short* buffer = (unsigned short*)this->_deviceResources->_backbufferSurface->_buffer;
 		int length = this->_deviceResources->_displayWidth * this->_deviceResources->_displayHeight;
 
-		for (int i = 0; i < length; i++)
+		int i;
+		for (i = 64; i <= length; i += 64)
+		{
+			_mm_storeu_si128((__m128i *)(buffer + i - 64), _mm_set1_epi16(0x2000));
+			_mm_storeu_si128((__m128i *)(buffer + i - 56), _mm_set1_epi16(0x2000));
+			_mm_storeu_si128((__m128i *)(buffer + i - 48), _mm_set1_epi16(0x2000));
+			_mm_storeu_si128((__m128i *)(buffer + i - 40), _mm_set1_epi16(0x2000));
+			_mm_storeu_si128((__m128i *)(buffer + i - 32), _mm_set1_epi16(0x2000));
+			_mm_storeu_si128((__m128i *)(buffer + i - 24), _mm_set1_epi16(0x2000));
+			_mm_storeu_si128((__m128i *)(buffer + i - 16), _mm_set1_epi16(0x2000));
+			_mm_storeu_si128((__m128i *)(buffer + i - 8), _mm_set1_epi16(0x2000));
+		}
+		i -= 64;
+		for (; i < length; i++)
 		{
 			buffer[i] = 0x2000;
 		}
@@ -1198,8 +1212,20 @@ HRESULT Direct3DDevice::BeginScene()
 	{
 		unsigned int* buffer = (unsigned int*)this->_deviceResources->_backbufferSurface->_buffer;
 		int length = this->_deviceResources->_displayWidth * this->_deviceResources->_displayHeight;
-
-		for (int i = 0; i < length; i++)
+		int i;
+		for (i = 32; i <= length; i += 32)
+		{
+			_mm_storeu_si128((__m128i *)(buffer + i - 32), _mm_set1_epi32(0x200000));
+			_mm_storeu_si128((__m128i *)(buffer + i - 28), _mm_set1_epi32(0x200000));
+			_mm_storeu_si128((__m128i *)(buffer + i - 24), _mm_set1_epi32(0x200000));
+			_mm_storeu_si128((__m128i *)(buffer + i - 20), _mm_set1_epi32(0x200000));
+			_mm_storeu_si128((__m128i *)(buffer + i - 16), _mm_set1_epi32(0x200000));
+			_mm_storeu_si128((__m128i *)(buffer + i - 12), _mm_set1_epi32(0x200000));
+			_mm_storeu_si128((__m128i *)(buffer + i - 8), _mm_set1_epi32(0x200000));
+			_mm_storeu_si128((__m128i *)(buffer + i - 4), _mm_set1_epi32(0x200000));
+		}
+		i -= 32;
+		for (; i < length; i++)
 		{
 			buffer[i] = 0x200000;
 		}

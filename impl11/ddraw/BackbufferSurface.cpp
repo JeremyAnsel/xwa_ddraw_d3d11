@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE.txt
 
 #include "common.h"
+#include <emmintrin.h>
 #include "DeviceResources.h"
 #include "BackbufferSurface.h"
 #include "Direct3DDevice.h"
@@ -216,7 +217,16 @@ HRESULT BackbufferSurface::Blt(
 			unsigned short* buffer = (unsigned short*)this->_buffer;
 			int length = this->_bufferSize / 2;
 
-			for (int i = 0; i < length; i++)
+			int i;
+			for (i = 32; i <= length; i += 32)
+			{
+				_mm_storeu_si128((__m128i *)(buffer + i - 32), _mm_set1_epi16(color));
+				_mm_storeu_si128((__m128i *)(buffer + i - 24), _mm_set1_epi16(color));
+				_mm_storeu_si128((__m128i *)(buffer + i - 16), _mm_set1_epi16(color));
+				_mm_storeu_si128((__m128i *)(buffer + i - 8), _mm_set1_epi16(color));
+			}
+			i -= 32;
+			for (; i < length; i++)
 			{
 				buffer[i] = color;
 			}
