@@ -2,7 +2,7 @@
 # No header dependency generation/handling yet
 # No compilation of shaders
 
-VERSION:=1.4.1
+VERSION:=1.4.2
 
 .SUFFIXES:
 
