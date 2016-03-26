@@ -661,9 +661,11 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 				for (unsigned y = 0; y < height; y++)
 				{
 					unsigned x;
-					for (x = 0; x + 7 < width; x += 8)
+					// The loop condition shouldn't need to be so obfuscated,
+					// but MSVC is stupid and generates slow loop conditions otherwise
+					for (x = 8; x <= width; x += 8)
 					{
-						__m128i red = _mm_loadu_si128((const __m128i *)(srcColors + x));
+						__m128i red = _mm_loadu_si128((const __m128i *)(srcColors + x - 8));
 						__m128i transparent = _mm_cmpeq_epi16(red, _mm_set1_epi16(0x2000));
 						__m128i blue = _mm_and_si128(red, _mm_set1_epi16(0x1f));
 						blue = _mm_or_si128(blue, _mm_slli_epi16(blue, 5));
@@ -681,9 +683,10 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 						red = _mm_andnot_si128(transparent, red);
 						transparent = _mm_slli_epi16(transparent, 8);
 						red = _mm_or_si128(red, transparent);
-						_mm_storeu_si128((__m128i *)(colors + x), _mm_unpacklo_epi16(green, red));
-						_mm_storeu_si128((__m128i *)(colors + x + 4), _mm_unpackhi_epi16(green, red));
+						_mm_storeu_si128((__m128i *)(colors + x - 8), _mm_unpacklo_epi16(green, red));
+						_mm_storeu_si128((__m128i *)(colors + x - 4), _mm_unpackhi_epi16(green, red));
 					}
+					x -= 8;
 					for (; x < width; x++) {
 						unsigned short color16 = srcColors[x];
 
