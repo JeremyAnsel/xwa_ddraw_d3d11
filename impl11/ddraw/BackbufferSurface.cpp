@@ -17,6 +17,7 @@ BackbufferSurface::BackbufferSurface(DeviceResources* deviceResources)
 	this->_bufferSize = this->_deviceResources->_displayHeight * this->_deviceResources->_displayWidth * this->_deviceResources->_displayBpp;
 	this->_buffer = new char[this->_bufferSize];
 	memset(this->_buffer, 0, this->_bufferSize);
+	this->_lockCount = 0;
 }
 
 BackbufferSurface::~BackbufferSurface()
@@ -741,6 +742,7 @@ HRESULT BackbufferSurface::Lock(
 	LogText(str.str());
 #endif
 
+	++_lockCount;
 	if (lpDDSurfaceDesc == nullptr)
 	{
 #if LOGGER
@@ -932,6 +934,8 @@ HRESULT BackbufferSurface::Unlock(
 		}
 	}
 
+	if (_lockCount == 0) return DDERR_NOTLOCKED;
+	--_lockCount;
 	return DD_OK;
 }
 
