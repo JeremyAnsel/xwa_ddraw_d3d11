@@ -20,5 +20,8 @@
     <FxCompile Include="PixelShaderSolid.hlsl" />
     <FxCompile Include="PixelShaderTexture.hlsl" />
     <FxCompile Include="VertexShader.hlsl" />
+    <FxCompile Include="PixelShaderAtestTexture.hlsl" />
+    <FxCompile Include="SmoothScalePixelShader.hlsl" />
+    <FxCompile Include="LanczosScalePixelShader.hlsl" />
   </ItemGroup>
 </Project>

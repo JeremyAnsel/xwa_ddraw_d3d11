@@ -8,6 +8,7 @@
 #include "PrimarySurface.h"
 
 #ifdef _DEBUG
+#include "../Debug/LanczosScalePixelShader.h"
 #include "../Debug/MainVertexShader.h"
 #include "../Debug/MainPixelShader.h"
 #include "../Debug/SmoothScalePixelShader.h"
@@ -16,6 +17,7 @@
 #include "../Debug/PixelShaderTexture.h"
 #include "../Debug/PixelShaderSolid.h"
 #else
+#include "../Release/LanczosScalePixelShader.h"
 #include "../Release/MainVertexShader.h"
 #include "../Release/MainPixelShader.h"
 #include "../Release/SmoothScalePixelShader.h"
@@ -401,7 +403,12 @@ HRESULT DeviceResources::LoadMainResources()
 	if (FAILED(hr = this->_d3dDevice->CreateInputLayout(vertexLayoutDesc, ARRAYSIZE(vertexLayoutDesc), g_MainVertexShader, sizeof(g_MainVertexShader), &_mainInputLayout)))
 		return hr;
 
-	if (g_config.ScalingType)
+	if (g_config.ScalingType == 2)
+	{
+		if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_LanczosScalePixelShader, sizeof(g_LanczosScalePixelShader), nullptr, &_mainPixelShader)))
+			return hr;
+	}
+	else if (g_config.ScalingType)
 	{
 		if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_SmoothScalePixelShader, sizeof(g_SmoothScalePixelShader), nullptr, &_mainPixelShader)))
 			return hr;
