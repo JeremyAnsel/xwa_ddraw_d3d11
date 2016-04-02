@@ -620,6 +620,28 @@ HRESULT DirectDraw::RestoreDisplayMode()
 	return DD_OK;
 }
 
+static WNDPROC savedWndProc;
+
+LRESULT WINAPI WndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+{
+	// All non-mouse/kbd events
+	if (!(Msg >= WM_MOUSEFIRST && Msg <= WM_MOUSELAST) && !(Msg >= WM_KEYFIRST && Msg <= WM_KEYLAST)) {
+		return DefWindowProc(hWnd, Msg, wParam, lParam);
+	}
+	// All mouse events outside the window
+	if (Msg >= WM_MOUSEFIRST && Msg <= WM_MOUSELAST) {
+		RECT r;
+		GetClientRect(hWnd, &r);
+		int x = lParam & 0xffff;
+		int y = (unsigned)lParam >> 16;
+		if (x >= r.right || y >= r.bottom) {
+			ReleaseCapture();
+			return DefWindowProc(hWnd, Msg, wParam, lParam);
+		}
+	}
+	return savedWndProc(hWnd, Msg, wParam, lParam);
+}
+
 HRESULT DirectDraw::SetCooperativeLevel(
 	HWND hWnd,
 	DWORD dwFlags
@@ -679,6 +701,17 @@ HRESULT DirectDraw::SetCooperativeLevel(
 #endif
 
 	this->_hWnd = hWnd;
+
+	if (g_config.Fullscreen == -1 && hWnd != nullptr)
+	{
+		ShowCursor(TRUE);
+		LONG old = GetWindowLong(hWnd, GWL_STYLE);
+		SetWindowLong(hWnd, GWL_STYLE, old | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX);
+		SetWindowLong(hWnd, GWL_EXSTYLE, WS_EX_OVERLAPPEDWINDOW);
+		savedWndProc = (WNDPROC)GetWindowLong(hWnd, GWL_WNDPROC);
+		SetWindowLong(hWnd, GWL_WNDPROC, (LONG)WndProc);
+		SetWindowPos(hWnd, NULL, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+	}
 
 #if LOGGER
 	str.str("\tDD_OK");

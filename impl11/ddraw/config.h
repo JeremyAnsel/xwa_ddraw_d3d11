@@ -14,7 +14,7 @@ public:
 	bool WireframeFillMode;
 	int ScalingType;
 
-	bool Fullscreen;
+	int Fullscreen;
 	bool XWAMode;
 
 	float Concourse3DScale;

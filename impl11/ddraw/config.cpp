@@ -29,7 +29,7 @@ Config::Config()
 	this->AnisotropicFilteringEnabled = true;
 	this->WireframeFillMode = false;
 	this->ScalingType = 0;
-	this->Fullscreen = false;
+	this->Fullscreen = 0;
 	this->XWAMode = true;
 	int XWAModeInt = -1;
 	int ProcessAffinity = -1;
@@ -108,7 +108,7 @@ Config::Config()
 			}
 			else if (name == "Fullscreen")
 			{
-				this->Fullscreen = stoi(value) != 0;
+				this->Fullscreen = stoi(value);
 			}
 			else if (name == "XWAMode")
 			{

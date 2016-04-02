@@ -211,7 +211,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			sd.OutputWindow = hWnd;
 			sd.SampleDesc.Count = 1;
 			sd.SampleDesc.Quality = 0;
-			sd.Windowed = !g_config.Fullscreen;
+			sd.Windowed = g_config.Fullscreen != 1;
 
 			ComPtr<IDXGIFactory> dxgiFactory;
 			hr = dxgiAdapter->GetParent(IID_PPV_ARGS(&dxgiFactory));
