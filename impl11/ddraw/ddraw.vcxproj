@@ -85,6 +85,12 @@
       <ModuleDefinitionFile>ddraw.def</ModuleDefinitionFile>
       <UACUIAccess>true</UACUIAccess>
     </Link>
+    <PostBuildEvent>
+      <Command>signtool sign /t  http://timestamp.globalsign.com/scripts/timestamp.dll $(OutputPath)\ddraw.dll</Command>
+    </PostBuildEvent>
+    <PostBuildEvent>
+      <Message>Sign binary</Message>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include="ddraw.cfg">
