@@ -18,6 +18,8 @@ public:
 		this->_deviceResources = deviceResources;
 
 		this->TextureAddress = D3DTADDRESS_WRAP;
+		this->TextureMag = D3DFILTER_LINEARMIPLINEAR;
+		this->TextureMin = D3DFILTER_LINEARMIPLINEAR;
 
 		this->AlphaBlendEnabled = FALSE;
 		this->TextureMapBlend = D3DTBLEND_MODULATE;
@@ -116,6 +118,11 @@ public:
 	{
 		D3D11_SAMPLER_DESC desc;
 		desc.Filter = this->_deviceResources->_useAnisotropy ? D3D11_FILTER_ANISOTROPIC : D3D11_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
+		// Support disabling bilinear filtering in settings for
+		// e.g. X-Wing vs. TIE
+		if (this->TextureMag == D3DFILTER_NEAREST && this->TextureMin == D3DFILTER_NEAREST) {
+			desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+		}
 		desc.MaxAnisotropy = this->_deviceResources->_useAnisotropy ? this->_deviceResources->GetMaxAnisotropy() : 1;
 		desc.AddressU = TextureAddressMode(this->TextureAddress);
 		desc.AddressV = TextureAddressMode(this->TextureAddress);
@@ -168,6 +175,24 @@ public:
 		if (this->TextureAddress != textureAddress)
 		{
 			this->TextureAddress = textureAddress;
+			this->SamplerDescChanged = true;
+		}
+	}
+
+	inline void SetTextureMag(D3DTEXTUREFILTER textureMag)
+	{
+		if (this->TextureMag != textureMag)
+		{
+			this->TextureMag = textureMag;
+			this->SamplerDescChanged = true;
+		}
+	}
+
+	inline void SetTextureMin(D3DTEXTUREFILTER textureMin)
+	{
+		if (this->TextureMin != textureMin)
+		{
+			this->TextureMin = textureMin;
 			this->SamplerDescChanged = true;
 		}
 	}
@@ -247,6 +272,8 @@ private:
 	DeviceResources* _deviceResources;
 
 	D3DTEXTUREADDRESS TextureAddress;
+	D3DTEXTUREFILTER TextureMag;
+	D3DTEXTUREFILTER TextureMin;
 
 	BOOL AlphaBlendEnabled;
 	D3DTEXTUREBLEND TextureMapBlend;
@@ -755,6 +782,13 @@ HRESULT Direct3DDevice::Execute(
 
 					case D3DRENDERSTATE_TEXTUREADDRESS:
 						this->_renderStates->SetTextureAddress((D3DTEXTUREADDRESS)state->dwArg[0]);
+						break;
+
+					case D3DRENDERSTATE_TEXTUREMAG:
+						this->_renderStates->SetTextureMag((D3DTEXTUREFILTER)state->dwArg[0]);
+						break;
+					case D3DRENDERSTATE_TEXTUREMIN:
+						this->_renderStates->SetTextureMin((D3DTEXTUREFILTER)state->dwArg[0]);
 						break;
 
 					case D3DRENDERSTATE_ALPHABLENDENABLE:
