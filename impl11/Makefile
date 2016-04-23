@@ -2,7 +2,7 @@
 # No header dependency generation/handling yet
 # No compilation of shaders
 
-VERSION:=1.4.2
+VERSION:=$(shell grep FileVersion ddraw/ddraw.rc | sed -e 's/.*, "//' -e 's/"//')
 
 .SUFFIXES:
 
@@ -28,5 +28,7 @@ xwing_ddraw_d3d11_$(VERSION).zip: ddraw/ddraw.cfg Release/ddraw.dll ../LICENSE.t
 	7z a -mx9 $@ $(addprefix ./,$^)
 
 release: xwing_ddraw_d3d11_$(VERSION).zip
+	gpg -ab $^
+	git tag -s v$(VERSION)
 
 .PHONY: all clean release
