@@ -25,6 +25,12 @@ xwingalliance.exe, z_xvt__.exe, XWING95.exe or TIE95.exe
 ddraw.cfg is a config file. Open it with a text editor for more details.
 
 
+Note for X-Wing vs. TIE Fighter:
+In graphics configuration set "MIP Mapping" to "Blurry" for much
+better texture at higher resolutions.
+"Blurry" and "Noisy" are actually swapped compared to what the
+option really does, thus setting to blurry makes textures sharper...
+
 Note for XWING95 and TIE95:
 You need to enable software cursor.
 This can either be enabled in the launcher, by adding
