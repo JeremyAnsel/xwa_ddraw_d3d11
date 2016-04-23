@@ -13,6 +13,7 @@ class DeviceResources
 {
 public:
 	DeviceResources();
+	~DeviceResources();
 
 	HRESULT Initialize();
 

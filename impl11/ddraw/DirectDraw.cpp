@@ -24,6 +24,7 @@ DirectDraw::DirectDraw(DeviceResources* deviceResources)
 DirectDraw::~DirectDraw()
 {
 	delete this->_deviceResources;
+	this->_deviceResources = nullptr;
 }
 
 HRESULT DirectDraw::QueryInterface(

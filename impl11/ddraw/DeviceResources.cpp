@@ -86,6 +86,16 @@ DeviceResources::DeviceResources()
 	this->inSceneBackbufferLocked = false;
 }
 
+DeviceResources::~DeviceResources()
+{
+	// Releasing a swap chain is only allowed after switching
+	// to windowed mode.
+	if (this->_swapChain)
+	{
+		this->_swapChain->SetFullscreenState(FALSE, NULL);
+	}
+}
+
 HRESULT DeviceResources::Initialize()
 {
 	HRESULT hr;
@@ -166,6 +176,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		this->_swapChain->SetFullscreenState(FALSE, NULL);
 	}
 	this->_swapChain.Release();
+	this->_swapChain = nullptr;
 
 	this->_refreshRate = { 0, 1 };
 
