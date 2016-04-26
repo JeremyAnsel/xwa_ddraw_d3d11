@@ -309,6 +309,22 @@ HRESULT Direct3DTexture::Load(
 		mipmap = mipmap->_mipmap;
 	}
 
+	bool genMipMaps = false && surface->_mipmapCount == 1;
+	if (genMipMaps) {
+		textureDesc.Usage = D3D11_USAGE_DEFAULT;
+		textureDesc.BindFlags |= D3D11_BIND_RENDER_TARGET;
+		textureDesc.MiscFlags |= D3D11_RESOURCE_MISC_GENERATE_MIPS;
+		textureDesc.MipLevels = 0;
+		// TODO: instead of this hack and GenerateMips it would be
+		// better to create the MipMaps properly here
+		D3D11_SUBRESOURCE_DATA *tmp = new D3D11_SUBRESOURCE_DATA[256];
+		for (int i = 0; i < 256; ++i) {
+			tmp[i] = *textureData;
+		}
+		delete[] textureData;
+		textureData = tmp;
+	}
+
 	ComPtr<ID3D11Texture2D> texture;
 	HRESULT hr = this->_deviceResources->_d3dDevice->CreateTexture2D(&textureDesc, textureData, &texture);
 
@@ -342,7 +358,7 @@ HRESULT Direct3DTexture::Load(
 	D3D11_SHADER_RESOURCE_VIEW_DESC textureViewDesc{};
 	textureViewDesc.Format = textureDesc.Format;
 	textureViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-	textureViewDesc.Texture2D.MipLevels = textureDesc.MipLevels;
+	textureViewDesc.Texture2D.MipLevels = genMipMaps ? -1 : textureDesc.MipLevels;
 	textureViewDesc.Texture2D.MostDetailedMip = 0;
 
 	if (FAILED(this->_deviceResources->_d3dDevice->CreateShaderResourceView(texture, &textureViewDesc, &d3dTexture->_textureView)))
@@ -353,6 +369,10 @@ HRESULT Direct3DTexture::Load(
 #endif
 
 		return D3DERR_TEXTURE_LOAD_FAILED;
+	}
+
+	if (genMipMaps) {
+		this->_deviceResources->_d3dDeviceContext->GenerateMips(d3dTexture->_textureView);
 	}
 
 	*&this->_textureView = d3dTexture->_textureView.Get();
