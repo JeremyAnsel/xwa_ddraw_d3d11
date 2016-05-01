@@ -27,7 +27,7 @@ Config::Config()
 	this->AspectRatioPreserved = true;
 	this->MultisamplingAntialiasingEnabled = true;
 	this->AnisotropicFilteringEnabled = true;
-	this->GenerateMipMaps = true;
+	this->GenerateMipMaps = -1;
 	this->WireframeFillMode = false;
 	this->ScalingType = 0;
 	this->Fullscreen = 0;
@@ -101,7 +101,7 @@ Config::Config()
 			}
 			else if (name == "GenerateMipMaps")
 			{
-				this->GenerateMipMaps = stoi(value) != 0;
+				this->GenerateMipMaps = stoi(value);
 			}
 			else if (name == "FillWireframe")
 			{
@@ -144,6 +144,9 @@ Config::Config()
 	{
 		this->XWAMode = XWAModeInt != 0;
 	}
+	if (this->XWAMode && this->GenerateMipMaps == -1)
+		this->GenerateMipMaps = 0;
+
 	if (ProcessAffinity != 0) {
 		DWORD_PTR CurProcessAffinity, SystemAffinity;
 		HANDLE mod = GetCurrentProcess();

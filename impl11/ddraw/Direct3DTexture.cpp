@@ -309,7 +309,9 @@ HRESULT Direct3DTexture::Load(
 		mipmap = mipmap->_mipmap;
 	}
 
-	bool genMipMaps = g_config.GenerateMipMaps && surface->_mipmapCount == 1;
+	if (g_config.GenerateMipMaps < 0 && surface->_mipmapCount > 1)
+		g_config.GenerateMipMaps = 0;
+	bool genMipMaps = g_config.GenerateMipMaps != 0 && surface->_mipmapCount == 1;
 	if (genMipMaps) {
 		textureDesc.Usage = D3D11_USAGE_DEFAULT;
 		textureDesc.BindFlags |= D3D11_BIND_RENDER_TARGET;
