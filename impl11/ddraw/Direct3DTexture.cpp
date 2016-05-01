@@ -309,7 +309,7 @@ HRESULT Direct3DTexture::Load(
 		mipmap = mipmap->_mipmap;
 	}
 
-	bool genMipMaps = false && surface->_mipmapCount == 1;
+	bool genMipMaps = g_config.GenerateMipMaps && surface->_mipmapCount == 1;
 	if (genMipMaps) {
 		textureDesc.Usage = D3D11_USAGE_DEFAULT;
 		textureDesc.BindFlags |= D3D11_BIND_RENDER_TARGET;
@@ -317,8 +317,8 @@ HRESULT Direct3DTexture::Load(
 		textureDesc.MipLevels = 0;
 		// TODO: instead of this hack and GenerateMips it would be
 		// better to create the MipMaps properly here
-		D3D11_SUBRESOURCE_DATA *tmp = new D3D11_SUBRESOURCE_DATA[256];
-		for (int i = 0; i < 256; ++i) {
+		D3D11_SUBRESOURCE_DATA *tmp = new D3D11_SUBRESOURCE_DATA[16];
+		for (int i = 0; i < 16; ++i) {
 			tmp[i] = *textureData;
 		}
 		delete[] textureData;

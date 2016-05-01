@@ -11,6 +11,7 @@ public:
 	bool AspectRatioPreserved;
 	bool MultisamplingAntialiasingEnabled;
 	bool AnisotropicFilteringEnabled;
+	bool GenerateMipMaps;
 	bool WireframeFillMode;
 	int ScalingType;
 
