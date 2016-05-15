@@ -15,11 +15,10 @@ float4 main(PixelShaderInput input) : SV_TARGET
 {
 	float4 texelColor = texture0.Sample(sampler0, input.tex);
 
-	if (texelColor.a > 0.4f)
+	if (texelColor.a > 0.8f)
 	{
 		discard;
 	}
-	texelColor.xyz *= 1.0f / (1.0f - texelColor.a);
 
-	return float4(texelColor.xyz, 1.0f);
+	return texelColor;
 }

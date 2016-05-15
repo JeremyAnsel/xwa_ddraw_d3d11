@@ -471,7 +471,7 @@ HRESULT DeviceResources::LoadMainResources()
 	blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_ZERO;
 	blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
 
-	if (g_config.ScalingType)
+	if (1 || g_config.ScalingType)
 	{
 		blendDesc.RenderTarget[0].BlendEnable = TRUE;
 		blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
