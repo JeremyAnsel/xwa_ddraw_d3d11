@@ -19,6 +19,7 @@ float4 main(PixelShaderInput input) : SV_TARGET
 	{
 		discard;
 	}
+	texelColor.xyz *= 1.0f / (1.0f - texelColor.a);
 
 	return float4(texelColor.xyz, 1.0f);
 }
