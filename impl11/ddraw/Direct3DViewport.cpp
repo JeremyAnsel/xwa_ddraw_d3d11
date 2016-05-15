@@ -130,6 +130,14 @@ HRESULT Direct3DViewport::SetViewport(
 		return DDERR_INVALIDPARAMS;
 	}
 
+#if LOGGER
+	{
+		std::ostringstream str;
+		str << "\tViewport: " << lpData->dwWidth << "x" << lpData->dwHeight << "+" << lpData->dwX << "+" << lpData->dwY << " Z: " << lpData->dvMinZ << " - " << lpData->dvMaxZ;
+		LogText(str.str());
+	}
+#endif
+
 	return D3D_OK;
 }
 
