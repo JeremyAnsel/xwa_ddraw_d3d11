@@ -3,6 +3,7 @@
 # No compilation of shaders
 
 VERSION:=$(shell grep FileVersion ddraw/ddraw.rc | sed -e 's/.*, "//' -e 's/"//')
+DLLVERSION=$(shell pev -p Release/ddraw.dll)
 
 .SUFFIXES:
 
@@ -27,8 +28,14 @@ xwing_ddraw_d3d11_$(VERSION).zip: ddraw/ddraw.cfg Release/ddraw.dll ../LICENSE.t
 	rm -f $@
 	7z a -mx9 $@ $(addprefix ./,$^)
 
+ifeq ("$(VERSION).0","$(DLLVERSION)")
 release: xwing_ddraw_d3d11_$(VERSION).zip
 	gpg -ab $^
 	git tag -s v$(VERSION)
+else
+release:
+	@echo Version mismatch: Repo $(VERSION), DLL $(DLLVERSION)
+	@false
+endif
 
 .PHONY: all clean release
