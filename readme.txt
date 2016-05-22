@@ -37,6 +37,10 @@ In case it does not work, it can also be enabled in the launcher, by adding
 /softwarecursor to the XWING95.exe or TIE95.exe command line
 or by running swcursor.bat from xwahacker (http://xwahacker.sf.net).
 
+Note for TIE95:
+Fix for ISD lasers not working is enabled by default.
+Check ddraw.cfg AutoPatch option if you do not want it.
+
 Note for X-Wing Alliance:
 By default, the game supports only the following 4:3 resolutions:
 - 640 x 480
