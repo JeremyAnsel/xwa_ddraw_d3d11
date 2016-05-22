@@ -34,6 +34,7 @@ Config::Config()
 	this->XWAMode = true;
 	int XWAModeInt = -1;
 	int ProcessAffinity = -1;
+	int AutoPatch = 2;
 
 	this->Concourse3DScale = 0.6f;
 
@@ -119,6 +120,10 @@ Config::Config()
 			{
 				XWAModeInt = stoi(value);
 			}
+			else if (name == "AutoPatch")
+			{
+				AutoPatch = stoi(value);
+			}
 			else if (name == "Concourse3DScale")
 			{
 				this->Concourse3DScale = stof(value);
@@ -133,12 +138,17 @@ Config::Config()
 			}
 		}
 	}
+	char name[4096] = {};
+	GetModuleFileNameA(NULL, name, sizeof(name));
+	int len = strlen(name);
+
+	bool isXWA = len >= 17 && _stricmp(name + len - 17, "xwingalliance.exe") == 0;
+	bool isXWing = len >= 11 && _stricmp(name + len - 11, "xwing95.exe") == 0;
+	bool isTIE = len >= 9 && _stricmp(name + len - 9, "tie95.exe") == 0;
+
 	if (XWAModeInt == -1)
 	{
-		char name[4096] = {};
-		GetModuleFileNameA(NULL, name, sizeof(name));
-		int len = strlen(name);
-		this->XWAMode = len >= 17 && _stricmp(name + len - 17, "xwingalliance.exe") == 0;
+		this->XWAMode = isXWA;
 	}
 	else
 	{
@@ -146,6 +156,32 @@ Config::Config()
 	}
 	if (this->XWAMode && this->GenerateMipMaps == -1)
 		this->GenerateMipMaps = 0;
+
+	// softwarecursor, prefer second version modifying data section as that works with Steam.
+	if (0 && AutoPatch >= 1 && isXWing && *(const unsigned *)0x4ac038 == 0x1c74c085u) {
+		*(unsigned *)0x4ac038 = 0x9090c085u;
+	}
+	if (AutoPatch >= 1 && isXWing && *(const unsigned *)0x4ded80 == 0x74666f73u) {
+		*(unsigned *)0x4ded80 = 0;
+	}
+	// softwarecursor, prefer second version modifying data section as that works with Steam.
+	if (0 && AutoPatch >= 1 && isTIE && *(const unsigned *)0x499d7e == 0x1c74c085u) {
+		*(unsigned *)0x4ac038 = 0x9090c085u;
+	}
+	if (AutoPatch >= 1 && isTIE && *(const unsigned *)0x4f3e54 == 0x74666f73u) {
+		*(unsigned *)0x4f3e54 = 0;
+	}
+	// ISD laser fix, not tested (esp. with Steam version)
+	if (AutoPatch >= 2 && isTIE &&
+		*(const unsigned long long *)0x4df898 == 0x3735353433323130ull &&
+		*(const unsigned long long *)0x4f0830 == 0x0400210045003443ull &&
+		*(const unsigned long long *)0x4f0844 == 0x0103000235430000ull &&
+		*(const unsigned long long *)0x4f084c == 0x000003840c1c0300ull) {
+		*(unsigned long long *)0x4df898 = 0x3736363433323130ull;
+		*(unsigned long long *)0x4f0830 = 0x0400210345003443ull;
+		*(unsigned long long *)0x4f0844 = 0x2103450034430000ull;
+		*(unsigned long long *)0x4f084c = 0x00007d00fa000400ull;
+	}
 
 	if (ProcessAffinity != 0) {
 		DWORD_PTR CurProcessAffinity, SystemAffinity;
