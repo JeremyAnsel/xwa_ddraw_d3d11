@@ -32,8 +32,8 @@ better texture at higher resolutions.
 option really does, thus setting to blurry makes textures sharper...
 
 Note for XWING95 and TIE95:
-You need to enable software cursor.
-This can either be enabled in the launcher, by adding
+Software cursor should be enabled automatically.
+In case it does not work, it can also be enabled in the launcher, by adding
 /softwarecursor to the XWING95.exe or TIE95.exe command line
 or by running swcursor.bat from xwahacker (http://xwahacker.sf.net).
 
