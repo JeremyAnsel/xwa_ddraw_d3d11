@@ -16,6 +16,8 @@ public:
 	int ScalingType;
 
 	int Fullscreen;
+	int Width;
+	int Height;
 	bool XWAMode;
 
 	float Concourse3DScale;

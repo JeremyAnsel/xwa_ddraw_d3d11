@@ -214,15 +214,15 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			DXGI_SWAP_CHAIN_DESC sd{};
 			sd.BufferCount = 2;
 			sd.SwapEffect = DXGI_SWAP_EFFECT_SEQUENTIAL;
-			sd.BufferDesc.Width = 0;
-			sd.BufferDesc.Height = 0;
+			sd.BufferDesc.Width = g_config.Width;
+			sd.BufferDesc.Height = g_config.Height;
 			sd.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
 			sd.BufferDesc.RefreshRate = md.RefreshRate;
 			sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 			sd.OutputWindow = hWnd;
 			sd.SampleDesc.Count = 1;
 			sd.SampleDesc.Quality = 0;
-			sd.Windowed = g_config.Fullscreen != 1;
+			sd.Windowed = TRUE;
 
 			ComPtr<IDXGIFactory> dxgiFactory;
 			hr = dxgiAdapter->GetParent(IID_PPV_ARGS(&dxgiFactory));
@@ -235,6 +235,13 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			if (SUCCEEDED(hr))
 			{
 				this->_refreshRate = sd.BufferDesc.RefreshRate;
+				if (g_config.Fullscreen == 1)
+				{
+					// A separate SetFullscreenState is recommended
+					// as setting Windowed to FALSE during creation
+					// just triggers bugs all over
+					this->_swapChain->SetFullscreenState(TRUE, NULL);
+				}
 			}
 		}
 
