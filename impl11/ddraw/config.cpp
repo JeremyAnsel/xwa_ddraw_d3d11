@@ -9,6 +9,8 @@
 #include <algorithm>
 #include <cctype>
 
+#include "joystick.h"
+
 // Wrapper to avoid undefined behaviour due to
 // sign-extending char to int when passing to isspace.
 // That would be undefined behaviour and crashes with table
@@ -33,6 +35,8 @@ Config::Config()
 	this->Fullscreen = 0;
 	this->Width = 0;
 	this->Height = 0;
+	this->MouseSensitivity = 0.5f;
+	this->KbdSensitivity = 1.0f;
 	this->XWAMode = true;
 	int XWAModeInt = -1;
 	int ProcessAffinity = -1;
@@ -126,6 +130,18 @@ Config::Config()
 			{
 				this->Height = stoi(value);
 			}
+			else if (name == "JoystickEmul")
+			{
+				this->JoystickEmul = stoi(value);
+			}
+			else if (name == "MouseSensitivity")
+			{
+				this->MouseSensitivity = stof(value);
+			}
+			else if (name == "KbdSensitivity")
+			{
+				this->KbdSensitivity = stof(value);
+			}
 			else if (name == "XWAMode")
 			{
 				XWAModeInt = stoi(value);
@@ -155,6 +171,10 @@ Config::Config()
 	bool isXWA = len >= 17 && _stricmp(name + len - 17, "xwingalliance.exe") == 0;
 	bool isXWing = len >= 11 && _stricmp(name + len - 11, "xwing95.exe") == 0;
 	bool isTIE = len >= 9 && _stricmp(name + len - 9, "tie95.exe") == 0;
+	bool isXvT = len >= 11 && _stricmp(name + len - 11, "z_xvt__.exe") == 0 &&
+		*(const unsigned long long *)0x523aec == 0x54534c2e31505352ull;
+	bool isBoP = len >= 11 && _stricmp(name + len - 11, "z_xvt__.exe") == 0 &&
+		*(const unsigned long long *)0x5210bc == 0x54534c2e31505352ull;
 
 	if (XWAModeInt == -1)
 	{
@@ -191,6 +211,61 @@ Config::Config()
 		*(unsigned long long *)0x4f0830 = 0x0400210345003443ull;
 		*(unsigned long long *)0x4f0844 = 0x2103450034430000ull;
 		*(unsigned long long *)0x4f084c = 0x00007d00fa000400ull;
+	}
+
+	if (this->JoystickEmul != 0 && isXWing)
+	{
+		// TODO: How to check if this is a supported binary?
+		DWORD old, dummy;
+		VirtualProtect((void *)0x4c31f0, 0x4c3208 - 0x4c31f0, PAGE_READWRITE, &old);
+		*(unsigned *)0x4c31f0 = reinterpret_cast<unsigned>(emulJoyGetDevCaps);
+		*(unsigned *)0x4c3200 = reinterpret_cast<unsigned>(emulJoyGetPosEx);
+		*(unsigned *)0x4c3204 = reinterpret_cast<unsigned>(emulJoyGetNumDevs);
+		VirtualProtect((void *)0x4c31f0, 0x4c3208 - 0x4c31f0, old, &dummy);
+	}
+
+	if (this->JoystickEmul != 0 && isTIE)
+	{
+		// TODO: How to check if this is a supported binary?
+		DWORD old, dummy;
+		VirtualProtect((void *)0x4dc258, 0x4dc264 - 0x4dc258, PAGE_READWRITE, &old);
+		*(unsigned *)0x4dc258 = reinterpret_cast<unsigned>(emulJoyGetNumDevs);
+		*(unsigned *)0x4dc25c = reinterpret_cast<unsigned>(emulJoyGetDevCaps);
+		*(unsigned *)0x4dc260 = reinterpret_cast<unsigned>(emulJoyGetPosEx);
+		VirtualProtect((void *)0x4dc258, 0x4dc264 - 0x4dc258, old, &dummy);
+	}
+
+	if (this->JoystickEmul != 0 && isXvT)
+	{
+		// TODO: How to check if this is a supported binary?
+		DWORD old, dummy;
+		VirtualProtect((void *)0x860704, 0x860714 - 0x860704, PAGE_READWRITE, &old);
+		*(unsigned *)0x860704 = reinterpret_cast<unsigned>(emulJoyGetDevCaps);
+		*(unsigned *)0x860708 = reinterpret_cast<unsigned>(emulJoyGetNumDevs);
+		*(unsigned *)0x860710 = reinterpret_cast<unsigned>(emulJoyGetPosEx);
+		VirtualProtect((void *)0x860704, 0x860714 - 0x860704, old, &dummy);
+	}
+
+	if (this->JoystickEmul != 0 && isBoP)
+	{
+		// TODO: How to check if this is a supported binary?
+		DWORD old, dummy;
+		VirtualProtect((void *)0xbb969c, 0xbb96b0 - 0xbb969c, PAGE_READWRITE, &old);
+		*(unsigned *)0xbb969c = reinterpret_cast<unsigned>(emulJoyGetNumDevs);
+		*(unsigned *)0xbb96a8 = reinterpret_cast<unsigned>(emulJoyGetPosEx);
+		*(unsigned *)0xbb96ac = reinterpret_cast<unsigned>(emulJoyGetDevCaps);
+		VirtualProtect((void *)0xbb969c, 0xbb96b0 - 0xbb969c, old, &dummy);
+	}
+
+	if (this->JoystickEmul != 0 && isXWA)
+	{
+		// TODO: How to check if this is a supported binary?
+		DWORD old, dummy;
+		VirtualProtect((void *)0x5a92a4, 0x5a92b8 - 0x5a92a4, PAGE_READWRITE, &old);
+		*(unsigned *)0x5a92a4 = reinterpret_cast<unsigned>(emulJoyGetPosEx);
+		*(unsigned *)0x5a92a8 = reinterpret_cast<unsigned>(emulJoyGetDevCaps);
+		*(unsigned *)0x5a92b4 = reinterpret_cast<unsigned>(emulJoyGetNumDevs);
+		VirtualProtect((void *)0x5a92a4, 0x5a92b8 - 0x5a92a4, old, &dummy);
 	}
 
 	if (ProcessAffinity != 0) {

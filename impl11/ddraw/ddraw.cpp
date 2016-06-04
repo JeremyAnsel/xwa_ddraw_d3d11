@@ -5,6 +5,8 @@
 #include "DeviceResources.h"
 #include "DirectDraw.h"
 
+#include "joystick.h"
+
 #pragma comment(lib, "dxguid")
 #pragma comment(lib, "dxgi")
 #pragma comment(lib, "d3d11")

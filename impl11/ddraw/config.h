@@ -18,6 +18,9 @@ public:
 	int Fullscreen;
 	int Width;
 	int Height;
+	int JoystickEmul;
+	float MouseSensitivity;
+	float KbdSensitivity;
 	bool XWAMode;
 
 	float Concourse3DScale;

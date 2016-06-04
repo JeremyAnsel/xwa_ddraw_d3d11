@@ -117,6 +117,7 @@
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="ExecuteBufferDumper.cpp" />
     <ClCompile Include="FrontbufferSurface.cpp" />
+    <ClCompile Include="joystick.cpp" />
     <ClCompile Include="logger.cpp" />
     <ClCompile Include="MipmapSurface.cpp" />
     <ClCompile Include="OffscreenSurface.cpp" />
@@ -142,6 +143,7 @@
     <ClInclude Include="DirectDrawPalette.h" />
     <ClInclude Include="ExecuteBufferDumper.h" />
     <ClInclude Include="FrontbufferSurface.h" />
+    <ClInclude Include="joystick.h" />
     <ClInclude Include="logger.h" />
     <ClInclude Include="MipmapSurface.h" />
     <ClInclude Include="OffscreenSurface.h" />
