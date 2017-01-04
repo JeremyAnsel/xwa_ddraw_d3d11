@@ -14,6 +14,7 @@
 #include "../Debug/SmoothScalePixelShader.h"
 #include "../Debug/VertexShader.h"
 #include "../Debug/PixelShaderAtestTexture.h"
+#include "../Debug/PixelShaderAtestTextureNoAlpha.h"
 #include "../Debug/PixelShaderTexture.h"
 #include "../Debug/PixelShaderSolid.h"
 #else
@@ -23,6 +24,7 @@
 #include "../Release/SmoothScalePixelShader.h"
 #include "../Release/VertexShader.h"
 #include "../Release/PixelShaderAtestTexture.h"
+#include "../Release/PixelShaderAtestTextureNoAlpha.h"
 #include "../Release/PixelShaderTexture.h"
 #include "../Release/PixelShaderSolid.h"
 #endif
@@ -573,6 +575,9 @@ HRESULT DeviceResources::LoadResources()
 		return hr;
 
 	if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_PixelShaderAtestTexture, sizeof(g_PixelShaderAtestTexture), nullptr, &_pixelShaderAtestTexture)))
+		return hr;
+
+	if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_PixelShaderAtestTextureNoAlpha, sizeof(g_PixelShaderAtestTextureNoAlpha), nullptr, &_pixelShaderAtestTextureNoAlpha)))
 		return hr;
 
 	if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_PixelShaderSolid, sizeof(g_PixelShaderSolid), nullptr, &_pixelShaderSolid)))

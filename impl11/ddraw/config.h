@@ -22,6 +22,8 @@ public:
 	float MouseSensitivity;
 	float KbdSensitivity;
 	bool XWAMode;
+	bool isTIE;
+	bool isXWing;
 
 	float Concourse3DScale;
 

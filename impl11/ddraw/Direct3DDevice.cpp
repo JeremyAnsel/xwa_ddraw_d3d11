@@ -546,7 +546,9 @@ void Direct3DDevice::UpdatePixelShader(ID3D11DeviceContext *context, ID3D11Pixel
 		if (this->_renderStates->AlphaFunc != D3DCMP_NOTEQUAL || this->_renderStates->AlphaRef != 0)
 			LogText("Unsupported alpha test setting!");
 #endif
-		pixelShader = this->_deviceResources->_pixelShaderAtestTexture;
+		// NOTE/HACK: Using alpha blending for ATEST textures in TIE Fighter results in starfield shining
+		// through the edges of light source textures.
+		pixelShader = g_config.isTIE || g_config.isXWing ? this->_deviceResources->_pixelShaderAtestTextureNoAlpha : this->_deviceResources->_pixelShaderAtestTexture;
 	}
 
 	if (currentPixelShader != pixelShader)

@@ -65,6 +65,7 @@ public:
 	ComPtr<ID3D11InputLayout> _inputLayout;
 	ComPtr<ID3D11PixelShader> _pixelShaderTexture;
 	ComPtr<ID3D11PixelShader> _pixelShaderAtestTexture;
+	ComPtr<ID3D11PixelShader> _pixelShaderAtestTextureNoAlpha;
 	ComPtr<ID3D11PixelShader> _pixelShaderSolid;
 	ComPtr<ID3D11RasterizerState> _rasterizerState;
 	ComPtr<ID3D11Buffer> _constantBuffer;
