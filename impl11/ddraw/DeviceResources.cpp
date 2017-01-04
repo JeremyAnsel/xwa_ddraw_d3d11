@@ -428,7 +428,7 @@ HRESULT DeviceResources::LoadMainResources()
 		if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_LanczosScalePixelShader, sizeof(g_LanczosScalePixelShader), nullptr, &_mainPixelShader)))
 			return hr;
 	}
-	else if (g_config.ScalingType)
+	else if (g_config.ScalingType && g_config.ScalingType != 3)
 	{
 		if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_SmoothScalePixelShader, sizeof(g_SmoothScalePixelShader), nullptr, &_mainPixelShader)))
 			return hr;
@@ -455,8 +455,9 @@ HRESULT DeviceResources::LoadMainResources()
 		return hr;
 
 	D3D11_SAMPLER_DESC samplerDesc;
-	samplerDesc.Filter = this->_useAnisotropy ? D3D11_FILTER_ANISOTROPIC : D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-	samplerDesc.MaxAnisotropy = this->_useAnisotropy ? this->GetMaxAnisotropy() : 1;
+	// Note: anisotropy makes no sense for this full-screen, non-mip-mapped texture
+	samplerDesc.Filter = g_config.ScalingType == 3 ? D3D11_FILTER_MIN_MAG_MIP_POINT : D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	samplerDesc.MaxAnisotropy = 1;
 	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
 	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
 	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
@@ -900,7 +901,7 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 
 		this->_d3dDeviceContext->PSSetSamplers(0, 1, this->_mainSamplerState.GetAddressOf());
 
-		if (g_config.ScalingType)
+		if (g_config.ScalingType && g_config.ScalingType != 3)
 		{
 			float texsize[4] = { static_cast<float>(width), static_cast<float>(height) };
 			D3D11_BUFFER_DESC cbDesc;
