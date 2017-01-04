@@ -117,7 +117,7 @@ public:
 	D3D11_SAMPLER_DESC GetSamplerDesc()
 	{
 		D3D11_SAMPLER_DESC desc;
-		desc.Filter = this->_deviceResources->_useAnisotropy ? D3D11_FILTER_ANISOTROPIC : D3D11_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
+		desc.Filter = this->_deviceResources->_useAnisotropy ? D3D11_FILTER_ANISOTROPIC : D3D11_FILTER_MIN_MAG_MIP_LINEAR;
 		// Support disabling bilinear filtering in settings for
 		// e.g. X-Wing vs. TIE
 		if (this->TextureMag == D3DFILTER_NEAREST && this->TextureMin == D3DFILTER_NEAREST) {
