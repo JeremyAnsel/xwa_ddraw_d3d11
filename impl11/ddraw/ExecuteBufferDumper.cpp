@@ -186,6 +186,8 @@ void DumpInstruction(std::ostringstream& str, LPD3DINSTRUCTION instruction)
 		str << "\tSETSTATUS";
 		DumpInstructionSetStatus(str, instruction);
 		break;
+	default:
+		str << "\tUNKNOWN INSTR " << instruction->bOpcode;
 	}
 }
 
@@ -876,6 +878,8 @@ void DumpInstructionStateRender(std::ostringstream& str, LPD3DINSTRUCTION instru
 		case D3DRENDERSTATE_STIPPLEPATTERN31:
 			str << "STIPPLEPATTERNxx";
 			break;
+		default:
+			str << "UNKNOWN STATE " << state->drstRenderStateType;
 		}
 
 		state++;
