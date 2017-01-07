@@ -9,6 +9,7 @@
 #include "Direct3DTexture.h"
 #include "BackbufferSurface.h"
 #include "ExecuteBufferDumper.h"
+#include "TextureSurface.h"
 
 class RenderStates
 {
@@ -546,9 +547,10 @@ void Direct3DDevice::UpdatePixelShader(ID3D11DeviceContext *context, ID3D11Pixel
 		if (this->_renderStates->AlphaFunc != D3DCMP_NOTEQUAL || this->_renderStates->AlphaRef != 0)
 			LogText("Unsupported alpha test setting!");
 #endif
-		// NOTE/HACK: Using alpha blending for ATEST textures in TIE Fighter results in starfield shining
+		// NOTE/HACK: Using alpha interpolation for ATEST textures in TIE Fighter results in starfield shining
 		// through the edges of light source textures.
-		pixelShader = g_config.isTIE || g_config.isXWing ? this->_deviceResources->_pixelShaderAtestTextureNoAlpha : this->_deviceResources->_pixelShaderAtestTexture;
+		bool alpha_single_bit = texture->_surface->_pixelFormat.dwRGBBitCount == 16 && texture->_surface->_pixelFormat.dwRGBAlphaBitMask != 0;
+		pixelShader = alpha_single_bit && (g_config.isTIE || g_config.isXWing) ? this->_deviceResources->_pixelShaderAtestTextureNoAlpha : this->_deviceResources->_pixelShaderAtestTexture;
 	}
 
 	if (currentPixelShader != pixelShader)
@@ -845,6 +847,12 @@ HRESULT Direct3DDevice::Execute(
 						break;
 
 					context->PSSetSamplers(0, 1, sampler.GetAddressOf());
+
+					samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+					if (FAILED(hr = device->CreateSamplerState(&samplerDesc, &sampler)))
+						break;
+
+					context->PSSetSamplers(1, 1, sampler.GetAddressOf());
 
 					this->_renderStates->SamplerDescChanged = false;
 				}
