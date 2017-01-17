@@ -548,9 +548,9 @@ void Direct3DDevice::UpdatePixelShader(ID3D11DeviceContext *context, ID3D11Pixel
 			LogText("Unsupported alpha test setting!");
 #endif
 		// NOTE/HACK: Using alpha interpolation for ATEST textures in TIE Fighter results in starfield shining
-		// through the edges of light source textures.
-		bool alpha_single_bit = texture->_surface->_pixelFormat.dwRGBBitCount == 16 && texture->_surface->_pixelFormat.dwRGBAlphaBitMask != 0;
-		pixelShader = alpha_single_bit && (g_config.isTIE || g_config.isXWing) ? this->_deviceResources->_pixelShaderAtestTextureNoAlpha : this->_deviceResources->_pixelShaderAtestTexture;
+		// through the edges of light source textures. In BoP it causes distant frigates to be full of "holes" etc.
+		bool alpha_single_bit = texture->_surface->_pixelFormat.dwRGBBitCount == 16 && texture->_surface->_pixelFormat.dwRGBAlphaBitMask == 0x8000;
+		pixelShader = alpha_single_bit ? this->_deviceResources->_pixelShaderAtestTextureNoAlpha : this->_deviceResources->_pixelShaderAtestTexture;
 	}
 
 	if (currentPixelShader != pixelShader)
