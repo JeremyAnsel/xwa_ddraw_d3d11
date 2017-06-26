@@ -44,6 +44,7 @@ Config::Config()
 
 	this->Concourse3DScale = 0.6f;
 
+	this->RefreshLimit = 1;
 	this->PresentSleepTime = -1;
 
 	// Try to always load config from executable path, not CWD
@@ -161,6 +162,10 @@ Config::Config()
 			else if (name == "PresentSleepTime")
 			{
 				this->PresentSleepTime = stoi(value);
+			}
+			else if (name == "RefreshLimit")
+			{
+				this->RefreshLimit = stoi(value);
 			}
 		}
 	}

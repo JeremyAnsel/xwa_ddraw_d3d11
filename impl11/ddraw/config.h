@@ -28,6 +28,7 @@ public:
 	float Concourse3DScale;
 
 	int PresentSleepTime;
+	int RefreshLimit;
 };
 
 extern Config g_config;

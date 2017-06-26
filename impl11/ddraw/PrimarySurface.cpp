@@ -494,11 +494,11 @@ HRESULT PrimarySurface::Flip(
 
 				hr = DD_OK;
 
-				for (UINT i = 0; i < interval; i++)
+				for (UINT i = 0; i < (g_config.RefreshLimit == 2 ? interval : 1); i++)
 				{
 					this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0, this->_deviceResources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
 
-					if (FAILED(hr = this->_deviceResources->_swapChain->Present(1, 0)))
+					if (FAILED(hr = this->_deviceResources->_swapChain->Present(g_config.RefreshLimit == 1 ? interval : 1, 0)))
 					{
 						static bool messageShown = false;
 
