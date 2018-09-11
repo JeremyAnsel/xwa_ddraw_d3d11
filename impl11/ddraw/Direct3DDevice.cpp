@@ -110,7 +110,7 @@ public:
 	D3D11_SAMPLER_DESC GetSamplerDesc()
 	{
 		D3D11_SAMPLER_DESC desc;
-		desc.Filter = this->_deviceResources->_useAnisotropy ? D3D11_FILTER_ANISOTROPIC : D3D11_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
+		desc.Filter = this->_deviceResources->_useAnisotropy ? D3D11_FILTER_ANISOTROPIC : D3D11_FILTER_MIN_MAG_MIP_LINEAR;
 		desc.MaxAnisotropy = this->_deviceResources->_useAnisotropy ? this->_deviceResources->GetMaxAnisotropy() : 1;
 		desc.AddressU = TextureAddressMode(this->TextureAddress);
 		desc.AddressV = TextureAddressMode(this->TextureAddress);
