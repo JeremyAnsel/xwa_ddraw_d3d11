@@ -8,14 +8,10 @@ http://www.xwaupgrade.com/phpBB3008/viewtopic.php?f=10&t=11167
 
 This dll requires:
 - DirectX 11
-- Visual C++ 2013 Runtime (x86)
 - a CPU with SSE2 support
 
 How to install the latest version of DirectX
 http://support.microsoft.com/kb/179113/en
-
-Visual C++ Redistributable Packages for Visual Studio 2013: vcredist_x86.exe
-http://www.microsoft.com/en-us/download/details.aspx?id=40784
 
 
 *** Usage ***
