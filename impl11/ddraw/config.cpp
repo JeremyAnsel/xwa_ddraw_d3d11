@@ -15,7 +15,7 @@ Config g_config;
 Config::Config()
 {
 	this->AspectRatioPreserved = true;
-	this->MultisamplingAntialiasingEnabled = true;
+	this->MultisamplingAntialiasingEnabled = false;
 	this->AnisotropicFilteringEnabled = true;
 	this->WireframeFillMode = false;
 
