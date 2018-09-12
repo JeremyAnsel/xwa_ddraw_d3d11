@@ -14,6 +14,8 @@ public:
 	bool WireframeFillMode;
 
 	float Concourse3DScale;
+
+	int ProcessAffinityCore;
 };
 
 extern Config g_config;

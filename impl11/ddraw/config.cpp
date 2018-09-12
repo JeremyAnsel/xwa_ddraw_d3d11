@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE.txt
 
 #include "config.h"
+#include "common.h"
 
 #include <string>
 #include <fstream>
@@ -20,6 +21,8 @@ Config::Config()
 	this->WireframeFillMode = false;
 
 	this->Concourse3DScale = 0.6f;
+
+	this->ProcessAffinityCore = 2;
 
 	ifstream file("ddraw.cfg");
 
@@ -72,6 +75,41 @@ Config::Config()
 			{
 				this->Concourse3DScale = stof(value);
 			}
+			else if (name == "ProcessAffinityCore")
+			{
+				this->ProcessAffinityCore = stoi(value);
+			}
+		}
+	}
+
+	if (this->ProcessAffinityCore > 0)
+	{
+		HANDLE process = GetCurrentProcess();
+
+		DWORD_PTR processAffinityMask;
+		DWORD_PTR systemAffinityMask;
+
+		if (GetProcessAffinityMask(process, &processAffinityMask, &systemAffinityMask))
+		{
+			int core = this->ProcessAffinityCore;
+			DWORD_PTR mask = 0x01;
+
+			for (int bit = 0, currentCore = 1; bit < 64; bit++)
+			{
+				if (mask & processAffinityMask)
+				{
+					if (currentCore != core)
+					{
+						processAffinityMask &= ~mask;
+					}
+	
+					currentCore++;
+				}
+
+				mask = mask << 1;
+			}
+
+			SetProcessAffinityMask(process, processAffinityMask);
 		}
 	}
 }
