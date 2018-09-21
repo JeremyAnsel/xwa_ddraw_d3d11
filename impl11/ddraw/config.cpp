@@ -112,4 +112,6 @@ Config::Config()
 			SetProcessAffinityMask(process, processAffinityMask);
 		}
 	}
+
+	DisableProcessWindowsGhosting();
 }
