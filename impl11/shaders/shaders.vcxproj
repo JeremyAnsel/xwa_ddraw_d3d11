@@ -53,6 +53,7 @@
     </FxCompile>
     <FxCompile>
       <HeaderFileOutput>$(OutDir)%(Filename).h</HeaderFileOutput>
+      <ShaderModel>4.0</ShaderModel>
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -73,6 +74,7 @@
     </FxCompile>
     <FxCompile>
       <HeaderFileOutput>$(OutDir)%(Filename).h</HeaderFileOutput>
+      <ShaderModel>4.0</ShaderModel>
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
