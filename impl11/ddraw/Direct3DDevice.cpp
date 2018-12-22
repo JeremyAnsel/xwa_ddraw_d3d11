@@ -26,10 +26,6 @@ public:
 		this->ZEnabled = TRUE;
 		this->ZWriteEnabled = TRUE;
 		this->ZFunc = D3DCMP_GREATER;
-
-		this->SamplerDescChanged = true;
-		this->BlendDescChanged = true;
-		this->DepthStencilDescChanged = true;
 	}
 
 	static D3D11_TEXTURE_ADDRESS_MODE TextureAddressMode(D3DTEXTUREADDRESS address)
@@ -160,80 +156,43 @@ public:
 
 	inline void SetTextureAddress(D3DTEXTUREADDRESS textureAddress)
 	{
-		if (this->TextureAddress != textureAddress)
-		{
-			this->TextureAddress = textureAddress;
-			this->SamplerDescChanged = true;
-		}
+		this->TextureAddress = textureAddress;
 	}
 
 	inline void SetAlphaBlendEnabled(BOOL alphaBlendEnabled)
 	{
-		if (this->AlphaBlendEnabled != alphaBlendEnabled)
-		{
-			this->AlphaBlendEnabled = alphaBlendEnabled;
-			this->BlendDescChanged = true;
-		}
+		this->AlphaBlendEnabled = alphaBlendEnabled;
 	}
 
 	inline void SetTextureMapBlend(D3DTEXTUREBLEND textureMapBlend)
 	{
-		if (this->TextureMapBlend != textureMapBlend)
-		{
-			this->TextureMapBlend = textureMapBlend;
-			this->BlendDescChanged = true;
-		}
+		this->TextureMapBlend = textureMapBlend;
 	}
 
 	inline void SetSrcBlend(D3DBLEND srcBlend)
 	{
-		if (this->SrcBlend != srcBlend)
-		{
-			this->SrcBlend = srcBlend;
-			this->BlendDescChanged = true;
-		}
+		this->SrcBlend = srcBlend;
 	}
 
 	inline void SetDestBlend(D3DBLEND destBlend)
 	{
-		if (this->DestBlend != destBlend)
-		{
-			this->DestBlend = destBlend;
-			this->BlendDescChanged = true;
-		}
+		this->DestBlend = destBlend;
 	}
 
 	inline void SetZEnabled(BOOL zEnabled)
 	{
-		if (this->ZEnabled != zEnabled)
-		{
-			this->ZEnabled = zEnabled;
-			this->DepthStencilDescChanged = true;
-		}
+		this->ZEnabled = zEnabled;
 	}
 
 	inline void SetZWriteEnabled(BOOL zWriteEnabled)
 	{
-		if (this->ZWriteEnabled != zWriteEnabled)
-		{
-			this->ZWriteEnabled = zWriteEnabled;
-			this->DepthStencilDescChanged = true;
-		}
+		this->ZWriteEnabled = zWriteEnabled;
 	}
 
 	inline void SetZFunc(D3DCMPFUNC zFunc)
 	{
-		if (this->ZFunc != zFunc)
-		{
-			this->ZFunc = zFunc;
-			this->DepthStencilDescChanged = true;
-		}
+		this->ZFunc = zFunc;
 	}
-
-public:
-	bool SamplerDescChanged;
-	bool BlendDescChanged;
-	bool DepthStencilDescChanged;
 
 private:
 	DeviceResources* _deviceResources;
@@ -510,9 +469,9 @@ HRESULT Direct3DDevice::Execute(
 
 	Direct3DExecuteBuffer* executeBuffer = (Direct3DExecuteBuffer*)lpDirect3DExecuteBuffer;
 
-	#if LOGGER
-		DumpExecuteBuffer(executeBuffer);
-	#endif
+#if LOGGER
+	DumpExecuteBuffer(executeBuffer);
+#endif
 
 	auto& device = this->_deviceResources->_d3dDevice;
 	auto& context = this->_deviceResources->_d3dDeviceContext;
@@ -520,20 +479,11 @@ HRESULT Direct3DDevice::Execute(
 	HRESULT hr = S_OK;
 	char* step = "";
 
-	context->IASetInputLayout(this->_deviceResources->_inputLayout);
-	context->VSSetShader(this->_deviceResources->_vertexShader, nullptr, 0);
-	context->PSSetShader(this->_deviceResources->_pixelShaderSolid, nullptr, 0);
-	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	context->RSSetState(this->_deviceResources->_rasterizerState);
-
-	{
-		ID3D11ShaderResourceView* view = nullptr;
-		context->PSSetShaderResources(0, 1, &view);
-	}
-
-	this->_renderStates->SamplerDescChanged = true;
-	this->_renderStates->BlendDescChanged = true;
-	this->_renderStates->DepthStencilDescChanged = true;
+	this->_deviceResources->InitInputLayout(this->_deviceResources->_inputLayout);
+	this->_deviceResources->InitVertexShader(this->_deviceResources->_vertexShader);
+	this->_deviceResources->InitPixelShader(this->_deviceResources->_pixelShaderTexture);
+	this->_deviceResources->InitTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	this->_deviceResources->InitRasterizerState(this->_deviceResources->_rasterizerState);
 
 	if (SUCCEEDED(hr))
 	{
@@ -591,13 +541,10 @@ HRESULT Direct3DDevice::Execute(
 		viewport.Height = (float)h;
 		viewport.MinDepth = D3D11_MIN_DEPTH;
 		viewport.MaxDepth = D3D11_MAX_DEPTH;
-
-		context->RSSetViewports(1, &viewport);
+		this->_deviceResources->InitViewport(&viewport);
 
 		const float viewportScale[4] = { 2.0f / (float)this->_deviceResources->_displayWidth, -2.0f / (float)this->_deviceResources->_displayHeight, scale, 0 };
-
-		context->UpdateSubresource(this->_deviceResources->_constantBuffer, 0, nullptr, viewportScale, 0, 0);
-		context->VSSetConstantBuffers(0, 1, this->_deviceResources->_constantBuffer.GetAddressOf());
+		this->_deviceResources->InitConstantBuffer(this->_deviceResources->_constantBuffer.GetAddressOf(), viewportScale);
 	}
 
 	if (SUCCEEDED(hr))
@@ -621,7 +568,7 @@ HRESULT Direct3DDevice::Execute(
 			UINT stride = sizeof(D3DTLVERTEX);
 			UINT offset = 0;
 
-			context->IASetVertexBuffers(0, 1, this->_vertexBuffer.GetAddressOf(), &stride, &offset);
+			this->_deviceResources->InitVertexBuffer(this->_vertexBuffer.GetAddressOf(), &stride, &offset);
 		}
 	}
 
@@ -672,7 +619,7 @@ HRESULT Direct3DDevice::Execute(
 
 		if (SUCCEEDED(hr))
 		{
-			context->IASetIndexBuffer(this->_indexBuffer, DXGI_FORMAT_R16_UINT, 0);
+			this->_deviceResources->InitIndexBuffer(this->_indexBuffer);
 		}
 	}
 
@@ -680,9 +627,6 @@ HRESULT Direct3DDevice::Execute(
 	{
 		char* pData = executeBuffer->_buffer + executeBuffer->_executeData.dwInstructionOffset;
 		char* pDataEnd = pData + executeBuffer->_executeData.dwInstructionLength;
-
-		context->PSSetShader(this->_deviceResources->_pixelShaderTexture, nullptr, 0);
-		ID3D11PixelShader* currentPixelShader = this->_deviceResources->_pixelShaderTexture;
 
 		UINT currentIndexLocation = 0;
 
@@ -720,12 +664,7 @@ HRESULT Direct3DDevice::Execute(
 							pixelShader = this->_deviceResources->_pixelShaderTexture;
 						}
 
-						if (currentPixelShader != pixelShader)
-						{
-							context->PSSetShader(pixelShader, nullptr, 0);
-							currentPixelShader = pixelShader;
-						}
-
+						this->_deviceResources->InitPixelShader(pixelShader);
 						break;
 					}
 
@@ -765,46 +704,20 @@ HRESULT Direct3DDevice::Execute(
 
 			case D3DOP_TRIANGLE:
 			{
-				if (this->_renderStates->SamplerDescChanged)
-				{
-					step = "SamplerState";
-					D3D11_SAMPLER_DESC samplerDesc = this->_renderStates->GetSamplerDesc();
-					ComPtr<ID3D11SamplerState> sampler;
-					if (FAILED(hr = device->CreateSamplerState(&samplerDesc, &sampler)))
-						break;
+				step = "SamplerState";
+				D3D11_SAMPLER_DESC samplerDesc = this->_renderStates->GetSamplerDesc();
+				if (FAILED(hr = this->_deviceResources->InitSamplerState(nullptr, &samplerDesc)))
+					break;
 
-					context->PSSetSamplers(0, 1, sampler.GetAddressOf());
+				step = "BlendState";
+				D3D11_BLEND_DESC blendDesc = this->_renderStates->GetBlendDesc();
+				if (FAILED(hr = this->_deviceResources->InitBlendState(nullptr, &blendDesc)))
+					break;
 
-					this->_renderStates->SamplerDescChanged = false;
-				}
-
-				if (this->_renderStates->BlendDescChanged)
-				{
-					step = "BlendState";
-					D3D11_BLEND_DESC blendDesc = this->_renderStates->GetBlendDesc();
-					ComPtr<ID3D11BlendState> blendState;
-					if (FAILED(hr = device->CreateBlendState(&blendDesc, &blendState)))
-						break;
-
-					const FLOAT factors[] = { 0.0f, 0.0f, 0.0f, 0.0f };
-					UINT mask = 0xffffffff;
-					context->OMSetBlendState(blendState, factors, mask);
-
-					this->_renderStates->BlendDescChanged = false;
-				}
-
-				if (this->_renderStates->DepthStencilDescChanged)
-				{
-					step = "DepthStencilState";
-					D3D11_DEPTH_STENCIL_DESC depthDesc = this->_renderStates->GetDepthStencilDesc();
-					ComPtr<ID3D11DepthStencilState> depthState;
-					if (FAILED(hr = device->CreateDepthStencilState(&depthDesc, &depthState)))
-						break;
-
-					context->OMSetDepthStencilState(depthState, 0);
-
-					this->_renderStates->DepthStencilDescChanged = false;
-				}
+				step = "DepthStencilState";
+				D3D11_DEPTH_STENCIL_DESC depthDesc = this->_renderStates->GetDepthStencilDesc();
+				if (FAILED(hr = this->_deviceResources->InitDepthStencilState(nullptr, &depthDesc)))
+					break;
 
 				step = "Draw";
 				context->DrawIndexed(3 * instruction->wCount, currentIndexLocation, 0);
