@@ -46,6 +46,8 @@ public:
 	DWORD _displayWidth;
 	DWORD _displayHeight;
 	DWORD _displayBpp;
+	DWORD _displayTempWidth;
+	DWORD _displayTempHeight;
 
 	D3D_DRIVER_TYPE _d3dDriverType;
 	D3D_FEATURE_LEVEL _d3dFeatureLevel;
@@ -69,8 +71,8 @@ public:
 	ComPtr<ID3D11Buffer> _mainIndexBuffer;
 	ComPtr<ID3D11Texture2D> _mainDisplayTexture;
 	ComPtr<ID3D11ShaderResourceView> _mainDisplayTextureView;
-	ComPtr<ID3D11Texture2D> _mainDisplayTexture640x480;
-	ComPtr<ID3D11ShaderResourceView> _mainDisplayTextureView640x480;
+	ComPtr<ID3D11Texture2D> _mainDisplayTextureTemp;
+	ComPtr<ID3D11ShaderResourceView> _mainDisplayTextureViewTemp;
 
 	ComPtr<ID3D11VertexShader> _vertexShader;
 	ComPtr<ID3D11InputLayout> _inputLayout;

@@ -335,35 +335,8 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		}
 	}
 
-	if (SUCCEEDED(hr))
-	{
-		step = "Texture2D 640 x 480";
-		D3D11_TEXTURE2D_DESC textureDesc;
-		textureDesc.Width = 640;
-		textureDesc.Height = 480;
-		textureDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-		textureDesc.Usage = D3D11_USAGE_DYNAMIC;
-		textureDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-		textureDesc.MiscFlags = 0;
-		textureDesc.MipLevels = 1;
-		textureDesc.ArraySize = 1;
-		textureDesc.SampleDesc.Count = 1;
-		textureDesc.SampleDesc.Quality = 0;
-		textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-
-		hr = this->_d3dDevice->CreateTexture2D(&textureDesc, nullptr, &this->_mainDisplayTexture640x480);
-
-		if (SUCCEEDED(hr))
-		{
-			D3D11_SHADER_RESOURCE_VIEW_DESC textureViewDesc{};
-			textureViewDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-			textureViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-			textureViewDesc.Texture2D.MipLevels = 1;
-			textureViewDesc.Texture2D.MostDetailedMip = 0;
-
-			hr = this->_d3dDevice->CreateShaderResourceView(this->_mainDisplayTexture640x480, &textureViewDesc, &this->_mainDisplayTextureView640x480);
-		}
-	}
+	this->_displayTempWidth = 0;
+	this->_displayTempHeight = 0;
 
 	if (FAILED(hr))
 	{
@@ -773,38 +746,78 @@ void DeviceResources::InitConstantBuffer(ID3D11Buffer** buffer, const float* vie
 
 HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD bpp, bool useColorKey)
 {
-	bool useMainDisplayTexture640x480 = (width == 640) && (height == 480);
-
 	HRESULT hr = S_OK;
 	char* step = "";
 
 	D3D11_MAPPED_SUBRESOURCE displayMap;
 	DWORD pitchDelta;
 
-	void* buffer = nullptr;
+	ID3D11Texture2D* tex = nullptr;
+	ID3D11ShaderResourceView** texView = nullptr;
 
 	if (SUCCEEDED(hr))
 	{
-		if (useMainDisplayTexture640x480)
-		{
-			step = "DisplayTexture 640 x 480";
-			hr = this->_d3dDeviceContext->Map(this->_mainDisplayTexture640x480, 0, D3D11_MAP_WRITE_DISCARD, 0, &displayMap);
-
-			if (SUCCEEDED(hr))
-			{
-				buffer = displayMap.pData;
-				pitchDelta = displayMap.RowPitch - 640 * 4;
-			}
-		}
-		else
+		if ((width == this->_displayWidth) && (height == this->_displayHeight))
 		{
 			step = "DisplayTexture displayWidth x displayHeight";
 			hr = this->_d3dDeviceContext->Map(this->_mainDisplayTexture, 0, D3D11_MAP_WRITE_DISCARD, 0, &displayMap);
 
 			if (SUCCEEDED(hr))
 			{
-				buffer = displayMap.pData;
 				pitchDelta = displayMap.RowPitch - width * 4;
+				tex = this->_mainDisplayTexture;
+				texView = this->_mainDisplayTextureView.GetAddressOf();
+			}
+		}
+		else
+		{
+			step = "DisplayTexture temp";
+
+			if (width != this->_displayTempWidth || height != this->_displayTempHeight)
+			{
+				D3D11_TEXTURE2D_DESC textureDesc;
+				textureDesc.Width = width;
+				textureDesc.Height = height;
+				textureDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+				textureDesc.Usage = D3D11_USAGE_DYNAMIC;
+				textureDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+				textureDesc.MiscFlags = 0;
+				textureDesc.MipLevels = 1;
+				textureDesc.ArraySize = 1;
+				textureDesc.SampleDesc.Count = 1;
+				textureDesc.SampleDesc.Quality = 0;
+				textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+				hr = this->_d3dDevice->CreateTexture2D(&textureDesc, nullptr, &this->_mainDisplayTextureTemp);
+
+				if (SUCCEEDED(hr))
+				{
+					D3D11_SHADER_RESOURCE_VIEW_DESC textureViewDesc{};
+					textureViewDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+					textureViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+					textureViewDesc.Texture2D.MipLevels = 1;
+					textureViewDesc.Texture2D.MostDetailedMip = 0;
+
+					hr = this->_d3dDevice->CreateShaderResourceView(this->_mainDisplayTextureTemp, &textureViewDesc, &this->_mainDisplayTextureViewTemp);
+				}
+
+				if (SUCCEEDED(hr))
+				{
+					this->_displayTempWidth = width;
+					this->_displayTempHeight = height;
+				}
+			}
+
+			if (SUCCEEDED(hr))
+			{
+				hr = this->_d3dDeviceContext->Map(this->_mainDisplayTextureTemp, 0, D3D11_MAP_WRITE_DISCARD, 0, &displayMap);
+
+				if (SUCCEEDED(hr))
+				{
+					pitchDelta = displayMap.RowPitch - width * 4;
+					tex = this->_mainDisplayTextureTemp;
+					texView = this->_mainDisplayTextureViewTemp.GetAddressOf();
+				}
 			}
 		}
 	}
@@ -816,7 +829,7 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 			if (useColorKey)
 			{
 				unsigned short* srcColors = (unsigned short*)src;
-				unsigned int* colors = (unsigned int*)buffer;
+				unsigned int* colors = (unsigned int*)displayMap.pData;
 
 				for (DWORD y = 0; y < height; y++)
 				{
@@ -841,7 +854,7 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 			else
 			{
 				unsigned short* srcColors = (unsigned short*)src;
-				unsigned int* colors = (unsigned int*)buffer;
+				unsigned int* colors = (unsigned int*)displayMap.pData;
 
 				for (DWORD y = 0; y < height; y++)
 				{
@@ -862,7 +875,7 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 			if (useColorKey)
 			{
 				unsigned int* srcColors = (unsigned int*)src;
-				unsigned int* colors = (unsigned int*)buffer;
+				unsigned int* colors = (unsigned int*)displayMap.pData;
 
 				__m128i key = _mm_set1_epi32(0x200000);
 				__m128i colorMask = _mm_set1_epi32(0xffffff);
@@ -906,12 +919,12 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 			{
 				if (pitchDelta == 0)
 				{
-					memcpy(buffer, src, width * height * 4);
+					memcpy(displayMap.pData, src, width * height * 4);
 				}
 				else
 				{
 					unsigned int* srcColors = (unsigned int*)src;
-					unsigned int* colors = (unsigned int*)buffer;
+					unsigned int* colors = (unsigned int*)displayMap.pData;
 
 					for (DWORD y = 0; y < height; y++)
 					{
@@ -926,14 +939,7 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 
 	if (SUCCEEDED(hr))
 	{
-		if (useMainDisplayTexture640x480)
-		{
-			this->_d3dDeviceContext->Unmap(this->_mainDisplayTexture640x480, 0);
-		}
-		else
-		{
-			this->_d3dDeviceContext->Unmap(this->_mainDisplayTexture, 0);
-		}
+		this->_d3dDeviceContext->Unmap(tex, 0);
 	}
 
 	this->InitInputLayout(this->_mainInputLayout);
@@ -987,18 +993,9 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 
 	if (SUCCEEDED(hr))
 	{
-		if (useMainDisplayTexture640x480)
-		{
-			step = "Texture2D ShaderResourceView 640 x 480";
+		step = "Texture2D ShaderResourceView";
 
-			this->_d3dDeviceContext->PSSetShaderResources(0, 1, this->_mainDisplayTextureView640x480.GetAddressOf());
-		}
-		else
-		{
-			step = "Texture2D ShaderResourceView displayWidth x displayHeight";
-
-			this->_d3dDeviceContext->PSSetShaderResources(0, 1, this->_mainDisplayTextureView.GetAddressOf());
-		}
+		this->_d3dDeviceContext->PSSetShaderResources(0, 1, texView);
 	}
 
 	if (SUCCEEDED(hr))
