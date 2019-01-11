@@ -69,6 +69,8 @@ public:
 	ComPtr<ID3D11Buffer> _mainIndexBuffer;
 	ComPtr<ID3D11Texture2D> _mainDisplayTexture;
 	ComPtr<ID3D11ShaderResourceView> _mainDisplayTextureView;
+	ComPtr<ID3D11Texture2D> _mainDisplayTexture640x480;
+	ComPtr<ID3D11ShaderResourceView> _mainDisplayTextureView640x480;
 
 	ComPtr<ID3D11VertexShader> _vertexShader;
 	ComPtr<ID3D11InputLayout> _inputLayout;
