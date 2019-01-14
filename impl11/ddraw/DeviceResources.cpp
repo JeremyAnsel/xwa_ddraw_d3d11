@@ -57,6 +57,7 @@ DeviceResources::DeviceResources()
 	this->_backbufferWidth = 0;
 	this->_backbufferHeight = 0;
 	this->_refreshRate = { 0, 1 };
+	this->_are16BppTexturesSupported = false;
 
 	const float color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	memcpy(this->clearColor, &color, sizeof(color));
@@ -104,6 +105,14 @@ HRESULT DeviceResources::Initialize()
 	if (SUCCEEDED(hr))
 	{
 		this->CheckMultisamplingSupport();
+	}
+
+	if (SUCCEEDED(hr))
+	{
+		this->_are16BppTexturesSupported =
+			this->IsTextureFormatSupported(DXGI_FORMAT_B4G4R4A4_UNORM)
+			&& this->IsTextureFormatSupported(DXGI_FORMAT_B5G5R5A1_UNORM)
+			&& this->IsTextureFormatSupported(DXGI_FORMAT_B5G6R5_UNORM);
 	}
 
 	if (SUCCEEDED(hr))
@@ -1171,4 +1180,18 @@ void DeviceResources::CheckMultisamplingSupport()
 	{
 		this->_useMultisampling = FALSE;
 	}
+}
+
+bool DeviceResources::IsTextureFormatSupported(DXGI_FORMAT format)
+{
+	UINT formatSupport;
+
+	if (FAILED(this->_d3dDevice->CheckFormatSupport(format, &formatSupport)))
+	{
+		return false;
+	}
+
+	const UINT expected = D3D11_FORMAT_SUPPORT_TEXTURE2D | D3D11_FORMAT_SUPPORT_MIP | D3D11_FORMAT_SUPPORT_SHADER_LOAD | D3D11_FORMAT_SUPPORT_CPU_LOCKABLE;
+
+	return (formatSupport & expected) == expected;
 }

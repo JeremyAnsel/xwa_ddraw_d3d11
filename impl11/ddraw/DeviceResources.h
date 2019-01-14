@@ -43,6 +43,8 @@ public:
 
 	void CheckMultisamplingSupport();
 
+	bool IsTextureFormatSupported(DXGI_FORMAT format);
+
 	DWORD _displayWidth;
 	DWORD _displayHeight;
 	DWORD _displayBpp;
@@ -87,6 +89,7 @@ public:
 	UINT _backbufferWidth;
 	UINT _backbufferHeight;
 	DXGI_RATIONAL _refreshRate;
+	bool _are16BppTexturesSupported;
 
 	float clearColor[4];
 	float clearDepth;
