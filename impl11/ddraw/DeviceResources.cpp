@@ -882,22 +882,8 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 
 				for (DWORD y = 0; y < height; y++)
 				{
-					//for (DWORD x = 0; x < width; x++)
-					//{
-					//	unsigned int color32 = srcColors[x];
-
-					//	if (color32 == 0x200000)
-					//	{
-					//		colors[x] = 0xff000000;
-					//	}
-					//	else
-					//	{
-					//		colors[x] = color32 & 0xffffff;
-					//	}
-					//}
-
-
-					for (DWORD x = 0; x < width; x += 4)
+					DWORD x = 0;
+					for (; x < (width & ~3); x += 4)
 					{
 						__m128i color = _mm_load_si128((const __m128i*)(srcColors + x));
 						__m128i transparent = _mm_cmpeq_epi32(color, key);
@@ -909,6 +895,20 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 
 						color = _mm_or_si128(color, transparent);
 						_mm_store_si128((__m128i*)(colors + x), color);
+					}
+
+					for (; x < width; x++)
+					{
+						unsigned int color32 = srcColors[x];
+
+						if (color32 == 0x200000)
+						{
+							colors[x] = 0xff000000;
+						}
+						else
+						{
+							colors[x] = color32 & 0xffffff;
+						}
 					}
 
 					srcColors += width;
