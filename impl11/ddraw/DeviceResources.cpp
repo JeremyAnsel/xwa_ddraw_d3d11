@@ -7,12 +7,16 @@
 #ifdef _DEBUG
 #include "../Debug/MainVertexShader.h"
 #include "../Debug/MainPixelShader.h"
+#include "../Debug/MainPixelShaderBpp2ColorKey20.h"
+#include "../Debug/MainPixelShaderBpp4ColorKey20.h"
 #include "../Debug/VertexShader.h"
 #include "../Debug/PixelShaderTexture.h"
 #include "../Debug/PixelShaderSolid.h"
 #else
 #include "../Release/MainVertexShader.h"
 #include "../Release/MainPixelShader.h"
+#include "../Release/MainPixelShaderBpp2ColorKey20.h"
+#include "../Release/MainPixelShaderBpp4ColorKey20.h"
 #include "../Release/VertexShader.h"
 #include "../Release/PixelShaderTexture.h"
 #include "../Release/PixelShaderSolid.h"
@@ -58,6 +62,7 @@ DeviceResources::DeviceResources()
 	this->_backbufferHeight = 0;
 	this->_refreshRate = { 0, 1 };
 	this->_are16BppTexturesSupported = false;
+	this->_use16BppMainDisplayTexture = false;
 
 	const float color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	memcpy(this->clearColor, &color, sizeof(color));
@@ -113,6 +118,8 @@ HRESULT DeviceResources::Initialize()
 			this->IsTextureFormatSupported(DXGI_FORMAT_B4G4R4A4_UNORM)
 			&& this->IsTextureFormatSupported(DXGI_FORMAT_B5G5R5A1_UNORM)
 			&& this->IsTextureFormatSupported(DXGI_FORMAT_B5G6R5_UNORM);
+
+		this->_use16BppMainDisplayTexture = this->_are16BppTexturesSupported && (this->_d3dFeatureLevel >= D3D_FEATURE_LEVEL_10_0);
 	}
 
 	if (SUCCEEDED(hr))
@@ -317,10 +324,13 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 	if (SUCCEEDED(hr))
 	{
 		step = "Texture2D displayWidth x displayHeight";
+
+		this->_mainDisplayTextureBpp = (this->_displayBpp == 2 && this->_use16BppMainDisplayTexture) ? 2 : 4;
+
 		D3D11_TEXTURE2D_DESC textureDesc;
 		textureDesc.Width = this->_displayWidth;
 		textureDesc.Height = this->_displayHeight;
-		textureDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+		textureDesc.Format = this->_mainDisplayTextureBpp == 2 ? DXGI_FORMAT_B5G6R5_UNORM : DXGI_FORMAT_B8G8R8A8_UNORM;
 		textureDesc.Usage = D3D11_USAGE_DYNAMIC;
 		textureDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 		textureDesc.MiscFlags = 0;
@@ -335,7 +345,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		if (SUCCEEDED(hr))
 		{
 			D3D11_SHADER_RESOURCE_VIEW_DESC textureViewDesc{};
-			textureViewDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+			textureViewDesc.Format = textureDesc.Format;
 			textureViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 			textureViewDesc.Texture2D.MipLevels = 1;
 			textureViewDesc.Texture2D.MostDetailedMip = 0;
@@ -346,6 +356,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 
 	this->_displayTempWidth = 0;
 	this->_displayTempHeight = 0;
+	this->_displayTempBpp = 0;
 
 	if (FAILED(hr))
 	{
@@ -385,6 +396,15 @@ HRESULT DeviceResources::LoadMainResources()
 
 	if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_MainPixelShader, sizeof(g_MainPixelShader), nullptr, &_mainPixelShader)))
 		return hr;
+
+	if (this->_d3dFeatureLevel >= D3D_FEATURE_LEVEL_10_0)
+	{
+		if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_MainPixelShaderBpp2ColorKey20, sizeof(g_MainPixelShaderBpp2ColorKey20), nullptr, &_mainPixelShaderBpp2ColorKey20)))
+			return hr;
+
+		if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_MainPixelShaderBpp4ColorKey20, sizeof(g_MainPixelShaderBpp4ColorKey20), nullptr, &_mainPixelShaderBpp4ColorKey20)))
+			return hr;
+	}
 
 	D3D11_RASTERIZER_DESC rsDesc;
 	rsDesc.FillMode = D3D11_FILL_SOLID;
@@ -766,14 +786,14 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 
 	if (SUCCEEDED(hr))
 	{
-		if ((width == this->_displayWidth) && (height == this->_displayHeight))
+		if ((width == this->_displayWidth) && (height == this->_displayHeight) && (bpp == this->_mainDisplayTextureBpp))
 		{
 			step = "DisplayTexture displayWidth x displayHeight";
 			hr = this->_d3dDeviceContext->Map(this->_mainDisplayTexture, 0, D3D11_MAP_WRITE_DISCARD, 0, &displayMap);
 
 			if (SUCCEEDED(hr))
 			{
-				pitchDelta = displayMap.RowPitch - width * 4;
+				pitchDelta = displayMap.RowPitch - width * bpp;
 				tex = this->_mainDisplayTexture;
 				texView = this->_mainDisplayTextureView.GetAddressOf();
 			}
@@ -782,12 +802,12 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 		{
 			step = "DisplayTexture temp";
 
-			if (width != this->_displayTempWidth || height != this->_displayTempHeight)
+			if (width != this->_displayTempWidth || height != this->_displayTempHeight || bpp != this->_displayTempBpp)
 			{
 				D3D11_TEXTURE2D_DESC textureDesc;
 				textureDesc.Width = width;
 				textureDesc.Height = height;
-				textureDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+				textureDesc.Format = (bpp == 2 && this->_use16BppMainDisplayTexture) ? DXGI_FORMAT_B5G6R5_UNORM : DXGI_FORMAT_B8G8R8A8_UNORM;
 				textureDesc.Usage = D3D11_USAGE_DYNAMIC;
 				textureDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 				textureDesc.MiscFlags = 0;
@@ -802,7 +822,7 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 				if (SUCCEEDED(hr))
 				{
 					D3D11_SHADER_RESOURCE_VIEW_DESC textureViewDesc{};
-					textureViewDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+					textureViewDesc.Format = textureDesc.Format;
 					textureViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 					textureViewDesc.Texture2D.MipLevels = 1;
 					textureViewDesc.Texture2D.MostDetailedMip = 0;
@@ -814,6 +834,7 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 				{
 					this->_displayTempWidth = width;
 					this->_displayTempHeight = height;
+					this->_displayTempBpp = bpp;
 				}
 			}
 
@@ -823,7 +844,7 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 
 				if (SUCCEEDED(hr))
 				{
-					pitchDelta = displayMap.RowPitch - width * 4;
+					pitchDelta = displayMap.RowPitch - width * ((bpp == 2 && this->_use16BppMainDisplayTexture) ? 2 : 4);
 					tex = this->_mainDisplayTextureTemp;
 					texView = this->_mainDisplayTextureViewTemp.GetAddressOf();
 				}
@@ -835,53 +856,75 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 	{
 		if (bpp == 2)
 		{
-			if (useColorKey)
+			if (this->_use16BppMainDisplayTexture)
 			{
-				unsigned short* srcColors = (unsigned short*)src;
-				unsigned int* colors = (unsigned int*)displayMap.pData;
-
-				for (DWORD y = 0; y < height; y++)
+				if (pitchDelta == 0)
 				{
-					for (DWORD x = 0; x < width; x++)
+					memcpy(displayMap.pData, src, width * height * 2);
+				}
+				else
+				{
+					unsigned short* srcColors = (unsigned short*)src;
+					unsigned short* colors = (unsigned short*)displayMap.pData;
+
+					for (DWORD y = 0; y < height; y++)
 					{
-						unsigned short color16 = srcColors[x];
-
-						if (color16 == 0x2000)
-						{
-							colors[x] = 0xff000000;
-						}
-						else
-						{
-							colors[x] = convertColorB5G6R5toB8G8R8X8(color16);
-						}
+						memcpy(colors, srcColors, width * 2);
+						srcColors += width;
+						colors = (unsigned short*)((char*)(colors + width) + pitchDelta);
 					}
-
-					srcColors += width;
-					colors = (unsigned int*)((char*)(colors + width) + pitchDelta);
 				}
 			}
 			else
 			{
-				unsigned short* srcColors = (unsigned short*)src;
-				unsigned int* colors = (unsigned int*)displayMap.pData;
-
-				for (DWORD y = 0; y < height; y++)
+				if (useColorKey)
 				{
-					for (DWORD x = 0; x < width; x++)
+					unsigned short* srcColors = (unsigned short*)src;
+					unsigned int* colors = (unsigned int*)displayMap.pData;
+
+					for (DWORD y = 0; y < height; y++)
 					{
-						unsigned short color16 = srcColors[x];
+						for (DWORD x = 0; x < width; x++)
+						{
+							unsigned short color16 = srcColors[x];
 
-						colors[x] = convertColorB5G6R5toB8G8R8X8(color16);
+							if (color16 == 0x2000)
+							{
+								colors[x] = 0xff000000;
+							}
+							else
+							{
+								colors[x] = convertColorB5G6R5toB8G8R8X8(color16);
+							}
+						}
+
+						srcColors += width;
+						colors = (unsigned int*)((char*)(colors + width) + pitchDelta);
 					}
+				}
+				else
+				{
+					unsigned short* srcColors = (unsigned short*)src;
+					unsigned int* colors = (unsigned int*)displayMap.pData;
 
-					srcColors += width;
-					colors = (unsigned int*)((char*)(colors + width) + pitchDelta);
+					for (DWORD y = 0; y < height; y++)
+					{
+						for (DWORD x = 0; x < width; x++)
+						{
+							unsigned short color16 = srcColors[x];
+
+							colors[x] = convertColorB5G6R5toB8G8R8X8(color16);
+						}
+
+						srcColors += width;
+						colors = (unsigned int*)((char*)(colors + width) + pitchDelta);
+					}
 				}
 			}
 		}
 		else
 		{
-			if (useColorKey)
+			if (useColorKey && (this->_d3dFeatureLevel < D3D_FEATURE_LEVEL_10_0))
 			{
 				unsigned int* srcColors = (unsigned int*)src;
 				unsigned int* colors = (unsigned int*)displayMap.pData;
@@ -952,9 +995,31 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 	}
 
 	this->InitInputLayout(this->_mainInputLayout);
-	this->InitVertexShader(this->_mainVertexShader);
-	this->InitPixelShader(this->_mainPixelShader);
 	this->InitTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	this->InitVertexShader(this->_mainVertexShader);
+
+	if (bpp == 2)
+	{
+		if (useColorKey && this->_use16BppMainDisplayTexture)
+		{
+			this->InitPixelShader(this->_mainPixelShaderBpp2ColorKey20);
+		}
+		else
+		{
+			this->InitPixelShader(this->_mainPixelShader);
+		}
+	}
+	else
+	{
+		if (useColorKey && this->_d3dFeatureLevel >= D3D_FEATURE_LEVEL_10_0)
+		{
+			this->InitPixelShader(this->_mainPixelShaderBpp4ColorKey20);
+		}
+		else
+		{
+			this->InitPixelShader(this->_mainPixelShader);
+		}
+	}
 
 	UINT w;
 	UINT h;

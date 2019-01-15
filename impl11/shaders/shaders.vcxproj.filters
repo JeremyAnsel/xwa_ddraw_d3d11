@@ -20,5 +20,7 @@
     <FxCompile Include="PixelShaderSolid.hlsl" />
     <FxCompile Include="PixelShaderTexture.hlsl" />
     <FxCompile Include="VertexShader.hlsl" />
+    <FxCompile Include="MainPixelShaderBpp2ColorKey20.hlsl" />
+    <FxCompile Include="MainPixelShaderBpp4ColorKey20.hlsl" />
   </ItemGroup>
 </Project>

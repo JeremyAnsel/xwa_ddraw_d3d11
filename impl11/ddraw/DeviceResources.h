@@ -50,6 +50,7 @@ public:
 	DWORD _displayBpp;
 	DWORD _displayTempWidth;
 	DWORD _displayTempHeight;
+	DWORD _displayTempBpp;
 
 	D3D_DRIVER_TYPE _d3dDriverType;
 	D3D_FEATURE_LEVEL _d3dFeatureLevel;
@@ -65,6 +66,8 @@ public:
 	ComPtr<ID3D11VertexShader> _mainVertexShader;
 	ComPtr<ID3D11InputLayout> _mainInputLayout;
 	ComPtr<ID3D11PixelShader> _mainPixelShader;
+	ComPtr<ID3D11PixelShader> _mainPixelShaderBpp2ColorKey20;
+	ComPtr<ID3D11PixelShader> _mainPixelShaderBpp4ColorKey20;
 	ComPtr<ID3D11RasterizerState> _mainRasterizerState;
 	ComPtr<ID3D11SamplerState> _mainSamplerState;
 	ComPtr<ID3D11BlendState> _mainBlendState;
@@ -90,6 +93,8 @@ public:
 	UINT _backbufferHeight;
 	DXGI_RATIONAL _refreshRate;
 	bool _are16BppTexturesSupported;
+	bool _use16BppMainDisplayTexture;
+	DWORD _mainDisplayTextureBpp;
 
 	float clearColor[4];
 	float clearDepth;
