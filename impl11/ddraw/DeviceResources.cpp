@@ -8,6 +8,7 @@
 #include "../Debug/MainVertexShader.h"
 #include "../Debug/MainPixelShader.h"
 #include "../Debug/MainPixelShaderBpp2ColorKey20.h"
+#include "../Debug/MainPixelShaderBpp2ColorKey00.h"
 #include "../Debug/MainPixelShaderBpp4ColorKey20.h"
 #include "../Debug/VertexShader.h"
 #include "../Debug/PixelShaderTexture.h"
@@ -16,6 +17,7 @@
 #include "../Release/MainVertexShader.h"
 #include "../Release/MainPixelShader.h"
 #include "../Release/MainPixelShaderBpp2ColorKey20.h"
+#include "../Release/MainPixelShaderBpp2ColorKey00.h"
 #include "../Release/MainPixelShaderBpp4ColorKey20.h"
 #include "../Release/VertexShader.h"
 #include "../Release/PixelShaderTexture.h"
@@ -402,6 +404,9 @@ HRESULT DeviceResources::LoadMainResources()
 		if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_MainPixelShaderBpp2ColorKey20, sizeof(g_MainPixelShaderBpp2ColorKey20), nullptr, &_mainPixelShaderBpp2ColorKey20)))
 			return hr;
 
+		if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_MainPixelShaderBpp2ColorKey00, sizeof(g_MainPixelShaderBpp2ColorKey00), nullptr, &_mainPixelShaderBpp2ColorKey00)))
+			return hr;
+
 		if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_MainPixelShaderBpp4ColorKey20, sizeof(g_MainPixelShaderBpp4ColorKey20), nullptr, &_mainPixelShaderBpp4ColorKey20)))
 			return hr;
 	}
@@ -773,7 +778,7 @@ void DeviceResources::InitConstantBuffer(ID3D11Buffer** buffer, const float* vie
 	}
 }
 
-HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD bpp, bool useColorKey)
+HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD bpp, RenderMainColorKeyType useColorKey)
 {
 	HRESULT hr = S_OK;
 	char* step = "";
@@ -877,7 +882,7 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 			}
 			else
 			{
-				if (useColorKey)
+				if (useColorKey == RENDERMAIN_COLORKEY_20)
 				{
 					unsigned short* srcColors = (unsigned short*)src;
 					unsigned int* colors = (unsigned int*)displayMap.pData;
@@ -889,6 +894,31 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 							unsigned short color16 = srcColors[x];
 
 							if (color16 == 0x2000)
+							{
+								colors[x] = 0xff000000;
+							}
+							else
+							{
+								colors[x] = convertColorB5G6R5toB8G8R8X8(color16);
+							}
+						}
+
+						srcColors += width;
+						colors = (unsigned int*)((char*)(colors + width) + pitchDelta);
+					}
+				}
+				else if (useColorKey == RENDERMAIN_COLORKEY_00)
+				{
+					unsigned short* srcColors = (unsigned short*)src;
+					unsigned int* colors = (unsigned int*)displayMap.pData;
+
+					for (DWORD y = 0; y < height; y++)
+					{
+						for (DWORD x = 0; x < width; x++)
+						{
+							unsigned short color16 = srcColors[x];
+
+							if (color16 == 0)
 							{
 								colors[x] = 0xff000000;
 							}
@@ -1002,7 +1032,20 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 	{
 		if (useColorKey && this->_use16BppMainDisplayTexture)
 		{
-			this->InitPixelShader(this->_mainPixelShaderBpp2ColorKey20);
+			switch (useColorKey)
+			{
+			case RENDERMAIN_COLORKEY_20:
+				this->InitPixelShader(this->_mainPixelShaderBpp2ColorKey20);
+				break;
+
+			case RENDERMAIN_COLORKEY_00:
+				this->InitPixelShader(this->_mainPixelShaderBpp2ColorKey00);
+				break;
+
+			default:
+				this->InitPixelShader(this->_mainPixelShader);
+				break;
+			}
 		}
 		else
 		{

@@ -3,6 +3,13 @@
 
 #pragma once
 
+enum RenderMainColorKeyType
+{
+	RENDERMAIN_NO_COLORKEY,
+	RENDERMAIN_COLORKEY_20,
+	RENDERMAIN_COLORKEY_00,
+};
+
 class PrimarySurface;
 class DepthSurface;
 class BackbufferSurface;
@@ -35,7 +42,7 @@ public:
 	void InitViewport(D3D11_VIEWPORT* viewport);
 	void InitConstantBuffer(ID3D11Buffer** buffer, const float* viewportScale);
 
-	HRESULT RenderMain(char* buffer, DWORD width, DWORD height, DWORD bpp, bool useColorKey = true);
+	HRESULT RenderMain(char* buffer, DWORD width, DWORD height, DWORD bpp, RenderMainColorKeyType useColorKey = RENDERMAIN_COLORKEY_20);
 
 	HRESULT RetrieveBackBuffer(char* buffer, DWORD width, DWORD height, DWORD bpp);
 
@@ -67,6 +74,7 @@ public:
 	ComPtr<ID3D11InputLayout> _mainInputLayout;
 	ComPtr<ID3D11PixelShader> _mainPixelShader;
 	ComPtr<ID3D11PixelShader> _mainPixelShaderBpp2ColorKey20;
+	ComPtr<ID3D11PixelShader> _mainPixelShaderBpp2ColorKey00;
 	ComPtr<ID3D11PixelShader> _mainPixelShaderBpp4ColorKey20;
 	ComPtr<ID3D11RasterizerState> _mainRasterizerState;
 	ComPtr<ID3D11SamplerState> _mainSamplerState;

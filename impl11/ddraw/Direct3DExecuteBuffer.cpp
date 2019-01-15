@@ -120,12 +120,8 @@ HRESULT Direct3DExecuteBuffer::Lock(
 
 	if (this->_deviceResources->inScene && this->_deviceResources->inSceneBackbufferLocked)
 	{
-		bool useColorKey;
-
 		if (this->_deviceResources->_displayBpp == 4)
 		{
-			useColorKey = false;
-
 			int length = this->_deviceResources->_displayWidth * this->_deviceResources->_displayHeight;
 
 			unsigned short* buffer16 = (unsigned short*)this->_deviceResources->_backbufferSurface->_buffer;
@@ -144,27 +140,13 @@ HRESULT Direct3DExecuteBuffer::Lock(
 					buffer32[i] = convertColorB5G6R5toB8G8R8X8(color16);
 				}
 			}
+
+			this->_deviceResources->RenderMain(this->_deviceResources->_backbufferSurface->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, this->_deviceResources->_displayBpp, RENDERMAIN_NO_COLORKEY);
 		}
 		else
 		{
-			useColorKey = true;
-
-			int length = this->_deviceResources->_displayWidth * this->_deviceResources->_displayHeight;
-
-			unsigned short* buffer16 = (unsigned short*)this->_deviceResources->_backbufferSurface->_buffer;
-
-			for (int i = length - 1; i >= 0; i--)
-			{
-				unsigned short color16 = buffer16[i];
-
-				if (color16 == 0)
-				{
-					buffer16[i] = 0x2000;
-				}
-			}
+			this->_deviceResources->RenderMain(this->_deviceResources->_backbufferSurface->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, this->_deviceResources->_displayBpp, RENDERMAIN_COLORKEY_00);
 		}
-
-		this->_deviceResources->RenderMain(this->_deviceResources->_backbufferSurface->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, this->_deviceResources->_displayBpp, useColorKey);
 
 		this->_deviceResources->inSceneBackbufferLocked = false;
 	}
