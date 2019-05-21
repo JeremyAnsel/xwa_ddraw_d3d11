@@ -1,5 +1,6 @@
 // Copyright (c) 2014 Jérémy Ansel
 // Licensed under the MIT license. See LICENSE.txt
+// Extended for VR by Leo Reyes, 2019
 
 #include "common.h"
 #include "DeviceResources.h"
@@ -7,6 +8,112 @@
 #include "TextureSurface.h"
 #include "MipmapSurface.h"
 #include <comdef.h>
+
+#include <ScreenGrab.h>
+#include <wincodec.h>
+#include <vector>
+
+std::vector<uint32_t> HUD_CRCs = {
+	0x19f6f5a2, // Next laser available to fire. (master branch)
+	0x6acc3e3a, // Green dot for next laser available. (master branch)
+	0xdcb8e4f4, // Main Laser HUD (master branch).
+	0x1c5e0b86, // HUD warning indicator, left. (master branch)
+	0xc54d8171, // HUD warning indicator, mid-left. (master branch)
+	0xf4388255, // HUD warning indicator, mid-right. (master branch)
+	0xee802582, // HUD warning indicator, right. (master branch)
+	0xa4870ab3, // Main Warhead HUD. (master branch)
+	0x671e8041, // Warhead HUD, left. (master branch)
+	0x6cd5d81f, // Warhead HUD, mid-left,right (master branch)
+	0xc33a94b3, // Warhead HUD, right. (master branch)
+	0x0793c7d6, // Semi circles that indicate target is ready to be fired upon. (master branch)
+	0x756c8f81, // Warhead semi-circles that indicate lock is being acquired. (master branch)
+};
+
+std::vector<uint32_t> Text_CRCs = {
+	0x201b794e, // 128x128 (master branch)
+	0xfcf50e34, // 256x256 (master branch)
+	0x42654667  // 256x256 (master branch)
+};
+
+std::vector<uint32_t> Floating_GUI_CRCs = {
+	0xd08b4437, // (16x16) Laser charge. (master branch)
+	0xd0168df9, // (64x64) Laser charge boxes. (master branch)
+	0xe321d785, // (64x64) Laser and ion charge boxes on B - Wing. (master branch)
+	0xca2a5c48, // (8x8) Laser and ion charge on B - Wing. (master branch)
+	0x3b9a3741, // (256x128) Full targetting computer, solid. (master branch)
+	0x7e1b021d, // (128x128) Left targetting computer, solid. (master branch)
+	0x771a714c  // (256x256) Left targetting computer, frame only. (master branch)
+};
+
+// List of regular GUI elements (this is not an exhaustive list). It's mostly used to detect when
+// the game has started rendering the GUI
+std::vector<uint32_t> GUI_CRCs = {
+	0xc2416bf9, // (256x32) Top-left bracket (master branch)
+	0x71ce88f1, // (256x32) Top-right bracket (master branch)
+	0x75b9e062, // (128x128) Left radar (?) (master branch)
+	0x1ec963a9, // (128x128) Right radar (?) (master branch)
+	0x3188119f, // (128x128) Left Shield Display (master branch)
+	0x75082e5e, // (128x128) Right Tractor Beam Display (master branch)
+};
+
+bool isInVector(uint32_t crc, std::vector<uint32_t> &vector) {
+	for (uint32_t x : vector)
+		if (x == crc)
+			return true;
+	return false;
+}
+
+bool Reload_CRC_vector(std::vector<uint32_t> &data, char *filename) {
+	FILE *file;
+	int error = 0;
+
+	//log_debug("[DBG] Loading file %s...", filename);
+	try {
+		error = fopen_s(&file, filename, "rt");
+	} catch (...) {
+		log_debug("[DBG] Error: %d when loading file: %s", filename);
+	}
+
+	if (error != 0)
+		return false;
+
+	data.clear();
+	char buf[120];
+	uint32_t crc;
+	while (fgets(buf, 120, file) != NULL) {
+		if (strlen(buf) > 0 && buf[0] != ';' && buf[0] != '#') {
+			// Read a hex value and add it to the vector
+			if (sscanf_s(buf, "0x%x", &crc) > 0) {
+				data.push_back(crc);
+			}
+		}
+	}
+	//log_debug("[DBG] Read %d CRCs from %s", data.size(), filename);
+
+	fclose(file);
+	return true;
+}
+
+bool ReloadCRCs() {
+	bool result = true;
+	result &= Reload_CRC_vector(HUD_CRCs, "./HUD_CRCs.txt");
+	result &= Reload_CRC_vector(HUD_CRCs, "./Text_CRCs.txt");
+	result &= Reload_CRC_vector(GUI_CRCs, "./GUI_CRCs.txt");
+	result &= Reload_CRC_vector(Floating_GUI_CRCs, "./Floating_GUI_CRCs.txt");
+	return result;
+}
+
+#ifdef DBG_VR
+/*
+void DumpTexture(ID3D11DeviceContext *context, ID3D11Resource *texture, int index) {
+	// DBG: Hack: Save the texture and its CRC
+	wchar_t filename[80];
+	swprintf_s(filename, 80, L"c:\\temp\\Load-img-%d.png", index);
+	DirectX::SaveWICTextureToFile(context, texture, GUID_ContainerFormatPng, filename);
+	log_debug("[DBG] Saved Texture: %d", index);
+}
+*/
+#endif
 
 char* convertFormat(char* src, DWORD width, DWORD height, DXGI_FORMAT format)
 {
@@ -67,6 +174,20 @@ Direct3DTexture::Direct3DTexture(DeviceResources* deviceResources, TextureSurfac
 	this->_deviceResources = deviceResources;
 
 	this->_surface = surface;
+	this->crc = 0;
+	this->is_HUD = false;
+	this->is_TrianglePointer = false;
+	this->is_Text = false;
+	this->is_Floating_GUI = false;
+	this->is_GUI = false;
+}
+
+int Direct3DTexture::GetWidth() {
+	return this->_surface->_width;
+}
+
+int Direct3DTexture::GetHeight() {
+	return this->_surface->_height;
 }
 
 Direct3DTexture::~Direct3DTexture()
@@ -316,8 +437,57 @@ HRESULT Direct3DTexture::Load(
 		mipmap = mipmap->_mipmap;
 	}
 
+	// This is where the various textures are created from data already loaded into RAM
 	ComPtr<ID3D11Texture2D> texture;
 	HRESULT hr = this->_deviceResources->_d3dDevice->CreateTexture2D(&textureDesc, textureData, &texture);
+
+	if (surface->_mipmapCount == 1) {
+		if (surface->_width == 8 || surface->_width == 16 || surface->_width == 32 || surface->_width == 64 ||
+			surface->_width == 128 || surface->_width == 256) {
+			unsigned int size = surface->_width * surface->_height * (useBuffers ? 4 : bpp);
+
+			// Compute the CRC
+			this->crc = crc32c(0, (const unsigned char *)textureData[0].pSysMem, size);
+
+			#ifdef DBG_VR
+			// Capture the textures
+			{
+				static int TexIndex = 0;
+				wchar_t filename[80];
+				swprintf_s(filename, 80, L"c:\\temp\\master-img-%d.png", TexIndex);
+
+				saveSurface(filename, (char *)textureData[0].pSysMem, surface->_width, surface->_height, bpp);
+				log_debug("[DBG] Master Tex: %d, 0x%x, size: %d, %d",
+					TexIndex, crc, surface->_width, surface->_height);
+
+				char buf[80];
+				sprintf_s(buf, 80, "c:\\temp\\master-crc-%d.txt", TexIndex);
+				FILE *file;
+				fopen_s(&file, buf, "wt");
+				fprintf(file, "0x%x\n", crc);
+				fclose(file);
+
+				TexIndex++;
+			}
+			#endif
+
+			// Check this CRC to see if it's interesting
+			if (this->crc == TRIANGLE_PTR_CRC)
+				this->is_TrianglePointer = true;
+			else if (isInVector(this->crc, HUD_CRCs)) {
+				this->is_HUD = true;
+			}
+			else if (isInVector(this->crc, Floating_GUI_CRCs)) {
+				this->is_Floating_GUI = true;
+			}
+			else if (isInVector(this->crc, Text_CRCs)) {
+				this->is_Text = true;
+			}
+			else if (isInVector(this->crc, GUI_CRCs)) {
+				this->is_GUI = true;
+			}
+		}
+	}
 
 	if (useBuffers)
 	{

@@ -1,11 +1,73 @@
 // Copyright (c) 2014 Jérémy Ansel
 // Licensed under the MIT license. See LICENSE.txt
+// Extended for VR by Leo Reyes (c) 2019
+
+#include <ScreenGrab.h>
+#include <wincodec.h>
 
 #include "common.h"
 #include "DeviceResources.h"
 #include "PrimarySurface.h"
 #include "BackbufferSurface.h"
 #include "FrontbufferSurface.h"
+
+#define DBG_MAX_PRESENT_LOGS 0
+
+struct MainVertex
+{
+	float pos[2];
+	float tex[2];
+	MainVertex() {}
+	MainVertex(float x, float y, float tx, float ty) {
+		pos[0] = x; pos[1] = y;
+		tex[0] = tx; tex[1] = ty;
+	}
+};
+
+BarrelPixelShaderCBuffer g_BPSCBuffer;
+extern float g_fLensK1, g_fLensK2, g_fLensK3;
+
+// Main Pixel Shader constant buffer
+MainShadersCBuffer g_MSCBuffer;
+extern float g_fConcourseScale, g_fConcourseAspectRatio;
+extern int g_iDraw2DCounter;
+extern bool g_bStartedGUI;
+extern bool g_bEnableVR, g_bDisableBarrelEffect;
+extern bool g_bDumpGUI;
+extern int g_iDrawCounter, g_iExecBufCounter, g_iPresentCounter, g_iNonZBufferCounter;
+extern bool g_bTargetCompDrawn;
+extern unsigned int g_iFloatingGUIDrawnCounter;
+extern bool g_bCapture2DOffscreenBuffer;
+
+bool g_bRendering3D = false; // Set to true when the system is about to render in 3D
+void animTickX();
+void animTickY();
+void animTickZ();
+
+MainVertex g_BarrelEffectVertices[6] = {
+	MainVertex(-1, -1, 0, 1),
+	MainVertex(1, -1, 1, 1),
+	MainVertex(1,  1, 1, 0),
+
+	MainVertex(1,  1, 1, 0),
+	MainVertex(-1,  1, 0, 0),
+	MainVertex(-1, -1, 0, 1),
+};
+ID3D11Buffer* g_BarrelEffectVertBuffer = NULL;
+
+#ifdef DBR_VR
+extern bool g_bStart3DCapture, g_bDo3DCapture;
+extern FILE *g_HackFile;
+#endif
+
+/* SteamVR HMD */
+#include <headers/openvr.h>
+extern vr::IVRSystem *g_pHMD;
+extern vr::IVRCompositor *g_pVRCompositor;
+extern bool g_bSteamVREnabled, g_bUseSteamVR;
+extern uint32_t g_steamVRWidth, g_steamVRHeight;
+extern vr::TrackedDevicePose_t g_rTrackedDevicePose[];
+//void ProcessVREvent(const vr::VREvent_t & event);
 
 PrimarySurface::PrimarySurface(DeviceResources* deviceResources, bool hasBackbufferAttached)
 {
@@ -341,6 +403,212 @@ HRESULT PrimarySurface::EnumOverlayZOrders(
 	return DDERR_UNSUPPORTED;
 }
 
+/*
+ * Applies the barrel distortion effect on the 2D window (Concourse, menus, etc).
+ */
+void PrimarySurface::barrelEffect2D(int iteration) {
+	/*
+	We need to avoid resolving the offscreen buffer multiple times. It's probably easier to
+	skip method this altogether if we already rendered all this in the first iteration.
+	*/
+	if (iteration > 0)
+		return;
+
+	D3D11_VIEWPORT viewport{};
+	auto& resources = this->_deviceResources;
+	auto& device = resources->_d3dDevice;
+	auto& context = resources->_d3dDeviceContext;
+
+	float screen_res_x = (float)resources->_backbufferWidth;
+	float screen_res_y = (float)resources->_backbufferHeight;
+	float bgColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+	/* Create the VertexBuffer if necessary */
+	if (g_BarrelEffectVertBuffer == NULL)
+	{
+		D3D11_BUFFER_DESC vertexBufferDesc;
+		ZeroMemory(&vertexBufferDesc, sizeof(vertexBufferDesc));
+
+		vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+		vertexBufferDesc.ByteWidth = sizeof(MainVertex) * ARRAYSIZE(g_BarrelEffectVertices);
+		vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		vertexBufferDesc.CPUAccessFlags = 0;
+		vertexBufferDesc.MiscFlags = 0;
+
+		D3D11_SUBRESOURCE_DATA vertexBufferData;
+
+		ZeroMemory(&vertexBufferData, sizeof(vertexBufferData));
+		vertexBufferData.pSysMem = g_BarrelEffectVertices;
+		device->CreateBuffer(&vertexBufferDesc, &vertexBufferData, &g_BarrelEffectVertBuffer);
+	}
+
+	// Set the vertex buffer
+	UINT stride = sizeof(MainVertex);
+	UINT offset = 0;
+	resources->InitVertexBuffer(&g_BarrelEffectVertBuffer, &stride, &offset);
+
+	// Set Primitive Topology
+	// This is probably an opportunity for an optimization: let's use the same topology everywhere?
+	resources->InitTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	resources->InitInputLayout(resources->_mainInputLayout);
+
+	// At this point, offscreenBuffer contains the image that would be rendered to the screen by
+	// copying to the backbuffer. So, resolve the offscreen buffer into offscreenBuffer2 to use it
+	// as input, so that we can render the image twice.
+	context->ResolveSubresource(resources->_offscreenBufferAsInput, 0, resources->_offscreenBuffer,
+		0, DXGI_FORMAT_B8G8R8A8_UNORM);
+
+#ifdef DBG_VR
+	if (g_bCapture2DOffscreenBuffer) {
+		static int frame = 0;
+		if (frame == 0) {
+			log_debug("[DBG] [Capture] display Width, Height: %d, %d",
+				this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight);
+			log_debug("[DBG] [Capture] backBuffer Width, Height: %d, %d",
+				this->_deviceResources->_backbufferWidth, this->_deviceResources->_backbufferHeight);
+		}
+		wchar_t filename[120];
+		swprintf_s(filename, 120, L"c:\\temp\\offscreenBuf-%d-A.jpg", frame++);
+		capture(0, this->_deviceResources->_offscreenBuffer2, filename);
+		if (frame >= 40)
+			g_bCapture2DOffscreenBuffer = false;
+	}
+#endif
+
+	// Render the barrel effect
+	viewport.TopLeftX = 0.0f;
+	viewport.TopLeftY = 0.0f;
+	viewport.Width = screen_res_x;
+	viewport.Height = screen_res_y;
+	viewport.MaxDepth = D3D11_MAX_DEPTH;
+	viewport.MinDepth = D3D11_MIN_DEPTH;
+
+	resources->InitVSConstantBuffer2D(resources->_mainShadersConstantBuffer.GetAddressOf(), 0.0f, 1.0f, 1.0f, 1.0f);
+	resources->InitVertexShader(resources->_mainVertexShader);
+	resources->InitPixelShader(resources->_barrelPixelShader);
+	
+	// Set the lens distortion constants for the barrel shader
+	resources->InitPSConstantBufferBarrel(resources->_barrelConstantBuffer.GetAddressOf(), g_fLensK1, g_fLensK2, g_fLensK3);
+
+	context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewL, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	context->ClearRenderTargetView(this->_deviceResources->_renderTargetView3, bgColor);
+	context->OMSetRenderTargets(1, this->_deviceResources->_renderTargetView3.GetAddressOf(), this->_deviceResources->_depthStencilViewL.Get());
+	context->PSSetShaderResources(0, 1, this->_deviceResources->_offscreenAsInputShaderResourceView.GetAddressOf());
+
+	resources->InitViewport(&viewport);
+	context->Draw(6, 0);
+
+	// Restore the original rendertargetview
+	context->OMSetRenderTargets(1, this->_deviceResources->_renderTargetView.GetAddressOf(), this->_deviceResources->_depthStencilViewL.Get());
+}
+
+/*
+ * Applies the barrel distortion effect on the 3D window.
+ */
+void PrimarySurface::barrelEffect3D() {
+	auto& resources = this->_deviceResources;
+	auto& device = resources->_d3dDevice;
+	auto& context = resources->_d3dDeviceContext;
+
+	// Create the VertexBuffer if necessary
+	if (g_BarrelEffectVertBuffer == NULL) {
+		D3D11_BUFFER_DESC vertexBufferDesc;
+		ZeroMemory(&vertexBufferDesc, sizeof(vertexBufferDesc));
+
+		vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+		vertexBufferDesc.ByteWidth = sizeof(MainVertex) * ARRAYSIZE(g_BarrelEffectVertices);
+		vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		vertexBufferDesc.CPUAccessFlags = 0;
+		vertexBufferDesc.MiscFlags = 0;
+
+		D3D11_SUBRESOURCE_DATA vertexBufferData;
+
+		ZeroMemory(&vertexBufferData, sizeof(vertexBufferData));
+		vertexBufferData.pSysMem = g_BarrelEffectVertices;
+		device->CreateBuffer(&vertexBufferDesc, &vertexBufferData, &g_BarrelEffectVertBuffer);
+	}
+	// Set the vertex buffer
+	UINT stride = sizeof(MainVertex);
+	UINT offset = 0;
+	//context->IASetVertexBuffers(0, 1, &g_BarrelEffectVertBuffer, &stride, &offset);
+	resources->InitVertexBuffer(&g_BarrelEffectVertBuffer, &stride, &offset);
+
+	// Set Primitive Topology
+	// Opportunity for optimization? Make all draw calls use the same topology?
+	resources->InitTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	resources->InitInputLayout(resources->_mainInputLayout);
+	
+	// Temporarily disable ZWrite: we won't need it for the barrel effect
+	BOOL Enabled = FALSE;
+	D3D11_DEPTH_STENCIL_DESC desc;
+	ComPtr<ID3D11DepthStencilState> depthState;
+	desc.DepthEnable = Enabled;
+	desc.DepthWriteMask = Enabled ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
+	desc.DepthFunc = Enabled ? D3D11_COMPARISON_GREATER : D3D11_COMPARISON_ALWAYS;
+	desc.StencilEnable = FALSE;
+	resources->InitDepthStencilState(depthState, &desc);
+
+	// Create a new viewport to render the offscreen buffer as a texture
+	D3D11_VIEWPORT viewport{};
+	float screen_res_x = (float)this->_deviceResources->_backbufferWidth;
+	float screen_res_y = (float)this->_deviceResources->_backbufferHeight;
+	float bgColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+	viewport.TopLeftX = (float)0;
+	viewport.TopLeftY = (float)0;
+	viewport.Width = (float)screen_res_x;
+	viewport.Height = (float)screen_res_y;
+	viewport.MaxDepth = D3D11_MAX_DEPTH;
+	viewport.MinDepth = D3D11_MIN_DEPTH;
+
+	context->ResolveSubresource(resources->_offscreenBufferAsInput, 0, resources->_offscreenBuffer,
+		0, DXGI_FORMAT_B8G8R8A8_UNORM);
+
+	resources->InitVSConstantBuffer2D(resources->_mainShadersConstantBuffer.GetAddressOf(), 0.0f, 1.0f, 1.0f, 1.0f);
+	resources->InitVertexShader(resources->_mainVertexShader);
+	resources->InitPixelShader(resources->_barrelPixelShader);
+	
+	context->PSSetShaderResources(0, 1, resources->_offscreenAsInputShaderResourceView.GetAddressOf());
+	// Set the lens distortion constants for the barrel shader
+	resources->InitPSConstantBufferBarrel(resources->_barrelConstantBuffer.GetAddressOf(), g_fLensK1, g_fLensK2, g_fLensK3);
+
+	// Clear the depth stencil
+	context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	// Clear the render target
+	context->ClearRenderTargetView(resources->_renderTargetView3, bgColor);
+	context->OMSetRenderTargets(1, resources->_renderTargetView3.GetAddressOf(), 
+		this->_deviceResources->_depthStencilViewL.Get());
+	resources->InitViewport(&viewport);
+	context->IASetInputLayout(this->_deviceResources->_mainInputLayout);
+	context->Draw(6, 0);
+
+#ifdef DBG_VR
+	if (g_bCapture2DOffscreenBuffer) {
+		static int frame = 0;
+		wchar_t filename[120];
+
+		swprintf_s(filename, 120, L"c:\\temp\\offscreenBuf-%d.jpg", frame);
+		capture(0, this->_deviceResources->_offscreenBuffer, filename);
+
+		swprintf_s(filename, 120, L"c:\\temp\\offscreenBuf2-%d.jpg", frame);
+		capture(0, this->_deviceResources->_offscreenBuffer2, filename);
+
+		swprintf_s(filename, 120, L"c:\\temp\\offscreenBuf3-%d.jpg", frame);
+		capture(0, this->_deviceResources->_offscreenBuffer3, filename);
+
+		frame++;
+		if (frame >= 5)
+			g_bCapture2DOffscreenBuffer = false;
+	}
+#endif
+
+	// Restore previous rendertarget, etc
+	//context->IASetInputLayout(this->_deviceResources->_inputLayout);
+	resources->InitInputLayout(resources->_inputLayout);
+	context->OMSetRenderTargets(1, this->_deviceResources->_renderTargetView.GetAddressOf(), 
+		this->_deviceResources->_depthStencilViewL.Get());
+}
+
 HRESULT PrimarySurface::Flip(
 	LPDIRECTDRAWSURFACE lpDDSurfaceTargetOverride,
 	DWORD dwFlags
@@ -381,9 +649,14 @@ HRESULT PrimarySurface::Flip(
 	if (this->_deviceResources->sceneRenderedEmpty && this->_deviceResources->_frontbufferSurface != nullptr && this->_deviceResources->_frontbufferSurface->wasBltFastCalled)
 	{
 		this->_deviceResources->_d3dDeviceContext->ClearRenderTargetView(this->_deviceResources->_renderTargetView, this->_deviceResources->clearColor);
-		this->_deviceResources->_d3dDeviceContext->ClearDepthStencilView(this->_deviceResources->_depthStencilView, D3D11_CLEAR_DEPTH, this->_deviceResources->clearDepth, 0);
+		if (g_bUseSteamVR)
+			this->_deviceResources->_d3dDeviceContext->ClearRenderTargetView(this->_deviceResources->_renderTargetView, this->_deviceResources->clearColor);
+		this->_deviceResources->_d3dDeviceContext->ClearRenderTargetView(this->_deviceResources->_renderTargetView3, this->_deviceResources->clearColor);
+		this->_deviceResources->_d3dDeviceContext->ClearDepthStencilView(this->_deviceResources->_depthStencilViewL, D3D11_CLEAR_DEPTH, this->_deviceResources->clearDepth, 0);
+		this->_deviceResources->_d3dDeviceContext->ClearDepthStencilView(this->_deviceResources->_depthStencilViewR, D3D11_CLEAR_DEPTH, this->_deviceResources->clearDepth, 0);
 	}
 
+	/* Present 2D content */
 	if (lpDDSurfaceTargetOverride != nullptr)
 	{
 		if (lpDDSurfaceTargetOverride == this->_deviceResources->_frontbufferSurface)
@@ -396,6 +669,7 @@ HRESULT PrimarySurface::Flip(
 			return this->Flip(this->_deviceResources->_backbufferSurface, 0);
 		}
 
+		/* Present 2D content */
 		if (lpDDSurfaceTargetOverride == this->_deviceResources->_backbufferSurface)
 		{
 			if (this->_deviceResources->_frontbufferSurface == nullptr)
@@ -471,9 +745,10 @@ HRESULT PrimarySurface::Flip(
 
 			HRESULT hr;
 
+			/* Present Concourse, ESC Screen Menu */
 			if (this->_deviceResources->_swapChain)
 			{
-				UINT rate = 24 * this->_deviceResources->_refreshRate.Denominator;
+				UINT rate = 60 * this->_deviceResources->_refreshRate.Denominator;
 				UINT numerator = this->_deviceResources->_refreshRate.Numerator + this->_flipFrames;
 
 				UINT interval = numerator / rate;
@@ -485,8 +760,72 @@ HRESULT PrimarySurface::Flip(
 
 				for (UINT i = 0; i < interval; i++)
 				{
-					this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0, this->_deviceResources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+					// In the original code the offscreenBuffer is resolved into the backBuffer.
+					// this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0, this->_deviceResources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
 
+					if (!g_bDisableBarrelEffect && g_bEnableVR && !g_bUseSteamVR) {
+						barrelEffect2D(i);
+						this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0,
+							this->_deviceResources->_offscreenBuffer3, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+					}
+					else {
+						this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0,
+							this->_deviceResources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+					}
+					
+					// Capture the backBuffer to a JPG file
+#ifdef DBG_VR
+					/*
+					if (g_bCapture2DOffscreenBuffer) {
+						static int frame = 0;
+						wchar_t filename[120];
+						swprintf_s(filename, 120, L"c:\\temp\\backbuffer-%d.jpg", frame++);
+						capture(0, this->_deviceResources->_backBuffer, filename);
+						g_bCapture2DOffscreenBuffer = false;
+					}
+					*/
+#endif
+
+					// Enable capturing 3D objects even when rendering 2D. This happens in the Tech Library
+#ifdef DBG_VR
+					if (g_bStart3DCapture && !g_bDo3DCapture) {
+						g_bDo3DCapture = true;
+					}
+					else if (g_bStart3DCapture && g_bDo3DCapture) {
+						g_bDo3DCapture = false;
+						g_bStart3DCapture = false;
+						fclose(g_hack_file);
+						g_hack_file = NULL;
+					}
+#endif
+
+					// Reset the 2D draw counter -- that'll help us increase the parallax for the Tech Library
+					g_iDraw2DCounter = 0;				
+					if (g_bRendering3D) {
+						// We're about to switch from 3D to 2D rendering --> This means we're in the Tech Library
+						// Let's clear the render target for the next iteration or we'll get multiple images during
+						// the animation
+						float bgColor[4] = { 0, 0, 0, 0 };
+						this->_deviceResources->_d3dDeviceContext->ClearRenderTargetView(
+							this->_deviceResources->_renderTargetView, bgColor);
+						if (g_bUseSteamVR)
+							this->_deviceResources->_d3dDeviceContext->ClearRenderTargetView(
+								this->_deviceResources->_renderTargetViewR, bgColor);
+					}
+
+					if (g_bUseSteamVR) {
+						vr::EVRCompositorError error = vr::VRCompositorError_None;
+						//this->_d3dDeviceContext->ResolveSubresource(this->_offscreenBufferAsInput, 0, 
+						//	this->_offscreenBuffer,	0, DXGI_FORMAT_R8G8B8A8_UNORM);
+						vr::Texture_t leftEyeTexture  = { this->_deviceResources->_offscreenBuffer.Get(), vr::TextureType_DirectX, vr::ColorSpace_Auto };
+						vr::Texture_t rightEyeTexture = { this->_deviceResources->_offscreenBufferR.Get(), vr::TextureType_DirectX, vr::ColorSpace_Auto };
+						error = g_pVRCompositor->Submit(vr::Eye_Left, &leftEyeTexture);
+						if (error) log_debug("[DBG] SteamVR (L) error: %d", error);
+						error = g_pVRCompositor->Submit(vr::Eye_Right, &rightEyeTexture);
+						if (error) log_debug("[DBG] SteamVR (R) error: %d", error);
+					}
+
+					g_bRendering3D = false;
 					if (FAILED(hr = this->_deviceResources->_swapChain->Present(1, 0)))
 					{
 						static bool messageShown = false;
@@ -501,6 +840,15 @@ HRESULT PrimarySurface::Flip(
 						hr = DDERR_SURFACELOST;
 						break;
 					}
+
+					if (g_bUseSteamVR) {
+						// We need to call WaitGetPoses so that SteamVR gets the focus, otherwise we'll just get
+						// error 101 when doing VRCompositor->Submit()
+						vr::EVRCompositorError error = g_pVRCompositor->WaitGetPoses(g_rTrackedDevicePose, 
+							vr::k_unMaxTrackedDeviceCount, NULL, 0);
+						if (error) log_debug("[DBG] WaitGetPoses error: %d", error);
+					}
+					
 				}
 			}
 			else
@@ -521,6 +869,7 @@ HRESULT PrimarySurface::Flip(
 			return hr;
 		}
 	}
+	/* Present 3D content */
 	else
 	{
 		HRESULT hr;
@@ -529,8 +878,54 @@ HRESULT PrimarySurface::Flip(
 		{
 			hr = DD_OK;
 
-			this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0, this->_deviceResources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+			// In the original code, the offscreenBuffer is resolved to the backBuffer
+			//this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0, this->_deviceResources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
 
+			// The offscreenBuffer contains the fully-rendered image at this point.
+			if (g_bEnableVR && !g_bDisableBarrelEffect && !g_bUseSteamVR) {
+				barrelEffect3D();
+				this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0,
+					this->_deviceResources->_offscreenBuffer3, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+			} else {
+				this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0,
+					this->_deviceResources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+			}
+
+			// Let's reset some frame counters and other control variables
+			g_iDrawCounter = 0; g_iExecBufCounter = 0; g_iNonZBufferCounter = 0;
+			g_iFloatingGUIDrawnCounter = 0;
+			g_bTargetCompDrawn = false;
+			g_bStartedGUI = false;
+			
+			// Perform the lean left/right etc animations
+			animTickX();
+			animTickY();
+			animTickZ();
+
+#ifdef DBG_VR
+			if (g_bStart3DCapture && !g_bDo3DCapture) {
+				g_bDo3DCapture = true;
+			}
+			else if (g_bStart3DCapture && g_bDo3DCapture) {
+				g_bDo3DCapture = false;
+				g_bStart3DCapture = false;
+				fclose(g_hack_file);
+				g_hack_file = NULL;
+			}
+#endif
+
+			if (g_bUseSteamVR) {
+				vr::EVRCompositorError error = vr::VRCompositorError_None;
+				vr::Texture_t leftEyeTexture = { this->_deviceResources->_offscreenBuffer.Get(), vr::TextureType_DirectX, vr::ColorSpace_Auto };
+				vr::Texture_t rightEyeTexture = { this->_deviceResources->_offscreenBufferR.Get(), vr::TextureType_DirectX, vr::ColorSpace_Auto };
+				error = g_pVRCompositor->Submit(vr::Eye_Left, &leftEyeTexture);
+				if (error) log_debug("[DBG] 3D Present (left) SteamVR error: %d", error);
+				error = g_pVRCompositor->Submit(vr::Eye_Right, &rightEyeTexture);
+				if (error) log_debug("[DBG] 3D Present (right) SteamVR error: %d", error);
+			}
+
+			// We're about to show 3D content, so let's set the corresponding flag
+			g_bRendering3D = true;
 			if (FAILED(hr = this->_deviceResources->_swapChain->Present(1, 0)))
 			{
 				static bool messageShown = false;
@@ -543,6 +938,14 @@ HRESULT PrimarySurface::Flip(
 				messageShown = true;
 
 				hr = DDERR_SURFACELOST;
+			}
+
+			if (g_bUseSteamVR) {
+				// We need to call WaitGetPoses so that SteamVR gets the focus, otherwise we'll just get
+				// error 101 when doing VRCompositor->Submit()
+				vr::EVRCompositorError error = g_pVRCompositor->WaitGetPoses(g_rTrackedDevicePose, 
+					vr::k_unMaxTrackedDeviceCount, NULL, 0);
+				if (error) log_debug("[DBG] WaitGetPoses (3D) error: %d", error);
 			}
 		}
 		else

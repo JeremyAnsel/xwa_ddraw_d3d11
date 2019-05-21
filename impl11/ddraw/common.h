@@ -1,5 +1,6 @@
 // Copyright (c) 2014 Jérémy Ansel
 // Licensed under the MIT license. See LICENSE.txt
+// Extended for VR by Leo Reyes (c) 2019
 
 #pragma once
 
@@ -22,3 +23,6 @@
 #include "logger.h"
 #include "utils.h"
 #include "config.h"
+
+// Needed to compile SSE2 instructions
+#include <emmintrin.h>

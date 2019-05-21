@@ -1,5 +1,6 @@
 // Copyright (c) 2014 Jérémy Ansel
 // Licensed under the MIT license. See LICENSE.txt
+// Extended for VR by Leo Reyes (c) 2019
 
 #include "common.h"
 #include "utils.h"
@@ -621,7 +622,21 @@ ColorConverterTables::ColorConverterTables()
 
 ColorConverterTables g_colorConverterTables;
 
-#if LOGGER
+// From: https://stackoverflow.com/questions/27939882/fast-crc-algorithm
+uint32_t crc32c(uint32_t crc, const unsigned char *buf, size_t len)
+{
+	int k;
+
+	crc = ~crc;
+	while (len--) {
+		crc ^= *buf++;
+		for (k = 0; k < 8; k++)
+			crc = crc & 1 ? (crc >> 1) ^ POLY : crc >> 1;
+	}
+	return ~crc;
+}
+
+//#if LOGGER
 
 int GetEncoderClsid(const WCHAR* format, CLSID* pClsid)
 {
@@ -687,4 +702,17 @@ void saveSurface(std::wstring name, char* buffer, DWORD width, DWORD height, DWO
 	}
 }
 
-#endif
+//#endif
+
+void log_debug(const char *format, ...)
+{
+	char buf[120];
+
+	va_list args;
+	va_start(args, format);
+
+	vsprintf_s(buf, 120, format, args);
+	OutputDebugString(buf);
+
+	va_end(args);
+}

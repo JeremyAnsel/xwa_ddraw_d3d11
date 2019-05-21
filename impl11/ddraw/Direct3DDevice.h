@@ -1,5 +1,6 @@
 // Copyright (c) 2014 Jérémy Ansel
 // Licensed under the MIT license. See LICENSE.txt
+// Extended for VR by Leo Reyes, 2019
 
 #pragma once
 
@@ -31,6 +32,8 @@ public:
 	STDMETHOD(CreateExecuteBuffer)(THIS_ LPD3DEXECUTEBUFFERDESC, LPDIRECT3DEXECUTEBUFFER*, IUnknown*);
 
 	STDMETHOD(GetStats)(THIS_ LPD3DSTATS);
+
+	HRESULT QuickSetZWriteEnabled(BOOL);
 
 	STDMETHOD(Execute)(THIS_ LPDIRECT3DEXECUTEBUFFER, LPDIRECT3DVIEWPORT, DWORD);
 
@@ -68,5 +71,7 @@ public:
 
 	DWORD _maxExecuteBufferSize;
 	ComPtr<ID3D11Buffer> _vertexBuffer;
+	ComPtr<ID3D11Buffer> _vertexBufferL;
+	ComPtr<ID3D11Buffer> _vertexBufferR;
 	ComPtr<ID3D11Buffer> _indexBuffer;
 };
