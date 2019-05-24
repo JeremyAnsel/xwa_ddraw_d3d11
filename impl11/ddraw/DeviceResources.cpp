@@ -42,7 +42,7 @@ extern bool g_bEnableVR, g_bForceViewportChange;
 
 // SteamVR
 #include <headers/openvr.h>
-extern bool g_bSteamVRInitialized, g_bUseSteamVR, g_bEnableVR;
+extern bool g_bSteamVRInitialized, g_bUseSteamVR, g_bEnableVR, g_bSteamVRTexturesInitialized;
 bool InitSteamVR();
 
 /* The different types of Constant Buffers used in the Vertex Shader: */
@@ -68,7 +68,7 @@ FILE *g_DebugFile = NULL;
 extern vr::IVRSystem *g_pHMD;
 extern vr::IVRCompositor *g_pVRCompositor;
 extern bool g_bSteamVREnabled, g_bUseSteamVR;
-void ProcessVREvent(const vr::VREvent_t & event);
+//void ProcessVREvent(const vr::VREvent_t & event);
 //vr::TrackedDevicePose_t m_rTrackedDevicePose[vr::k_unMaxTrackedDeviceCount];
 
 void log_err(const char *format, ...)
@@ -274,6 +274,12 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		this->_offscreenBufferAsInputRight.Release();
 		this->_renderTargetViewR.Release();
 		//this->_offscreenAsInputShaderResourceViewR.Release();
+		this->_submitBufferLeft.Release();
+		this->_submitBufferRight.Release();
+		this->_stagingBufferLeft.Release();
+		this->_stagingBufferRight.Release();
+		this->_backBufferSteamVR.Release();
+		this->_swapChainSteamVR.Release();
 	}
 
 	this->_backBuffer.Release();
@@ -331,6 +337,11 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			{
 				hr = dxgiFactory->CreateSwapChain(this->_d3dDevice, &sd, &this->_swapChain);
 			}
+			
+			if (SUCCEEDED(hr))
+			{
+				hr = dxgiFactory->CreateSwapChain(this->_d3dDevice, &sd, &this->_swapChainSteamVR);
+			}
 
 			if (SUCCEEDED(hr))
 			{
@@ -341,6 +352,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		if (SUCCEEDED(hr))
 		{
 			hr = this->_swapChain->GetBuffer(0, IID_PPV_ARGS(&this->_backBuffer));
+			hr = this->_swapChainSteamVR->GetBuffer(0, IID_PPV_ARGS(&this->_backBufferSteamVR));
 		}
 	}
 	else
@@ -361,6 +373,9 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			0);
 
 		hr = this->_d3dDevice->CreateTexture2D(&backBufferDesc, nullptr, &this->_backBuffer);
+		
+		step = "backBufferSteamVR";
+		hr = this->_d3dDevice->CreateTexture2D(&backBufferDesc, nullptr, &this->_backBufferSteamVR);
 	}
 
 	if (SUCCEEDED(hr))
@@ -412,6 +427,26 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
 			log_err_desc(step, hWnd, hr, desc);
 			goto out;
+		}
+
+		if (g_bUseSteamVR) {
+			step = "submitBufferLeft";
+			hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_submitBufferLeft);
+			if (FAILED(hr)) goto out;
+
+			step = "submitBufferRight";
+			hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_submitBufferRight);
+			if (FAILED(hr)) goto out;
+
+			step = "stagingBufferLeft";
+			hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_stagingBufferLeft);
+			if (FAILED(hr)) goto out;
+
+			step = "stagingBufferRight";
+			hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_stagingBufferRight);
+			if (FAILED(hr)) goto out;
+
+			g_bSteamVRTexturesInitialized = true;
 		}
 
 		// offscreenBufferAsInput must not have MSAA enabled since it will be used as input for the barrel shader.
@@ -1155,7 +1190,7 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 	ID3D11ShaderResourceView** texView = nullptr;
 
 	/*
-	if (g_bUseSteamVR && g_pHMD != NULL) {
+	if (g_bUseSteamVR) {
 		// Process SteamVR events
 		vr::VREvent_t event;
 		while (g_pHMD->PollNextEvent(&event, sizeof(event)))

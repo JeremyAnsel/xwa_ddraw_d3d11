@@ -63,12 +63,21 @@ const char *BRIGHTNESS_VRPARAM = "brightness";
 /* SteamVR HMD */
 vr::IVRSystem *g_pHMD = NULL;
 vr::IVRCompositor *g_pVRCompositor = NULL;
+vr::IVRScreenshots *g_pVRScreenshots = NULL;
 uint32_t g_steamVRWidth = 0, g_steamVRHeight = 0;
-bool g_bSteamVREnabled = false; // The user sets this flag to true to request support for SteamVR
+bool g_bSteamVREnabled = true; // The user sets this flag to true to request support for SteamVR. TODO: Add vrparam.cfg setting to set this flag
 bool g_bSteamVRInitialized = false; // The system will set this flag after SteamVR has been initialized
 bool g_bUseSteamVR = false; // The system will set this flag if the user requested SteamVR and SteamVR was initialized properly
+bool g_bSteamVRTexturesInitialized = false; // Set to true by the system when the dedicated textures have been initialized
 // TODO: We probably can get away with just tracking vr::k_unTrackedDeviceIndex_Hmd below; but is this index always 0?
 vr::TrackedDevicePose_t g_rTrackedDevicePose[vr::k_unMaxTrackedDeviceCount];
+// Dedicated thread for the SteamVR compositor. Needed to avoid locking the main game's thread when calling WaitGetPoses()
+HANDLE g_hDedicatedSteamVRThread = NULL; 
+// Mutex used to lock access to the offscreen buffers between the dedicated thread and the main renderer.
+HANDLE g_hCompositorTexMutex = NULL;
+// The dedicated thread will run for as long as this flag is true
+bool g_bRunDedicatedSteamVRThread = false;
+HANDLE g_hWaitGetPosesSignal = NULL, g_hCanSubmit = NULL;
 
 /* Vertices that will be used for the VertexBuffer. */
 D3DTLVERTEX *g_OrigVerts = NULL, *g_LeftVerts = NULL, *g_RightVerts = NULL;
@@ -638,7 +647,7 @@ bool InitSteamVR()
 		log_debug("[DBG] Unable to init VR runtime: %s", vr::VR_GetVRInitErrorAsEnglishDescription(eError));
 		return false;
 	}
-	log_debug("[DBG] SteamVR Initialized, g_pHMD: 0x%x", (uint32_t )g_pHMD);
+	log_debug("[DBG] SteamVR Initialized");
 	g_pHMD->GetRecommendedRenderTargetSize(&g_steamVRWidth, &g_steamVRHeight);
 	log_debug("[DBG] Recommended steamVR width, height: %d, %d", g_steamVRWidth, g_steamVRHeight);
 
@@ -659,20 +668,34 @@ bool InitSteamVR()
 	g_pVRCompositor = vr::VRCompositor();
 	if (g_pVRCompositor == NULL)
 	{
-		log_debug("[DBG] Compositor Initialization failed.");
+		log_debug("[DBG] SteamVR Compositor Initialization failed.");
 		return false;
 	}
-	log_debug("[DBG] Compositor Initialized");
+	log_debug("[DBG] SteamVR Compositor Initialized");
+	//g_pVRCompositor->ForceInterleavedReprojectionOn(true);
+	g_pVRCompositor->ForceInterleavedReprojectionOn(false); // Looks like we get slightly better performance with this setting.
+
+	g_pVRScreenshots = vr::VRScreenshots();
+	if (g_pVRScreenshots != NULL) {
+		log_debug("[DBG] SteamVR screenshot system enabled");
+		//g_pVRScreenshots->
+	}
 
 	return true;
 }
 
 void ShutDownSteamVR() {
 	log_debug("[DBG] Shutting down SteamVR");
+	
+	// Shut the dedicated thread down
+	g_bRunDedicatedSteamVRThread = false;
+	WaitForSingleObject(g_hDedicatedSteamVRThread, 100);
+
 	if (g_pHMD)
 	{
 		vr::VR_Shutdown();
 		g_pHMD = NULL;
+		g_pVRCompositor = NULL;
 	}
 }
 

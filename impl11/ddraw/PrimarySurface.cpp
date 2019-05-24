@@ -64,9 +64,14 @@ extern FILE *g_HackFile;
 #include <headers/openvr.h>
 extern vr::IVRSystem *g_pHMD;
 extern vr::IVRCompositor *g_pVRCompositor;
-extern bool g_bSteamVREnabled, g_bUseSteamVR;
+extern bool g_bSteamVREnabled, g_bUseSteamVR, g_bRunDedicatedSteamVRThread, g_bSteamVRTexturesInitialized;
 extern uint32_t g_steamVRWidth, g_steamVRHeight;
 extern vr::TrackedDevicePose_t g_rTrackedDevicePose[];
+extern HANDLE g_hDedicatedSteamVRThread, g_hCompositorTexMutex, g_hWaitGetPosesSignal, g_hCanSubmit;
+void *g_pSurface = NULL;
+
+DWORD WINAPI DedicatedSteamVRThread(LPVOID lpParam);
+void WaitGetPoses();
 //void ProcessVREvent(const vr::VREvent_t & event);
 
 PrimarySurface::PrimarySurface(DeviceResources* deviceResources, bool hasBackbufferAttached)
@@ -609,11 +614,135 @@ void PrimarySurface::barrelEffect3D() {
 		this->_deviceResources->_depthStencilViewL.Get());
 }
 
+/* Convenience function to call WaitGetPoses() */
+void WaitGetPoses() {
+	// We need to call WaitGetPoses so that SteamVR gets the focus, otherwise we'll just get
+	// error 101 when doing VRCompositor->Submit()
+	if (g_pVRCompositor == NULL) log_debug("[DBG] VRCompositor is NULL");
+	vr::EVRCompositorError error = g_pVRCompositor->WaitGetPoses(g_rTrackedDevicePose,
+		vr::k_unMaxTrackedDeviceCount, NULL, 0);
+	if (error) log_debug("[DBG] WaitGetPoses error: %d", error);
+}
+
+DWORD WINAPI DedicatedSteamVRThread_Old(LPVOID lpParam)
+{
+	log_debug("[DBG] [Dedicated] thread starting");
+	PrimarySurface *pSurface = (PrimarySurface *)lpParam;
+	auto &resources = pSurface->_deviceResources;
+	auto &context = resources->_d3dDeviceContext;
+	HRESULT hr;
+	vr::EVRCompositorError error = vr::VRCompositorError_None;
+
+	log_debug("[DBG] [Dedicated] pSurface: 0x%x", pSurface);
+	while (g_bRunDedicatedSteamVRThread) {
+		// if (time() - t0 < 8ms) sleep()  # Sleep for ~8ms
+		if (g_pVRCompositor == NULL) {
+			log_debug("[DBG] [Dedicated] Terminating thread because the compositor is NULLL");
+			return 0;
+		}
+
+		if (!g_bSteamVRTexturesInitialized) {
+			log_debug("[DBG] [Dedicated] textures not initialized yet, yielding");
+			Sleep(0);
+			continue;
+		}
+
+		// Try to acquire texture-lock. This should be a non - blocking call!
+		if (WaitForSingleObject(g_hCompositorTexMutex, 0) == WAIT_OBJECT_0) {
+			// The lock has been acquired, copy the textures
+			context->CopyResource(resources->_submitBufferLeft, resources->_stagingBufferLeft);
+			context->CopyResource(resources->_submitBufferRight, resources->_stagingBufferRight);
+			ReleaseMutex(g_hCompositorTexMutex);
+			//log_debug("[DBG] [Dedicated] COPIED");
+		}
+
+		//log_debug("[DBG] [Dedicated] Submitting...");
+		// Submit the current textures -- even if they could not be copied from the staging buffers
+		error = vr::VRCompositorError_None;
+		vr::Texture_t leftEyeTexture = { resources->_submitBufferLeft.Get(), vr::TextureType_DirectX, vr::ColorSpace_Auto };
+		vr::Texture_t rightEyeTexture = { resources->_submitBufferRight.Get(), vr::TextureType_DirectX, vr::ColorSpace_Auto };
+		error = g_pVRCompositor->Submit(vr::Eye_Left, &leftEyeTexture);
+		if (error) log_debug("[DBG] [Dedicated] SteamVR (L) error: %d", error);
+		error = g_pVRCompositor->Submit(vr::Eye_Right, &rightEyeTexture);
+		if (error) log_debug("[DBG] [Dedicated] SteamVR (R) error: %d", error);
+		//log_debug("[DBG] [Dedicated] WaitGetPoses...");
+
+		//Sleep(8);
+		WaitGetPoses();
+		
+		// Display the left image
+		context->ResolveSubresource(resources->_backBufferSteamVR, 0,
+			resources->_submitBufferLeft, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+		hr = resources->_swapChainSteamVR->Present(0, 0);
+		if (FAILED(hr)) log_debug("[DBG] [Dedicated] Failed Present()");
+
+		//log_debug("[DBG] [Dedicated] End Loop");
+	}
+	log_debug("[DBG] [Dedicated] Exiting thread");
+	return 0;
+}
+
+DWORD WINAPI DedicatedSteamVRThread(LPVOID lpParam) {
+	log_debug("[DBG] [Dedicated] DedicatedSteamVRThread Running");
+	PrimarySurface *pSurface = (PrimarySurface *)lpParam;
+	if (g_pSurface == NULL) g_pSurface = pSurface;
+	auto &resources = pSurface->_deviceResources;
+	auto &context = resources->_d3dDeviceContext;
+	HRESULT hr;
+	vr::EVRCompositorError error = vr::VRCompositorError_None;
+
+	SetEvent(g_hCanSubmit);
+	while (g_bRunDedicatedSteamVRThread) {
+		if (WaitForSingleObject(g_hWaitGetPosesSignal, 0) == WAIT_OBJECT_0) {
+			/*
+			error = vr::VRCompositorError_None;
+			//this->_d3dDeviceContext->ResolveSubresource(this->_offscreenBufferAsInput, 0, 
+			//	this->_offscreenBuffer,	0, DXGI_FORMAT_R8G8B8A8_UNORM);
+			if (g_pVRCompositor == NULL) log_debug("[DBG] [Dedicated] NULL Compositor");
+			if (resources == NULL) log_debug("[DBG] [Dedicated] NULL resources");
+			if (resources->_stagingBufferLeft == NULL) log_debug("[DBG] NULL stagingBufferLeft");
+			//WaitForSingleObject(g_hCompositorTexMutex, 20);
+			{
+				vr::Texture_t leftEyeTexture = { resources->_stagingBufferLeft.Get(), vr::TextureType_DirectX, vr::ColorSpace_Auto };
+				vr::Texture_t rightEyeTexture = { resources->_stagingBufferRight.Get(), vr::TextureType_DirectX, vr::ColorSpace_Auto };
+				error = g_pVRCompositor->Submit(vr::Eye_Left, &leftEyeTexture);
+				if (error) log_debug("[DBG] [Dedicated] SteamVR (L) error: %d", error);
+				error = g_pVRCompositor->Submit(vr::Eye_Right, &rightEyeTexture);
+				if (error) log_debug("[DBG] [Dedicated] SteamVR (R) error: %d", error);
+				//ReleaseMutex(g_hCompositorTexMutex);
+			}
+			*/
+			//log_debug("[DBG] [Dedicated] WaitGetPoses");
+			//WaitGetPoses();
+			ResetEvent(g_hWaitGetPosesSignal);
+			//SetEvent(g_hCanSubmit);
+		}
+	}
+	return 0;
+}
+
 HRESULT PrimarySurface::Flip(
 	LPDIRECTDRAWSURFACE lpDDSurfaceTargetOverride,
 	DWORD dwFlags
 	)
 {
+	static uint64_t frame, lastFrame = 0;
+	static float seconds;
+
+	/*
+	if (g_hDedicatedSteamVRThread == NULL) {
+		// Create the Compositor Texture Mutex
+		g_hCompositorTexMutex = CreateMutex(NULL, FALSE, NULL);
+		g_hWaitGetPosesSignal = CreateEvent(NULL, TRUE, FALSE, NULL);
+		g_hCanSubmit = CreateEvent(NULL, TRUE, FALSE, NULL);
+		// Create and start the dedicated SteamVR thread
+		g_bRunDedicatedSteamVRThread = true;
+		g_hDedicatedSteamVRThread = CreateThread(NULL, 0, DedicatedSteamVRThread, (void *)this, 0, NULL);
+		log_debug("[DBG] Created Dedicated thread");
+	}
+	//if (g_pSurface != NULL && g_pSurface != this) log_debug("[DBG] Warning g_pSurface changed!");
+	*/
+
 #if LOGGER
 	std::ostringstream str;
 	str << this << " " << __FUNCTION__;
@@ -760,7 +889,7 @@ HRESULT PrimarySurface::Flip(
 
 				for (UINT i = 0; i < interval; i++)
 				{
-					// In the original code the offscreenBuffer is resolved into the backBuffer.
+					// In the original code the offscreenBuffer is simply resolved into the backBuffer.
 					// this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0, this->_deviceResources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
 
 					if (!g_bDisableBarrelEffect && g_bEnableVR && !g_bUseSteamVR) {
@@ -769,6 +898,16 @@ HRESULT PrimarySurface::Flip(
 							this->_deviceResources->_offscreenBuffer3, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
 					}
 					else {
+						/*
+						if (g_bUseSteamVR) {
+							// Try to copy the images to the stagingBuffers so that they can be submitted to SteamVR
+							this->_deviceResources->_d3dDeviceContext->CopyResource(this->_deviceResources->_stagingBufferLeft,
+								this->_deviceResources->_offscreenBuffer);
+							this->_deviceResources->_d3dDeviceContext->CopyResource(this->_deviceResources->_stagingBufferRight,
+								this->_deviceResources->_offscreenBufferR);							
+						}
+						*/
+						// In SteamVR mode this will display the left image:
 						this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0,
 							this->_deviceResources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
 					}
@@ -813,20 +952,20 @@ HRESULT PrimarySurface::Flip(
 								this->_deviceResources->_renderTargetViewR, bgColor);
 					}
 
-					if (g_bUseSteamVR) {
+					if (g_bUseSteamVR) {					
 						vr::EVRCompositorError error = vr::VRCompositorError_None;
-						//this->_d3dDeviceContext->ResolveSubresource(this->_offscreenBufferAsInput, 0, 
-						//	this->_offscreenBuffer,	0, DXGI_FORMAT_R8G8B8A8_UNORM);
-						vr::Texture_t leftEyeTexture  = { this->_deviceResources->_offscreenBuffer.Get(), vr::TextureType_DirectX, vr::ColorSpace_Auto };
+						vr::Texture_t leftEyeTexture = { this->_deviceResources->_offscreenBuffer.Get(), vr::TextureType_DirectX, vr::ColorSpace_Auto };
 						vr::Texture_t rightEyeTexture = { this->_deviceResources->_offscreenBufferR.Get(), vr::TextureType_DirectX, vr::ColorSpace_Auto };
 						error = g_pVRCompositor->Submit(vr::Eye_Left, &leftEyeTexture);
-						if (error) log_debug("[DBG] SteamVR (L) error: %d", error);
+						//if (error) log_debug("[DBG] SteamVR (L) error: %d", error);
 						error = g_pVRCompositor->Submit(vr::Eye_Right, &rightEyeTexture);
-						if (error) log_debug("[DBG] SteamVR (R) error: %d", error);
+						//if (error) log_debug("[DBG] SteamVR (R) error: %d", error);
+						//g_pVRCompositor->PostPresentHandoff();
 					}
-
+					
 					g_bRendering3D = false;
-					if (FAILED(hr = this->_deviceResources->_swapChain->Present(1, 0)))
+					// Present 2D
+					if (FAILED(hr = this->_deviceResources->_swapChain->Present(0, 0)))
 					{
 						static bool messageShown = false;
 
@@ -840,15 +979,12 @@ HRESULT PrimarySurface::Flip(
 						hr = DDERR_SURFACELOST;
 						break;
 					}
-
 					if (g_bUseSteamVR) {
-						// We need to call WaitGetPoses so that SteamVR gets the focus, otherwise we'll just get
-						// error 101 when doing VRCompositor->Submit()
-						vr::EVRCompositorError error = g_pVRCompositor->WaitGetPoses(g_rTrackedDevicePose, 
-							vr::k_unMaxTrackedDeviceCount, NULL, 0);
-						if (error) log_debug("[DBG] WaitGetPoses error: %d", error);
-					}
-					
+						g_pVRCompositor->PostPresentHandoff();
+						//g_pHMD->GetTimeSinceLastVsync(&seconds, &frame);
+						//if (seconds > 0.008)
+						WaitGetPoses();
+					}		
 				}
 			}
 			else
@@ -915,18 +1051,26 @@ HRESULT PrimarySurface::Flip(
 #endif
 
 			if (g_bUseSteamVR) {
+				//if (!g_pHMD->GetTimeSinceLastVsync(&seconds, &frame))
+				//	log_debug("[DBG] No Vsync info available");
+
 				vr::EVRCompositorError error = vr::VRCompositorError_None;
 				vr::Texture_t leftEyeTexture = { this->_deviceResources->_offscreenBuffer.Get(), vr::TextureType_DirectX, vr::ColorSpace_Auto };
 				vr::Texture_t rightEyeTexture = { this->_deviceResources->_offscreenBufferR.Get(), vr::TextureType_DirectX, vr::ColorSpace_Auto };
 				error = g_pVRCompositor->Submit(vr::Eye_Left, &leftEyeTexture);
-				if (error) log_debug("[DBG] 3D Present (left) SteamVR error: %d", error);
+				//if (error) log_debug("[DBG] 3D Present (left) SteamVR error: %d", error);
 				error = g_pVRCompositor->Submit(vr::Eye_Right, &rightEyeTexture);
-				if (error) log_debug("[DBG] 3D Present (right) SteamVR error: %d", error);
+				//if (error) log_debug("[DBG] 3D Present (right) SteamVR error: %d", error);
+				//g_pVRCompositor->PostPresentHandoff();
 			}
+
+			//float timeRemaining = g_pVRCompositor->GetFrameTimeRemaining();
+			//log_debug("[DBG] Time remaining: %0.3f", timeRemaining);
+			//if (timeRemaining < 0.005) WaitGetPoses();
 
 			// We're about to show 3D content, so let's set the corresponding flag
 			g_bRendering3D = true;
-			if (FAILED(hr = this->_deviceResources->_swapChain->Present(1, 0)))
+			if (FAILED(hr = this->_deviceResources->_swapChain->Present(0, 0)))
 			{
 				static bool messageShown = false;
 
@@ -939,13 +1083,11 @@ HRESULT PrimarySurface::Flip(
 
 				hr = DDERR_SURFACELOST;
 			}
-
 			if (g_bUseSteamVR) {
-				// We need to call WaitGetPoses so that SteamVR gets the focus, otherwise we'll just get
-				// error 101 when doing VRCompositor->Submit()
-				vr::EVRCompositorError error = g_pVRCompositor->WaitGetPoses(g_rTrackedDevicePose, 
-					vr::k_unMaxTrackedDeviceCount, NULL, 0);
-				if (error) log_debug("[DBG] WaitGetPoses (3D) error: %d", error);
+				g_pVRCompositor->PostPresentHandoff();
+				//g_pHMD->GetTimeSinceLastVsync(&seconds, &frame);
+				//if (seconds > 0.008)
+				WaitGetPoses();
 			}
 		}
 		else

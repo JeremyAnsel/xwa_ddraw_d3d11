@@ -55,7 +55,9 @@ void IncreaseLensK1(float Delta);
 void IncreaseLensK2(float Delta);
 
 // SteamVR
+#include <headers/openvr.h>
 extern bool g_bSteamVREnabled, g_bSteamVRInitialized, g_bUseSteamVR;
+extern vr::IVRSystem *g_pHMD;
 bool InitSteamVR();
 void ShutDownSteamVR();
 
@@ -276,6 +278,10 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 				g_bDownKeyDown = false;
 				g_bDownKeyDownShift = false;
 				return 0;
+			case '.':
+				g_pHMD->ResetSeatedZeroPose();
+				log_debug("[DBG] SteamVR Zero Pose Reset");
+				break;
 			}
 		}
 

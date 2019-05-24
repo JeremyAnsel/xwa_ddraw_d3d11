@@ -88,13 +88,19 @@ public:
 	ComPtr<ID3D11Device> _d3dDevice;
 	ComPtr<ID3D11DeviceContext> _d3dDeviceContext;
 	ComPtr<IDXGISwapChain> _swapChain;
+	ComPtr<IDXGISwapChain> _swapChainSteamVR;
 	ComPtr<ID3D11Texture2D> _backBuffer;
+	ComPtr<ID3D11Texture2D> _backBufferSteamVR;
 	ComPtr<ID3D11Texture2D> _offscreenBuffer;
 	ComPtr<ID3D11Texture2D> _offscreenBufferR; // When SteamVR is used, _offscreenBuffer becomes the left eye and this one becomes the right eye
 	ComPtr<ID3D11Texture2D> _offscreenBufferAsInput;
 	ComPtr<ID3D11Texture2D> _offscreenBufferAsInputRight; // When SteamVR is used, these buffers can be used to make copies of the
 	ComPtr<ID3D11Texture2D> _offscreenBufferAsInputLeft;  // left and right offscreenBuffers for further post-processing
 	ComPtr<ID3D11Texture2D> _offscreenBuffer3; // This is the output of the barrel effect when not using SteamVR
+	ComPtr<ID3D11Texture2D> _submitBufferRight; // Used by the dedicated SteamVR thread to submit images to the SteamVR Compositor
+	ComPtr<ID3D11Texture2D> _submitBufferLeft;
+	ComPtr<ID3D11Texture2D> _stagingBufferRight;
+	ComPtr<ID3D11Texture2D> _stagingBufferLeft;
 	ComPtr<ID3D11RenderTargetView> _renderTargetView;
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewR; // When SteamVR is used, _renderTargetView is the left eye, and this one is the right eye
 	ComPtr<ID3D11RenderTargetView> _renderTargetView3; // Used for the barrel effect when SteamVR is not used.
