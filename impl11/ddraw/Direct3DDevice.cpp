@@ -21,6 +21,7 @@
 FILE *g_HackFile = NULL;
 
 const float DEFAULT_FOCAL_DIST = 0.5f;
+const float DEFAULT_FOCAL_DIST_STEAMVR = 0.6f;
 const float DEFAULT_IPD = 6.5f;
 const float DEFAULT_HUD_PARALLAX = 12.5f;
 const float DEFAULT_TEXT_PARALLAX = 40.0f;
@@ -34,6 +35,7 @@ const float DEFAULT_ASPECT_RATIO = 1.33f;
 const float DEFAULT_CONCOURSE_SCALE = 0.4f;
 const float DEFAULT_CONCOURSE_ASPECT_RATIO = 2.0f; // Default for non-SteamVR
 const float DEFAULT_GLOBAL_SCALE = 1.75f;
+const float DEFAULT_GLOBAL_SCALE_STEAMVR = 1.4f;
 const float DEFAULT_LENS_K1 = 2.0f;
 const float DEFAULT_LENS_K2 = 0.22f;
 const float DEFAULT_LENS_K3 = 0.0f;
@@ -64,20 +66,11 @@ const char *BRIGHTNESS_VRPARAM = "brightness";
 vr::IVRSystem *g_pHMD = NULL;
 vr::IVRCompositor *g_pVRCompositor = NULL;
 vr::IVRScreenshots *g_pVRScreenshots = NULL;
+vr::TrackedDevicePose_t g_rTrackedDevicePose;
 uint32_t g_steamVRWidth = 0, g_steamVRHeight = 0;
 bool g_bSteamVREnabled = true; // The user sets this flag to true to request support for SteamVR. TODO: Add vrparam.cfg setting to set this flag
 bool g_bSteamVRInitialized = false; // The system will set this flag after SteamVR has been initialized
 bool g_bUseSteamVR = false; // The system will set this flag if the user requested SteamVR and SteamVR was initialized properly
-bool g_bSteamVRTexturesInitialized = false; // Set to true by the system when the dedicated textures have been initialized
-// TODO: We probably can get away with just tracking vr::k_unTrackedDeviceIndex_Hmd below; but is this index always 0?
-vr::TrackedDevicePose_t g_rTrackedDevicePose[vr::k_unMaxTrackedDeviceCount];
-// Dedicated thread for the SteamVR compositor. Needed to avoid locking the main game's thread when calling WaitGetPoses()
-HANDLE g_hDedicatedSteamVRThread = NULL; 
-// Mutex used to lock access to the offscreen buffers between the dedicated thread and the main renderer.
-HANDLE g_hCompositorTexMutex = NULL;
-// The dedicated thread will run for as long as this flag is true
-bool g_bRunDedicatedSteamVRThread = false;
-HANDLE g_hWaitGetPosesSignal = NULL, g_hCanSubmit = NULL;
 
 /* Vertices that will be used for the VertexBuffer. */
 D3DTLVERTEX *g_OrigVerts = NULL, *g_LeftVerts = NULL, *g_RightVerts = NULL;
@@ -127,7 +120,6 @@ float g_fLensK3 = DEFAULT_LENS_K3;
 float g_fGUIElemPZThreshold = DEFAULT_GUI_ELEM_PZ_THRESHOLD;
 float g_fGUIElemScale = DEFAULT_GUI_ELEM_SCALE;
 float g_fGlobalScale = DEFAULT_GLOBAL_SCALE;
-float g_fRegularGlobalScale = DEFAULT_GLOBAL_SCALE;
 float g_fGlobalScaleZoomOut = DEFAULT_ZOOM_OUT_SCALE;
 float g_fConcourseScale = DEFAULT_CONCOURSE_SCALE;
 float g_fConcourseAspectRatio = DEFAULT_CONCOURSE_ASPECT_RATIO;
@@ -284,7 +276,7 @@ void ToggleCockpitPZHack() {
 
 void ToggleZoomOutMode() {
 	g_bZoomOut = !g_bZoomOut;
-	g_fGUIElemsScale = g_bZoomOut ? g_fGlobalScaleZoomOut : g_fRegularGlobalScale;
+	g_fGUIElemsScale = g_bZoomOut ? g_fGlobalScaleZoomOut : g_fGlobalScale;
 }
 
 void IncreaseZOverride(float Delta) {
@@ -298,7 +290,7 @@ void IncreaseZoomOutScale(float Delta) {
 		g_fGlobalScaleZoomOut = 0.2f;
 
 	// Apply this change by modifying the global scale:
-	g_fGUIElemsScale = g_bZoomOut ? g_fGlobalScaleZoomOut : g_fRegularGlobalScale;
+	g_fGUIElemsScale = g_bZoomOut ? g_fGlobalScaleZoomOut : g_fGlobalScale;
 
 	g_fConcourseScale += Delta;
 	if (g_fConcourseScale < 0.2f)
@@ -335,14 +327,14 @@ void IncreaseScreenScale(float Delta) {
 	g_fGlobalScale += Delta;
 	if (g_fGlobalScale < 0.2f)
 		g_fGlobalScale = 0.2f;
-	//log_debug("[DBG] New global scale: %f", g_global_scale);
+	log_debug("[DBG] New g_fGlobalScale: %f", g_fGlobalScale);
 }
 
 void IncreaseFocalDist(float Delta) {
 	g_fFocalDist += Delta;
 	if (g_fFocalDist < 0.01f)
 		g_fFocalDist = 0.01f;
-	log_debug("[DBG] focal_dist: %f", g_fFocalDist);
+	log_debug("[DBG] g_fFocalDist: %f", g_fFocalDist);
 }
 
 void IncreaseNoDrawBeforeIndex(int Delta) {
@@ -391,9 +383,9 @@ void ResetVRParams() {
 	g_bCockpitPZHackEnabled = true;
 	g_fGUIElemPZThreshold = DEFAULT_GUI_ELEM_PZ_THRESHOLD;
 	g_fGUIElemScale = DEFAULT_GUI_ELEM_SCALE;
-	g_fRegularGlobalScale = DEFAULT_GLOBAL_SCALE;
+	g_fGlobalScale = DEFAULT_GLOBAL_SCALE;
 	g_fGlobalScaleZoomOut = DEFAULT_ZOOM_OUT_SCALE;
-	g_fGUIElemsScale = g_bZoomOut ? g_fGlobalScaleZoomOut : g_fRegularGlobalScale;
+	g_fGUIElemsScale = g_bZoomOut ? g_fGlobalScaleZoomOut : g_fGlobalScale;
 	g_fConcourseScale = DEFAULT_CONCOURSE_SCALE;
 	g_fCockpitPZThreshold = DEFAULT_COCKPIT_PZ_THRESHOLD;
 	g_fBackupCockpitPZThreshold = g_fCockpitPZThreshold;
@@ -453,7 +445,7 @@ void SaveVRParams() {
 	fprintf(file, "; %s is measured in cms; but it's an approximation to in-game units. Set it to 0 to\n", STEREOSCOPY_STRENGTH_VRPARAM);
 	fprintf(file, "; remove the stereoscopy effect. The maximum allowed by the engine is 12cm\n");
 	fprintf(file, "%s = %0.1f\n", STEREOSCOPY_STRENGTH_VRPARAM, g_fIPD * IPD_SCALE_FACTOR);
-	fprintf(file, "%s = %0.3f\n", SIZE_3D_WINDOW_VRPARAM, g_fRegularGlobalScale);
+	fprintf(file, "%s = %0.3f\n", SIZE_3D_WINDOW_VRPARAM, g_fGlobalScale);
 	fprintf(file, "%s = %0.3f\n", SIZE_3D_WINDOW_ZOOM_OUT_VRPARAM, g_fGlobalScaleZoomOut);
 	fprintf(file, "%s = %0.3f\n", CONCOURSE_WINDOW_SCALE_VRPARAM, g_fConcourseScale);
 	fprintf(file, "; The following is a hack to increase the stereoscopy on objects. Unfortunately it\n");
@@ -533,7 +525,7 @@ void LoadVRParams() {
 			}
 			else if (_stricmp(param, SIZE_3D_WINDOW_VRPARAM) == 0) {
 				// Size of the window while playing the game
-				g_fRegularGlobalScale = value;
+				g_fGlobalScale = value;
 			}
 			else if (_stricmp(param, SIZE_3D_WINDOW_ZOOM_OUT_VRPARAM) == 0) {
 				// Size of the window while playing the game; but zoomed out to see all the GUI
@@ -587,7 +579,7 @@ void LoadVRParams() {
 			param_read_count++;
 		}
 	} // while ... read file
-	g_fGUIElemsScale = g_bZoomOut ? g_fGlobalScaleZoomOut : g_fRegularGlobalScale;
+	g_fGUIElemsScale = g_bZoomOut ? g_fGlobalScaleZoomOut : g_fGlobalScale;
 	fclose(file);
 
 next:
@@ -681,16 +673,15 @@ bool InitSteamVR()
 		//g_pVRScreenshots->
 	}
 
+	// Reset the seated pose
+	g_pHMD->ResetSeatedZeroPose();
+
 	return true;
 }
 
 void ShutDownSteamVR() {
 	log_debug("[DBG] Shutting down SteamVR");
 	
-	// Shut the dedicated thread down
-	g_bRunDedicatedSteamVRThread = false;
-	WaitForSingleObject(g_hDedicatedSteamVRThread, 100);
-
 	if (g_pHMD)
 	{
 		vr::VR_Shutdown();
@@ -1268,12 +1259,12 @@ void PreprocessVerticesStereo(float width, float height, int numVerts)
 			qy = py;
 			qz = pz;
 		} else if (is_cockpit) {
-			project(X + g_fHalfIPD - g_HeadPos.x, Y - g_HeadPos.y, Z - g_HeadPos.z, px, py, pz);
-			project(X - g_fHalfIPD - g_HeadPos.x, Y - g_HeadPos.y, Z - g_HeadPos.z, qx, qy, qz);
+			project(X + g_fHalfIPD, Y, Z, px, py, pz);
+			project(X - g_fHalfIPD, Y, Z, qx, qy, qz);
 		} else {
 			float disp = 30.0f; // Objects "out there" need to have their parallax boosted or they just look flat
-			project(X + ( g_fHalfIPD - g_HeadPos.x) * disp, Y - (g_HeadPos.y * disp), Z - (g_HeadPos.z * disp), px, py, pz);
-			project(X + (-g_fHalfIPD - g_HeadPos.x) * disp, Y - (g_HeadPos.y * disp), Z - (g_HeadPos.z * disp), qx, qy, qz);
+			project(X +  g_fHalfIPD * disp, Y, Z, px, py, pz);
+			project(X + -g_fHalfIPD * disp, Y, Z, qx, qy, qz);
 		}
 
 		// (px,py) and (qx,qy) are now in the range [-0.5,..,0.5], we need

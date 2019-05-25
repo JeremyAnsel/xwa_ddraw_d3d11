@@ -66,13 +66,10 @@ extern vr::IVRSystem *g_pHMD;
 extern vr::IVRCompositor *g_pVRCompositor;
 extern bool g_bSteamVREnabled, g_bUseSteamVR, g_bRunDedicatedSteamVRThread, g_bSteamVRTexturesInitialized;
 extern uint32_t g_steamVRWidth, g_steamVRHeight;
-extern vr::TrackedDevicePose_t g_rTrackedDevicePose[];
 extern HANDLE g_hDedicatedSteamVRThread, g_hCompositorTexMutex, g_hWaitGetPosesSignal, g_hCanSubmit;
+extern vr::TrackedDevicePose_t g_rTrackedDevicePose;
 void *g_pSurface = NULL;
-
-DWORD WINAPI DedicatedSteamVRThread(LPVOID lpParam);
 void WaitGetPoses();
-//void ProcessVREvent(const vr::VREvent_t & event);
 
 PrimarySurface::PrimarySurface(DeviceResources* deviceResources, bool hasBackbufferAttached)
 {
@@ -619,106 +616,9 @@ void WaitGetPoses() {
 	// We need to call WaitGetPoses so that SteamVR gets the focus, otherwise we'll just get
 	// error 101 when doing VRCompositor->Submit()
 	if (g_pVRCompositor == NULL) log_debug("[DBG] VRCompositor is NULL");
-	vr::EVRCompositorError error = g_pVRCompositor->WaitGetPoses(g_rTrackedDevicePose,
-		vr::k_unMaxTrackedDeviceCount, NULL, 0);
+	vr::EVRCompositorError error = g_pVRCompositor->WaitGetPoses(&g_rTrackedDevicePose,
+		0, NULL, 0);
 	if (error) log_debug("[DBG] WaitGetPoses error: %d", error);
-}
-
-DWORD WINAPI DedicatedSteamVRThread_Old(LPVOID lpParam)
-{
-	log_debug("[DBG] [Dedicated] thread starting");
-	PrimarySurface *pSurface = (PrimarySurface *)lpParam;
-	auto &resources = pSurface->_deviceResources;
-	auto &context = resources->_d3dDeviceContext;
-	HRESULT hr;
-	vr::EVRCompositorError error = vr::VRCompositorError_None;
-
-	log_debug("[DBG] [Dedicated] pSurface: 0x%x", pSurface);
-	while (g_bRunDedicatedSteamVRThread) {
-		// if (time() - t0 < 8ms) sleep()  # Sleep for ~8ms
-		if (g_pVRCompositor == NULL) {
-			log_debug("[DBG] [Dedicated] Terminating thread because the compositor is NULLL");
-			return 0;
-		}
-
-		if (!g_bSteamVRTexturesInitialized) {
-			log_debug("[DBG] [Dedicated] textures not initialized yet, yielding");
-			Sleep(0);
-			continue;
-		}
-
-		// Try to acquire texture-lock. This should be a non - blocking call!
-		if (WaitForSingleObject(g_hCompositorTexMutex, 0) == WAIT_OBJECT_0) {
-			// The lock has been acquired, copy the textures
-			context->CopyResource(resources->_submitBufferLeft, resources->_stagingBufferLeft);
-			context->CopyResource(resources->_submitBufferRight, resources->_stagingBufferRight);
-			ReleaseMutex(g_hCompositorTexMutex);
-			//log_debug("[DBG] [Dedicated] COPIED");
-		}
-
-		//log_debug("[DBG] [Dedicated] Submitting...");
-		// Submit the current textures -- even if they could not be copied from the staging buffers
-		error = vr::VRCompositorError_None;
-		vr::Texture_t leftEyeTexture = { resources->_submitBufferLeft.Get(), vr::TextureType_DirectX, vr::ColorSpace_Auto };
-		vr::Texture_t rightEyeTexture = { resources->_submitBufferRight.Get(), vr::TextureType_DirectX, vr::ColorSpace_Auto };
-		error = g_pVRCompositor->Submit(vr::Eye_Left, &leftEyeTexture);
-		if (error) log_debug("[DBG] [Dedicated] SteamVR (L) error: %d", error);
-		error = g_pVRCompositor->Submit(vr::Eye_Right, &rightEyeTexture);
-		if (error) log_debug("[DBG] [Dedicated] SteamVR (R) error: %d", error);
-		//log_debug("[DBG] [Dedicated] WaitGetPoses...");
-
-		//Sleep(8);
-		WaitGetPoses();
-		
-		// Display the left image
-		context->ResolveSubresource(resources->_backBufferSteamVR, 0,
-			resources->_submitBufferLeft, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
-		hr = resources->_swapChainSteamVR->Present(0, 0);
-		if (FAILED(hr)) log_debug("[DBG] [Dedicated] Failed Present()");
-
-		//log_debug("[DBG] [Dedicated] End Loop");
-	}
-	log_debug("[DBG] [Dedicated] Exiting thread");
-	return 0;
-}
-
-DWORD WINAPI DedicatedSteamVRThread(LPVOID lpParam) {
-	log_debug("[DBG] [Dedicated] DedicatedSteamVRThread Running");
-	PrimarySurface *pSurface = (PrimarySurface *)lpParam;
-	if (g_pSurface == NULL) g_pSurface = pSurface;
-	auto &resources = pSurface->_deviceResources;
-	auto &context = resources->_d3dDeviceContext;
-	HRESULT hr;
-	vr::EVRCompositorError error = vr::VRCompositorError_None;
-
-	SetEvent(g_hCanSubmit);
-	while (g_bRunDedicatedSteamVRThread) {
-		if (WaitForSingleObject(g_hWaitGetPosesSignal, 0) == WAIT_OBJECT_0) {
-			/*
-			error = vr::VRCompositorError_None;
-			//this->_d3dDeviceContext->ResolveSubresource(this->_offscreenBufferAsInput, 0, 
-			//	this->_offscreenBuffer,	0, DXGI_FORMAT_R8G8B8A8_UNORM);
-			if (g_pVRCompositor == NULL) log_debug("[DBG] [Dedicated] NULL Compositor");
-			if (resources == NULL) log_debug("[DBG] [Dedicated] NULL resources");
-			if (resources->_stagingBufferLeft == NULL) log_debug("[DBG] NULL stagingBufferLeft");
-			//WaitForSingleObject(g_hCompositorTexMutex, 20);
-			{
-				vr::Texture_t leftEyeTexture = { resources->_stagingBufferLeft.Get(), vr::TextureType_DirectX, vr::ColorSpace_Auto };
-				vr::Texture_t rightEyeTexture = { resources->_stagingBufferRight.Get(), vr::TextureType_DirectX, vr::ColorSpace_Auto };
-				error = g_pVRCompositor->Submit(vr::Eye_Left, &leftEyeTexture);
-				if (error) log_debug("[DBG] [Dedicated] SteamVR (L) error: %d", error);
-				error = g_pVRCompositor->Submit(vr::Eye_Right, &rightEyeTexture);
-				if (error) log_debug("[DBG] [Dedicated] SteamVR (R) error: %d", error);
-				//ReleaseMutex(g_hCompositorTexMutex);
-			}
-			*/
-			//log_debug("[DBG] [Dedicated] WaitGetPoses");
-			//WaitGetPoses();
-			ResetEvent(g_hWaitGetPosesSignal);
-			//SetEvent(g_hCanSubmit);
-		}
-	}
-	return 0;
 }
 
 HRESULT PrimarySurface::Flip(
@@ -877,7 +777,7 @@ HRESULT PrimarySurface::Flip(
 			/* Present Concourse, ESC Screen Menu */
 			if (this->_deviceResources->_swapChain)
 			{
-				UINT rate = 60 * this->_deviceResources->_refreshRate.Denominator;
+				UINT rate = 90 * this->_deviceResources->_refreshRate.Denominator;
 				UINT numerator = this->_deviceResources->_refreshRate.Numerator + this->_flipFrames;
 
 				UINT interval = numerator / rate;

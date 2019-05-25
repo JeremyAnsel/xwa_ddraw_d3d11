@@ -21,7 +21,6 @@ bool g_bDumpDebug = false;
 //extern bool g_bDumpSpecificTex;
 //extern int g_iDumpSpecificTexIdx;
 void IncreaseCockpitThreshold(float Delta);
-//void IncreaseFocalDist(float Delta);
 void IncreaseNoDrawBeforeIndex(int Delta);
 void IncreaseNoDrawAfterIndex(int Delta);
 //void IncreaseNoExecIndices(int DeltaBefore, int DeltaAfter);
@@ -29,6 +28,7 @@ void IncreaseNoDrawAfterIndex(int Delta);
 void IncreaseSkipNonZBufferDrawIdx(int Delta);
 void IncreaseSkyBoxIndex(int Delta);
 #endif
+void IncreaseFocalDist(float Delta);
 
 extern bool g_bDisableBarrelEffect, g_bEnableVR;
 extern bool g_bLeftKeyDown, g_bRightKeyDown, g_bUpKeyDown, g_bDownKeyDown, g_bUpKeyDownShift, g_bDownKeyDownShift;
@@ -84,8 +84,10 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 				return 0;
 
 			case VK_RIGHT:
+				IncreaseFocalDist(0.1f);
 				return 0;
 			case VK_LEFT:
+				IncreaseFocalDist(-0.1f);
 				return 0;
 
 			case VK_UP: // Delta is in cms
@@ -278,9 +280,9 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 				g_bDownKeyDown = false;
 				g_bDownKeyDownShift = false;
 				return 0;
-			case '.':
-				g_pHMD->ResetSeatedZeroPose();
+			case VK_OEM_PERIOD:
 				log_debug("[DBG] SteamVR Zero Pose Reset");
+				g_pHMD->ResetSeatedZeroPose();
 				break;
 			}
 		}
