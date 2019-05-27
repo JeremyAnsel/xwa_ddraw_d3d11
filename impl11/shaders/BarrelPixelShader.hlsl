@@ -8,6 +8,7 @@
 
  Used with permission from BlueSkyDefender.
 
+ This version applies two barrel distortion effects and two vignettes to an SBS image.
  */
 Texture2D texture0 : register(t0);
 SamplerState sampler0 : register(s0);
@@ -73,6 +74,7 @@ float4 main(PixelShaderInput input) : SV_TARGET
 			return float4(0, 0, 0, 1);
 	}
 
+	// Apply the vignette
 	if (radius > 0.45f)
 		// Regular linear interpolation:
 		// vignette = 1.0f * (0.5 - radius) / (0.5 - 0.45) + 0.0 * (radius - 0.45) / (0.5 - 0.45)

@@ -41,6 +41,8 @@ const float DEFAULT_LENS_K2 = 0.22f;
 const float DEFAULT_LENS_K3 = 0.0f;
 const float DEFAULT_COCKPIT_PZ_THRESHOLD = 0.166f; // I used 0.13f for a long time until I jumped on a TIE-Interceptor
 const int DEFAULT_SKYBOX_INDEX = 2;
+const bool DEFAULT_INTERLEAVED_REPROJECTION = false;
+const bool DEFAULT_BARREL_EFFECT_STATE = true;
 const float DEFAULT_BRIGHTNESS = 0.95f;
 const float MAX_BRIGHTNESS = 1.0f;
 
@@ -61,16 +63,32 @@ const char *GUI_OBJ_PARALLAX_VRPARAM = "GUI_target_parallax";
 const char *TEXT_PARALLAX_VRPARAM = "Text_parallax";
 const char *TECH_LIB_PARALLAX_VRPARAM = "Tech_Library_parallax";
 const char *BRIGHTNESS_VRPARAM = "brightness";
+const char *VR_MODE_VRPARAM = "VR_Mode"; // Select "None", "DirectSBS" or "SteamVR"
+const char *VR_MODE_NONE_SVAL = "None";
+const char *VR_MODE_DIRECT_SBS_SVAL = "DirectSBS";
+const char *VR_MODE_STEAMVR_SVAL = "SteamVR";
+const char *INTERLEAVED_REPROJ_VRPARAM = "SteamVR_Interleaved_Reprojection";
+const char *BARREL_EFFECT_STATE_VRPARAM = "barrel_effect";
+
+/*
+typedef enum {
+	VR_MODE_NONE,
+	VR_MODE_DIRECT_SBS,
+	VR_MODE_STEAMVR
+} VRModeEnum;
+VRModeEnum g_VRMode = VR_MODE_DIRECT_SBS;
+*/
 
 /* SteamVR HMD */
 vr::IVRSystem *g_pHMD = NULL;
 vr::IVRCompositor *g_pVRCompositor = NULL;
 vr::IVRScreenshots *g_pVRScreenshots = NULL;
 vr::TrackedDevicePose_t g_rTrackedDevicePose;
-uint32_t g_steamVRWidth = 0, g_steamVRHeight = 0;
-bool g_bSteamVREnabled = true; // The user sets this flag to true to request support for SteamVR. TODO: Add vrparam.cfg setting to set this flag
+uint32_t g_steamVRWidth = 0, g_steamVRHeight = 0; // The resolution recommended by SteamVR is stored here
+bool g_bSteamVREnabled = false; // The user sets this flag to true to request support for SteamVR.
 bool g_bSteamVRInitialized = false; // The system will set this flag after SteamVR has been initialized
 bool g_bUseSteamVR = false; // The system will set this flag if the user requested SteamVR and SteamVR was initialized properly
+bool g_bInterleavedReprojection = DEFAULT_INTERLEAVED_REPROJECTION;
 
 /* Vertices that will be used for the VertexBuffer. */
 D3DTLVERTEX *g_OrigVerts = NULL, *g_LeftVerts = NULL, *g_RightVerts = NULL;
@@ -378,12 +396,12 @@ void IncreaseLensK2(float Delta) {
 
 /* Restores the various VR parameters to their default values. */
 void ResetVRParams() {
-	g_fFocalDist = DEFAULT_FOCAL_DIST;
+	g_fFocalDist = g_bSteamVREnabled ? DEFAULT_FOCAL_DIST_STEAMVR : DEFAULT_FOCAL_DIST;
 	EvaluateIPD(DEFAULT_IPD);
 	g_bCockpitPZHackEnabled = true;
 	g_fGUIElemPZThreshold = DEFAULT_GUI_ELEM_PZ_THRESHOLD;
 	g_fGUIElemScale = DEFAULT_GUI_ELEM_SCALE;
-	g_fGlobalScale = DEFAULT_GLOBAL_SCALE;
+	g_fGlobalScale = g_bSteamVREnabled ? DEFAULT_GLOBAL_SCALE_STEAMVR : DEFAULT_GLOBAL_SCALE;
 	g_fGlobalScaleZoomOut = DEFAULT_ZOOM_OUT_SCALE;
 	g_fGUIElemsScale = g_bZoomOut ? g_fGlobalScaleZoomOut : g_fGlobalScale;
 	g_fConcourseScale = DEFAULT_CONCOURSE_SCALE;
@@ -412,6 +430,11 @@ void ResetVRParams() {
 
 	g_fBrightness = DEFAULT_BRIGHTNESS;
 
+	g_bInterleavedReprojection = DEFAULT_INTERLEAVED_REPROJECTION;
+	if (g_bUseSteamVR)
+		g_pVRCompositor->ForceInterleavedReprojectionOn(g_bInterleavedReprojection);
+
+	g_bDisableBarrelEffect = !DEFAULT_BARREL_EFFECT_STATE;
 	// Load CRCs
 	ReloadCRCs();
 }
@@ -432,13 +455,23 @@ void SaveVRParams() {
 		return;
 	}
 	fprintf(file, "; VR parameters. Write one parameter per line.\n");
-	fprintf(file, "; The logic to read these parameters is not very robust, so chances are\n");
-	fprintf(file, "; you might break the file unintentionally. Always make a backup copy of this\n");
-	fprintf(file, "; file before modifying it. If you want to restore it to its default settings,\n");
-	fprintf(file, "; simply delete the file and restart the game. Then press Ctrl+Alt+S to save a\n");
+	fprintf(file, "; Always make a backup copy of this file before modifying it.\n");
+	fprintf(file, "; If you want to restore it to its default settings, simply delete the\n");
+	fprintf(file, "; file and restart the game.Then press Ctrl + Alt + S to save a\n");
 	fprintf(file, "; new config file with the default parameters.\n");
 	fprintf(file, "; To reload this file during game (at any point) just press Ctrl+Alt+L.\n");
 	fprintf(file, "; You can also press Ctrl+Alt+R to reset the viewing params to default values.\n\n");
+
+	fprintf(file, "; VR Mode. Select from None, DirectSBS and SteamVR.\n");
+	if (!g_bEnableVR)
+		fprintf(file, "%s = %s\n", VR_MODE_VRPARAM, VR_MODE_NONE_SVAL);
+	else {
+		if (!g_bSteamVREnabled)
+			fprintf(file, "%s = %s\n", VR_MODE_VRPARAM, VR_MODE_DIRECT_SBS_SVAL);
+		else
+			fprintf(file, "%s = %s\n", VR_MODE_VRPARAM, VR_MODE_STEAMVR_SVAL);
+	}
+	fprintf(file, "\n");
 
 	//fprintf(file, "focal_dist = %0.6f # Try not to modify this value, change IPD instead.\n", focal_dist);
 
@@ -465,6 +498,7 @@ void SaveVRParams() {
 	fprintf(file, "%s = %0.6f\n", K1_VRPARAM, g_fLensK1);
 	fprintf(file, "%s = %0.6f\n", K2_VRPARAM, g_fLensK2);
 	fprintf(file, "%s = %0.6f\n", K3_VRPARAM, g_fLensK3);
+	fprintf(file, "%s = %d\n", BARREL_EFFECT_STATE_VRPARAM, !g_bDisableBarrelEffect);
 
 	fprintf(file, "\n; Depth for various GUI elements. Set these to 0 to put them at infinity (ZFar).\n");
 	fprintf(file, "%s = %0.3f\n", HUD_PARALLAX_VRPARAM, g_fHUDParallax);
@@ -482,6 +516,9 @@ void SaveVRParams() {
 	fprintf(file, "; Concourse and 2D menus (avoids unwanted bloom when using ReShade).\n");
 	fprintf(file, "; A value of 1 is normal brightness, 0 will render everything black.\n");
 	fprintf(file, "%s = %0.3f\n", BRIGHTNESS_VRPARAM, g_fBrightness);
+
+	fprintf(file, "\n");
+	fprintf(file, "%s = %d\n", INTERLEAVED_REPROJ_VRPARAM, g_bInterleavedReprojection);
 
 	fclose(file);
 	log_debug("[DBG] vrparams.cfg saved");
@@ -504,19 +541,19 @@ void LoadVRParams() {
 		goto next;
 	}
 
-	char buf[120];
-	char param[80];
-	float value;
+	char buf[160], param[80], svalue[80];
 	int param_read_count = 0;
+	float value = 0.0f;
 
-	while (fgets(buf, 120, file) != NULL) {
+	while (fgets(buf, 160, file) != NULL) {
 		// Skip comments and blank lines
 		if (buf[0] == ';' || buf[0] == '#')
 			continue;
 		if (strlen(buf) == 0)
 			continue;
 
-		if (sscanf_s(buf, "%s = %f", param, 80, &value) > 0) {
+		if (sscanf_s(buf, "%s = %s", param, 80, svalue, 80) > 0) {
+			value = (float )atof(svalue);
 			if (_stricmp(param, FOCAL_DIST_VRPARAM) == 0) {
 				g_fFocalDist = value;
 			}
@@ -555,6 +592,9 @@ void LoadVRParams() {
 			else if (_stricmp(param, K3_VRPARAM) == 0) {
 				g_fLensK3 = value;
 			}
+			else if (_stricmp(param, BARREL_EFFECT_STATE_VRPARAM) == 0) {
+				g_bDisableBarrelEffect = !((bool)value);
+			}
 			else if (_stricmp(param, HUD_PARALLAX_VRPARAM) == 0) {
 				g_fHUDParallax = value;
 				//log_debug("[DBG] HUD Parallax read: %f", value);
@@ -576,6 +616,32 @@ void LoadVRParams() {
 			else if (_stricmp(param, BRIGHTNESS_VRPARAM) == 0) {
 				g_fBrightness = value;
 			}
+			else if (_stricmp(param, VR_MODE_VRPARAM) == 0) {
+				if (_stricmp(svalue, VR_MODE_NONE_SVAL) == 0) {
+					//g_VRMode = VR_MODE_NONE;
+					g_bEnableVR = false;
+					g_bSteamVREnabled = false;
+					log_debug("[DBG] Disabling VR");
+				}
+				else if (_stricmp(svalue, VR_MODE_DIRECT_SBS_SVAL) == 0) {
+					//g_VRMode = VR_MODE_DIRECT_SBS;
+					g_bSteamVREnabled = false;
+					log_debug("[DBG] Using Direct SBS mode");
+				}
+				else if (_stricmp(svalue, VR_MODE_STEAMVR_SVAL) == 0) {
+					//g_VRMode = VR_MODE_STEAMVR;
+					g_bSteamVREnabled = true;
+					log_debug("[DBG] Using SteamVR");
+				}
+			}
+			else if (_stricmp(param, INTERLEAVED_REPROJ_VRPARAM) == 0) {
+				g_bInterleavedReprojection = (bool)value;
+				if (g_bUseSteamVR && g_bInterleavedReprojection) {
+					log_debug("[DBG] Setting Interleaved Reprojection to: %d", g_bInterleavedReprojection);
+					g_pVRCompositor->ForceInterleavedReprojectionOn(g_bInterleavedReprojection);
+				}
+
+			}
 			param_read_count++;
 		}
 	} // while ... read file
@@ -592,9 +658,10 @@ next:
  * The 2D coordinate must be in normalized space (-0.5..0.5) with the center of the image at (0,0).
  */
 static inline void
-back_project(float px, float py, float pz, float &X, float &Y, float &Z)
+back_project(float px, float py, float pz, float direct_pz, float &X, float &Y, float &Z)
 {
-	Z = (exp(pz * LOG_K) - 1.0f) / C;
+	//Z = (exp(pz * LOG_K) - 1.0f) / C;
+	Z = (exp(pz * LOG_K) - 1.0f) / direct_pz;
 	X = Z * px / g_fFocalDist;
 	Y = Z * py / g_fFocalDist;
 }
@@ -664,13 +731,13 @@ bool InitSteamVR()
 		return false;
 	}
 	log_debug("[DBG] SteamVR Compositor Initialized");
-	//g_pVRCompositor->ForceInterleavedReprojectionOn(true);
-	g_pVRCompositor->ForceInterleavedReprojectionOn(false); // Looks like we get slightly better performance with this setting.
+
+	g_pVRCompositor->ForceInterleavedReprojectionOn(g_bInterleavedReprojection); // Looks like we get slightly better performance with this setting.
+	log_debug("[DBG] InterleavedReprojection: %d", g_bInterleavedReprojection);
 
 	g_pVRScreenshots = vr::VRScreenshots();
 	if (g_pVRScreenshots != NULL) {
 		log_debug("[DBG] SteamVR screenshot system enabled");
-		//g_pVRScreenshots->
 	}
 
 	// Reset the seated pose
@@ -680,14 +747,17 @@ bool InitSteamVR()
 }
 
 void ShutDownSteamVR() {
-	log_debug("[DBG] Shutting down SteamVR");
-	
-	if (g_pHMD)
-	{
-		vr::VR_Shutdown();
-		g_pHMD = NULL;
-		g_pVRCompositor = NULL;
-	}
+	// We can't shut down SteamVR twice, we either shut it down here or in the cockpit look hook.
+	// It looks like the right order is to shut SteamVR down in the cockpit look hook
+	return;
+	//log_debug("[DBG] Not shutting down SteamVR, just returning...");
+	//return;
+	log_debug("[DBG] Shutting down SteamVR...");
+	vr::VR_Shutdown();
+	g_pHMD = NULL;
+	g_pVRCompositor = NULL;
+	g_pVRScreenshots = NULL;
+	log_debug("[DBG] SteamVR shut down");
 }
 
 /*
@@ -1224,7 +1294,7 @@ void DumpOrigVertices(FILE *file, int numVerts)
 void PreprocessVerticesStereo(float width, float height, int numVerts)
 {
 	// Pre-process vertices for Stereo
-	float X, Y, Z, px, py, pz, qx, qy, qz;
+	float X, Y, Z, px, py, pz, qx, qy, qz, direct_pz;
 	bool is_cockpit;
 	float scale_x = 1.0f / width;
 	float scale_y = 1.0f / height;
@@ -1240,14 +1310,15 @@ void PreprocessVerticesStereo(float width, float height, int numVerts)
 		py = g_OrigVerts[i].sy * scale_y - 0.5f;
 		// Also invert the Z axis so that z = 0 is the screen plane and z = 1 is ZFar, the original
 		// values have ZFar = 0, and ZNear = 1
-		pz = 1.0f - g_OrigVerts[i].sz;
+		direct_pz = g_OrigVerts[i].sz;
+		pz = 1.0f - direct_pz;
 
 		// GUI elements seem to be in the range 0..0.0005, so 0.0006 sounds like a good threshold:
 		is_GUI = (pz <= g_fGUIElemPZThreshold);
 		is_cockpit = (pz <= g_fCockpitPZThreshold);
 
 		// Back-project into 3D space
-		back_project(px, py, pz, X, Y, Z);
+		back_project(px, py, pz, direct_pz, X, Y, Z);
 
 		// Reproject back into 2D space
 		if (is_GUI) {

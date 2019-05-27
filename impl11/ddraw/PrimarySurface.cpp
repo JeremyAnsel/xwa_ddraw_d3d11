@@ -71,6 +71,22 @@ extern vr::TrackedDevicePose_t g_rTrackedDevicePose;
 void *g_pSurface = NULL;
 void WaitGetPoses();
 
+//#ifdef DBR_VR
+void PrimarySurface::capture(int time_delay, ComPtr<ID3D11Texture2D> buffer, const wchar_t *filename)
+{
+	bool bDoCapture = false;
+	HRESULT hr = D3D_OK;
+
+	hr = DirectX::SaveWICTextureToFile(this->_deviceResources->_d3dDeviceContext.Get(),
+		buffer.Get(), GUID_ContainerFormatJpeg, filename);
+
+	if (SUCCEEDED(hr))
+		log_debug("[DBG] CAPTURED (1)!");
+	else
+		log_debug("[DBG] NOT captured, hr: %d", hr);
+}
+//#endif
+
 PrimarySurface::PrimarySurface(DeviceResources* deviceResources, bool hasBackbufferAttached)
 {
 	this->_refCount = 1;
@@ -493,8 +509,8 @@ void PrimarySurface::barrelEffect2D(int iteration) {
 	resources->InitPSConstantBufferBarrel(resources->_barrelConstantBuffer.GetAddressOf(), g_fLensK1, g_fLensK2, g_fLensK3);
 
 	context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewL, D3D11_CLEAR_DEPTH, 1.0f, 0);
-	context->ClearRenderTargetView(this->_deviceResources->_renderTargetView3, bgColor);
-	context->OMSetRenderTargets(1, this->_deviceResources->_renderTargetView3.GetAddressOf(), this->_deviceResources->_depthStencilViewL.Get());
+	context->ClearRenderTargetView(this->_deviceResources->_renderTargetViewPost, bgColor);
+	context->OMSetRenderTargets(1, this->_deviceResources->_renderTargetViewPost.GetAddressOf(), this->_deviceResources->_depthStencilViewL.Get());
 	context->PSSetShaderResources(0, 1, this->_deviceResources->_offscreenAsInputShaderResourceView.GetAddressOf());
 
 	resources->InitViewport(&viewport);
@@ -532,7 +548,6 @@ void PrimarySurface::barrelEffect3D() {
 	// Set the vertex buffer
 	UINT stride = sizeof(MainVertex);
 	UINT offset = 0;
-	//context->IASetVertexBuffers(0, 1, &g_BarrelEffectVertBuffer, &stride, &offset);
 	resources->InitVertexBuffer(&g_BarrelEffectVertBuffer, &stride, &offset);
 
 	// Set Primitive Topology
@@ -541,19 +556,18 @@ void PrimarySurface::barrelEffect3D() {
 	resources->InitInputLayout(resources->_mainInputLayout);
 	
 	// Temporarily disable ZWrite: we won't need it for the barrel effect
-	BOOL Enabled = FALSE;
 	D3D11_DEPTH_STENCIL_DESC desc;
 	ComPtr<ID3D11DepthStencilState> depthState;
-	desc.DepthEnable = Enabled;
-	desc.DepthWriteMask = Enabled ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
-	desc.DepthFunc = Enabled ? D3D11_COMPARISON_GREATER : D3D11_COMPARISON_ALWAYS;
+	desc.DepthEnable = FALSE;
+	desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+	desc.DepthFunc = D3D11_COMPARISON_ALWAYS;
 	desc.StencilEnable = FALSE;
 	resources->InitDepthStencilState(depthState, &desc);
 
 	// Create a new viewport to render the offscreen buffer as a texture
 	D3D11_VIEWPORT viewport{};
-	float screen_res_x = (float)this->_deviceResources->_backbufferWidth;
-	float screen_res_y = (float)this->_deviceResources->_backbufferHeight;
+	float screen_res_x = (float)resources->_backbufferWidth;
+	float screen_res_y = (float)resources->_backbufferHeight;
 	float bgColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 	viewport.TopLeftX = (float)0;
@@ -577,11 +591,11 @@ void PrimarySurface::barrelEffect3D() {
 	// Clear the depth stencil
 	context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	// Clear the render target
-	context->ClearRenderTargetView(resources->_renderTargetView3, bgColor);
-	context->OMSetRenderTargets(1, resources->_renderTargetView3.GetAddressOf(), 
+	context->ClearRenderTargetView(resources->_renderTargetViewPost, bgColor);
+	context->OMSetRenderTargets(1, resources->_renderTargetViewPost.GetAddressOf(), 
 		this->_deviceResources->_depthStencilViewL.Get());
 	resources->InitViewport(&viewport);
-	context->IASetInputLayout(this->_deviceResources->_mainInputLayout);
+	context->IASetInputLayout(resources->_mainInputLayout);
 	context->Draw(6, 0);
 
 #ifdef DBG_VR
@@ -605,12 +619,141 @@ void PrimarySurface::barrelEffect3D() {
 #endif
 
 	// Restore previous rendertarget, etc
-	//context->IASetInputLayout(this->_deviceResources->_inputLayout);
 	resources->InitInputLayout(resources->_inputLayout);
 	context->OMSetRenderTargets(1, this->_deviceResources->_renderTargetView.GetAddressOf(), 
 		this->_deviceResources->_depthStencilViewL.Get());
 }
 
+/*
+ * Applies the barrel distortion effect on the 3D window for SteamVR (so each image is
+ * independent and the singleBarrelPixelShader is used.
+ */
+void PrimarySurface::barrelEffectSteamVR() {
+	auto& resources = this->_deviceResources;
+	auto& device = resources->_d3dDevice;
+	auto& context = resources->_d3dDeviceContext;
+
+	// Create the VertexBuffer if necessary
+	if (g_BarrelEffectVertBuffer == NULL) {
+		D3D11_BUFFER_DESC vertexBufferDesc;
+		ZeroMemory(&vertexBufferDesc, sizeof(vertexBufferDesc));
+		vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+		vertexBufferDesc.ByteWidth = sizeof(MainVertex) * ARRAYSIZE(g_BarrelEffectVertices);
+		vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		vertexBufferDesc.CPUAccessFlags = 0;
+		vertexBufferDesc.MiscFlags = 0;
+
+		D3D11_SUBRESOURCE_DATA vertexBufferData;
+		ZeroMemory(&vertexBufferData, sizeof(vertexBufferData));
+		vertexBufferData.pSysMem = g_BarrelEffectVertices;
+		device->CreateBuffer(&vertexBufferDesc, &vertexBufferData, &g_BarrelEffectVertBuffer);
+	}
+	// Set the vertex buffer
+	UINT stride = sizeof(MainVertex);
+	UINT offset = 0;
+	resources->InitVertexBuffer(&g_BarrelEffectVertBuffer, &stride, &offset);
+
+	// Set Primitive Topology
+	// Opportunity for optimization? Make all draw calls use the same topology?
+	resources->InitTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	resources->InitInputLayout(resources->_mainInputLayout);
+
+	// Temporarily disable ZWrite: we won't need it for the barrel effect
+	D3D11_DEPTH_STENCIL_DESC desc;
+	ComPtr<ID3D11DepthStencilState> depthState;
+	desc.DepthEnable = FALSE;
+	desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+	desc.DepthFunc = D3D11_COMPARISON_ALWAYS;
+	desc.StencilEnable = FALSE;
+	resources->InitDepthStencilState(depthState, &desc);
+
+	// Create a new viewport to render the offscreen buffer as a texture
+	D3D11_VIEWPORT viewport{};
+	float screen_res_x = (float)resources->_backbufferWidth;
+	float screen_res_y = (float)resources->_backbufferHeight;
+	float bgColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+	viewport.TopLeftX = (float)0;
+	viewport.TopLeftY = (float)0;
+	viewport.Width = (float)screen_res_x;
+	viewport.Height = (float)screen_res_y;
+	viewport.MaxDepth = D3D11_MAX_DEPTH;
+	viewport.MinDepth = D3D11_MIN_DEPTH;
+	resources->InitViewport(&viewport);
+
+	// Resolve both images
+	context->ResolveSubresource(resources->_offscreenBufferAsInput, 0, resources->_offscreenBuffer,
+		0, DXGI_FORMAT_B8G8R8A8_UNORM);
+	context->ResolveSubresource(resources->_offscreenBufferAsInputR, 0, resources->_offscreenBufferR,
+		0, DXGI_FORMAT_B8G8R8A8_UNORM);
+
+	/*
+	if (g_bCapture2DOffscreenBuffer) {
+		static int frame = 0;
+		wchar_t filename[120];
+
+		log_debug("[DBG] Capturing buffers");
+		swprintf_s(filename, 120, L"c:\\temp\\offscreenBuf-%d.jpg", frame);
+		capture(0, this->_deviceResources->_offscreenBuffer, filename);
+
+		swprintf_s(filename, 120, L"c:\\temp\\offscreenBufAsInput-%d.jpg", frame);
+		capture(0, this->_deviceResources->_offscreenBufferAsInput, filename);
+
+		frame++;
+		if (frame >= 1)
+			g_bCapture2DOffscreenBuffer = false;
+	}
+	*/
+
+	resources->InitVSConstantBuffer2D(resources->_mainShadersConstantBuffer.GetAddressOf(), 0.0f, 1.0f, 1.0f, 1.0f);
+	resources->InitVertexShader(resources->_mainVertexShader);
+	resources->InitPixelShader(resources->_singleBarrelPixelShader);
+
+	// Set the lens distortion constants for the barrel shader
+	resources->InitPSConstantBufferBarrel(resources->_barrelConstantBuffer.GetAddressOf(), g_fLensK1, g_fLensK2, g_fLensK3);
+
+	// Clear the depth stencil and render target
+	context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	context->ClearDepthStencilView(resources->_depthStencilViewR, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	context->ClearRenderTargetView(resources->_renderTargetViewPost, bgColor);
+	context->ClearRenderTargetView(resources->_renderTargetViewPostR, bgColor);
+	context->IASetInputLayout(resources->_mainInputLayout);
+
+	context->PSSetShaderResources(0, 1, resources->_offscreenAsInputShaderResourceView.GetAddressOf());
+	context->OMSetRenderTargets(1, resources->_renderTargetViewPost.GetAddressOf(),
+		resources->_depthStencilViewL.Get());
+	context->Draw(6, 0);
+
+	context->PSSetShaderResources(0, 1, resources->_offscreenAsInputShaderResourceViewR.GetAddressOf());
+	context->OMSetRenderTargets(1, resources->_renderTargetViewPostR.GetAddressOf(),
+		resources->_depthStencilViewR.Get());
+	context->Draw(6, 0);
+
+#ifdef DBG_VR
+	if (g_bCapture2DOffscreenBuffer) {
+		static int frame = 0;
+		wchar_t filename[120];
+
+		swprintf_s(filename, 120, L"c:\\temp\\offscreenBufR-%d.jpg", frame);
+		capture(0, resources->_offscreenBufferR, filename);
+
+		swprintf_s(filename, 120, L"c:\\temp\\offscreenBufAsInputR-%d.jpg", frame);
+		capture(0, resources->_offscreenBufferAsInputR, filename);
+
+		swprintf_s(filename, 120, L"c:\\temp\\offscreenBufPostR-%d.jpg", frame);
+		capture(0, resources->_offscreenBufferPostR, filename);
+
+		frame++;
+		if (frame >= 1)
+			g_bCapture2DOffscreenBuffer = false;
+	}
+#endif
+
+	// Restore previous rendertarget, etc
+	resources->InitInputLayout(resources->_inputLayout);
+	context->OMSetRenderTargets(1, this->_deviceResources->_renderTargetView.GetAddressOf(),
+		this->_deviceResources->_depthStencilViewL.Get());
+}
 /* Convenience function to call WaitGetPoses() */
 void WaitGetPoses() {
 	// We need to call WaitGetPoses so that SteamVR gets the focus, otherwise we'll just get
@@ -678,9 +821,12 @@ HRESULT PrimarySurface::Flip(
 	if (this->_deviceResources->sceneRenderedEmpty && this->_deviceResources->_frontbufferSurface != nullptr && this->_deviceResources->_frontbufferSurface->wasBltFastCalled)
 	{
 		this->_deviceResources->_d3dDeviceContext->ClearRenderTargetView(this->_deviceResources->_renderTargetView, this->_deviceResources->clearColor);
-		if (g_bUseSteamVR)
-			this->_deviceResources->_d3dDeviceContext->ClearRenderTargetView(this->_deviceResources->_renderTargetView, this->_deviceResources->clearColor);
-		this->_deviceResources->_d3dDeviceContext->ClearRenderTargetView(this->_deviceResources->_renderTargetView3, this->_deviceResources->clearColor);
+		if (g_bUseSteamVR) {
+			this->_deviceResources->_d3dDeviceContext->ClearRenderTargetView(this->_deviceResources->_renderTargetViewR, this->_deviceResources->clearColor);
+			this->_deviceResources->_d3dDeviceContext->ClearRenderTargetView(this->_deviceResources->_renderTargetViewPostR, this->_deviceResources->clearColor);
+		}
+		// Do we need to clear renderTargetViewPost?
+		this->_deviceResources->_d3dDeviceContext->ClearRenderTargetView(this->_deviceResources->_renderTargetViewPost, this->_deviceResources->clearColor);
 		this->_deviceResources->_d3dDeviceContext->ClearDepthStencilView(this->_deviceResources->_depthStencilViewL, D3D11_CLEAR_DEPTH, this->_deviceResources->clearDepth, 0);
 		this->_deviceResources->_d3dDeviceContext->ClearDepthStencilView(this->_deviceResources->_depthStencilViewR, D3D11_CLEAR_DEPTH, this->_deviceResources->clearDepth, 0);
 	}
@@ -787,7 +933,7 @@ HRESULT PrimarySurface::Flip(
 
 				hr = DD_OK;
 
-				for (UINT i = 0; i < interval; i++)
+				for (UINT i = 0; i < 1 /* interval */; i++)
 				{
 					// In the original code the offscreenBuffer is simply resolved into the backBuffer.
 					// this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0, this->_deviceResources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
@@ -795,7 +941,7 @@ HRESULT PrimarySurface::Flip(
 					if (!g_bDisableBarrelEffect && g_bEnableVR && !g_bUseSteamVR) {
 						barrelEffect2D(i);
 						this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0,
-							this->_deviceResources->_offscreenBuffer3, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+							this->_deviceResources->_offscreenBufferPost, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
 					}
 					else {
 						/*
@@ -918,10 +1064,17 @@ HRESULT PrimarySurface::Flip(
 			//this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0, this->_deviceResources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
 
 			// The offscreenBuffer contains the fully-rendered image at this point.
-			if (g_bEnableVR && !g_bDisableBarrelEffect && !g_bUseSteamVR) {
-				barrelEffect3D();
-				this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0,
-					this->_deviceResources->_offscreenBuffer3, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+			if (g_bEnableVR && !g_bDisableBarrelEffect) {
+				if (g_bUseSteamVR) {
+					barrelEffectSteamVR();
+					this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0,
+						this->_deviceResources->_offscreenBufferPostR, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+				}
+				else {
+					barrelEffect3D();
+					this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0,
+						this->_deviceResources->_offscreenBufferPost, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+				}
 			} else {
 				this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0,
 					this->_deviceResources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
@@ -934,9 +1087,9 @@ HRESULT PrimarySurface::Flip(
 			g_bStartedGUI = false;
 			
 			// Perform the lean left/right etc animations
-			animTickX();
-			animTickY();
-			animTickZ();
+			//animTickX();
+			//animTickY();
+			//animTickZ();
 
 #ifdef DBG_VR
 			if (g_bStart3DCapture && !g_bDo3DCapture) {
@@ -955,8 +1108,17 @@ HRESULT PrimarySurface::Flip(
 				//	log_debug("[DBG] No Vsync info available");
 
 				vr::EVRCompositorError error = vr::VRCompositorError_None;
-				vr::Texture_t leftEyeTexture = { this->_deviceResources->_offscreenBuffer.Get(), vr::TextureType_DirectX, vr::ColorSpace_Auto };
-				vr::Texture_t rightEyeTexture = { this->_deviceResources->_offscreenBufferR.Get(), vr::TextureType_DirectX, vr::ColorSpace_Auto };
+				vr::Texture_t leftEyeTexture;
+				vr::Texture_t rightEyeTexture;
+
+				if (g_bDisableBarrelEffect) {
+					leftEyeTexture = { this->_deviceResources->_offscreenBuffer.Get(), vr::TextureType_DirectX, vr::ColorSpace_Auto };
+					rightEyeTexture = { this->_deviceResources->_offscreenBufferR.Get(), vr::TextureType_DirectX, vr::ColorSpace_Auto };
+				}
+				else {
+					leftEyeTexture = { this->_deviceResources->_offscreenBufferPost.Get(), vr::TextureType_DirectX, vr::ColorSpace_Auto };
+					rightEyeTexture = { this->_deviceResources->_offscreenBufferPostR.Get(), vr::TextureType_DirectX, vr::ColorSpace_Auto };
+				}
 				error = g_pVRCompositor->Submit(vr::Eye_Left, &leftEyeTexture);
 				//if (error) log_debug("[DBG] 3D Present (left) SteamVR error: %d", error);
 				error = g_pVRCompositor->Submit(vr::Eye_Right, &rightEyeTexture);
@@ -970,6 +1132,8 @@ HRESULT PrimarySurface::Flip(
 
 			// We're about to show 3D content, so let's set the corresponding flag
 			g_bRendering3D = true;
+			// Doing Present(1, 0) limits the framerate to 30fps, without it, it can go up to 60; but usually
+			// stays around 45 in my system
 			if (FAILED(hr = this->_deviceResources->_swapChain->Present(0, 0)))
 			{
 				static bool messageShown = false;

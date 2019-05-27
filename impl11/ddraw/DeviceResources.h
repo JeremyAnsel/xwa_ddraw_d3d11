@@ -92,11 +92,13 @@ public:
 	ComPtr<ID3D11Texture2D> _offscreenBuffer;
 	ComPtr<ID3D11Texture2D> _offscreenBufferR; // When SteamVR is used, _offscreenBuffer becomes the left eye and this one becomes the right eye
 	ComPtr<ID3D11Texture2D> _offscreenBufferAsInput;
-	ComPtr<ID3D11Texture2D> _offscreenBufferAsInputRight; // When SteamVR is used, these buffers can be used to make copies of the
-	ComPtr<ID3D11Texture2D> _offscreenBuffer3; // This is the output of the barrel effect when not using SteamVR
+	ComPtr<ID3D11Texture2D> _offscreenBufferAsInputR; // When SteamVR is used, these buffers can be used to make copies of the
+	ComPtr<ID3D11Texture2D> _offscreenBufferPost; // This is the output of the barrel effect
+	ComPtr<ID3D11Texture2D> _offscreenBufferPostR; // This is the output of the barrel effect for the right image when using SteamVR
 	ComPtr<ID3D11RenderTargetView> _renderTargetView;
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewR; // When SteamVR is used, _renderTargetView is the left eye, and this one is the right eye
-	ComPtr<ID3D11RenderTargetView> _renderTargetView3; // Used for the barrel effect when SteamVR is not used.
+	ComPtr<ID3D11RenderTargetView> _renderTargetViewPost; // Used for the barrel effect
+	ComPtr<ID3D11RenderTargetView> _renderTargetViewPostR; // Used for the barrel effect (right image) when SteamVR is used.
 	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputShaderResourceView;
 	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputShaderResourceViewR; // When SteamVR is enabled, this is the SRV for the right eye
 	ComPtr<ID3D11Texture2D> _depthStencilL;
@@ -111,6 +113,7 @@ public:
 	ComPtr<ID3D11PixelShader> _mainPixelShaderBpp2ColorKey00;
 	ComPtr<ID3D11PixelShader> _mainPixelShaderBpp4ColorKey20;
 	ComPtr<ID3D11PixelShader> _barrelPixelShader;
+	ComPtr<ID3D11PixelShader> _singleBarrelPixelShader;
 	ComPtr<ID3D11RasterizerState> _mainRasterizerState;
 	ComPtr<ID3D11SamplerState> _mainSamplerState;
 	ComPtr<ID3D11BlendState> _mainBlendState;

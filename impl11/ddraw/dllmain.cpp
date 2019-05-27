@@ -12,10 +12,10 @@
 #include <stdio.h>
 #include <vector>
 
+bool g_bCapture2DOffscreenBuffer = false;
 #ifdef DBG_VR
 extern bool g_bFixSkyBox, g_bSkipGUI, g_bSkipText, g_bSkipSkyBox;
 extern bool g_bDo3DCapture, g_bStart3DCapture;
-bool g_bCapture2DOffscreenBuffer = false;
 bool g_bDumpDebug = false;
 
 //extern bool g_bDumpSpecificTex;
@@ -58,6 +58,7 @@ void IncreaseLensK2(float Delta);
 #include <headers/openvr.h>
 extern bool g_bSteamVREnabled, g_bSteamVRInitialized, g_bUseSteamVR;
 extern vr::IVRSystem *g_pHMD;
+extern vr::IVRScreenshots *g_pVRScreenshots;
 bool InitSteamVR();
 void ShutDownSteamVR();
 
@@ -116,20 +117,20 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 				log_debug("[DBG] Dumping specific texture");
 				g_bDumpSpecificTex = true;
 				return 0;
-			/*case 'T':
-				g_bSkipText = !g_bSkipText;
-				if (g_bSkipText)
-					log_debug("[DBG] Skipping Text GUI");
-				else
-					log_debug("[DBG] Drawing Text GUI");*/
-					/*
-					g_bSkipAfterTargetComp = !g_bSkipAfterTargetComp;
-					if (g_bSkipAfterTargetComp)
-						log_debug("[DBG] Skipping draw calls after TargetComp");
+				/*case 'T':
+					g_bSkipText = !g_bSkipText;
+					if (g_bSkipText)
+						log_debug("[DBG] Skipping Text GUI");
 					else
-						log_debug("[DBG] NOT Skipping draw calls after TargetComp");
-					return 0;
-					*/
+						log_debug("[DBG] Drawing Text GUI");*/
+						/*
+						g_bSkipAfterTargetComp = !g_bSkipAfterTargetComp;
+						if (g_bSkipAfterTargetComp)
+							log_debug("[DBG] Skipping draw calls after TargetComp");
+						else
+							log_debug("[DBG] NOT Skipping draw calls after TargetComp");
+						return 0;
+						*/
 			case 'F':
 				g_bSkipSkyBox = !g_bSkipSkyBox;
 				if (g_bFixSkyBox)
@@ -165,6 +166,26 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 				ToggleCockpitPZHack();
 				return 0;
 
+			case 'P': 
+				if (g_bUseSteamVR && g_pVRScreenshots != NULL) {
+					static int scrCounter = 0;
+					char prevFileName[80], scrFileName[80];
+					sprintf_s(prevFileName, 80, "./preview%d", scrCounter);
+					sprintf_s(scrFileName, 80, "./screenshot%d", scrCounter);
+
+					vr::ScreenshotHandle_t scr;
+					vr::EVRScreenshotError error = g_pVRScreenshots->TakeStereoScreenshot(&scr, prevFileName, scrFileName);
+					if (error)
+						log_debug("[DBG] error %d when taking SteamVR screenshot", error);
+					else
+						log_debug("[DBG] Screeshot %d taken", scrCounter);
+					scrCounter++;
+				}
+				else {
+					log_debug("[DBG] !g_bUseSteamVR || g_pVRScreenshots is NULL");
+				}
+				break;
+
 			case 0xbb:
 				IncreaseScreenScale(0.1f);
 				return 0;
@@ -193,10 +214,11 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 			case 'Z':
 				ToggleZoomOutMode();
 				return 0;
-#if DBG_VR
+
 			case 'X':
 				g_bCapture2DOffscreenBuffer = true;
 				return 0;
+#if DBR_VR
 			case 'D':
 				g_bDumpDebug = !g_bDumpDebug;
 				return 0;
@@ -281,8 +303,8 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 				g_bDownKeyDownShift = false;
 				return 0;
 			case VK_OEM_PERIOD:
-				log_debug("[DBG] SteamVR Zero Pose Reset");
-				g_pHMD->ResetSeatedZeroPose();
+				if (g_bUseSteamVR)
+					g_pHMD->ResetSeatedZeroPose();
 				break;
 			}
 		}

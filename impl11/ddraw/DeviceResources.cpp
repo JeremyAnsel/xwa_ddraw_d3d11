@@ -12,6 +12,7 @@
 #include "../Debug/MainPixelShaderBpp2ColorKey00.h"
 #include "../Debug/MainPixelShaderBpp4ColorKey20.h"
 #include "../Debug/BarrelPixelShader.h"
+#include "../Debug/SingleBarrelPixelShader.h"
 #include "../Debug/VertexShader.h"
 #include "../Debug/SBSVertexShader.h"
 #include "../Debug/PixelShaderTexture.h"
@@ -23,6 +24,7 @@
 #include "../Release/MainPixelShaderBpp2ColorKey00.h"
 #include "../Release/MainPixelShaderBpp4ColorKey20.h"
 #include "../Release/BarrelPixelShader.h"
+#include "../Release/SingleBarrelPixelShader.h"
 #include "../Release/VertexShader.h"
 #include "../Release/SBSVertexShader.h"
 #include "../Release/PixelShaderTexture.h"
@@ -270,15 +272,18 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 	this->_depthStencilL.Release();
 	this->_depthStencilR.Release();
 	this->_renderTargetView.Release();
-	this->_renderTargetView3.Release();
+	this->_renderTargetViewPost.Release();
 	this->_offscreenAsInputShaderResourceView.Release();
 	this->_offscreenBuffer.Release();
 	this->_offscreenBufferAsInput.Release();
-	this->_offscreenBuffer3.Release();
+	this->_offscreenBufferPost.Release();
 	if (g_bUseSteamVR) {
 		this->_offscreenBufferR.Release();
-		this->_offscreenBufferAsInputRight.Release();
+		this->_offscreenBufferAsInputR.Release();
+		this->_offscreenBufferPostR.Release();
+		this->_offscreenAsInputShaderResourceViewR.Release();
 		this->_renderTargetViewR.Release();
+		this->_renderTargetViewPostR.Release();
 	}
 
 	this->_backBuffer.Release();
@@ -381,7 +386,6 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 
 		this->_backbufferWidth = backBufferDesc.Width;
 		this->_backbufferHeight = backBufferDesc.Height;
-		log_debug("[DBG] _backbufferWidth, Height: %d, %d", this->_backbufferWidth, this->_backbufferHeight);
 	}
 
 	if (SUCCEEDED(hr))
@@ -418,12 +422,21 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		}
 
 		step = "OffscreenBuffer3";
-		// offscreenBuffer3 should be just like offscreenBuffer because it will be bound as a renderTarget
-		hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBuffer3);
+		// offscreenBufferPost should be just like offscreenBuffer because it will be bound as a renderTarget
+		hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBufferPost);
 		if (FAILED(hr)) {
 			log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
 			log_err_desc(step, hWnd, hr, desc);
 			goto out;
+		}
+
+		if (g_bUseSteamVR) {
+			hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBufferPostR);
+			if (FAILED(hr)) {
+				log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
+				log_err_desc(step, hWnd, hr, desc);
+				goto out;
+			}
 		}
 
 		// offscreenBufferAsInput must not have MSAA enabled since it will be used as input for the barrel shader.
@@ -439,7 +452,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		}
 
 		if (g_bUseSteamVR) {
-			hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBufferAsInputRight);
+			hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBufferAsInputR);
 			if (FAILED(hr)) {
 				log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
 				log_err_desc(step, hWnd, hr, desc);
@@ -465,11 +478,10 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			goto out;
 		}
 
-		/*
 		if (g_bUseSteamVR) {
 			// Create the shader resource view for offscreenBufferAsInputR
-			step = "offscreenAsInputShaderResourceView";
-			hr = this->_d3dDevice->CreateShaderResourceView(this->_offscreenBufferAsInputRight,
+			step = "offscreenAsInputShaderResourceViewR";
+			hr = this->_d3dDevice->CreateShaderResourceView(this->_offscreenBufferAsInputR,
 				&shaderResourceViewDesc, &this->_offscreenAsInputShaderResourceViewR);
 			if (FAILED(hr)) {
 				log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
@@ -477,7 +489,6 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 				goto out;
 			}
 		}
-		*/
 	}
 
 	if (SUCCEEDED(hr))
@@ -493,9 +504,15 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			if (FAILED(hr)) goto out;
 		}
 
-		step = "RenderTargetView3";
-		hr = this->_d3dDevice->CreateRenderTargetView(this->_offscreenBuffer3, &renderTargetViewDesc, &this->_renderTargetView3);
+		step = "RenderTargetViewPost";
+		hr = this->_d3dDevice->CreateRenderTargetView(this->_offscreenBufferPost, &renderTargetViewDesc, &this->_renderTargetViewPost);
 		if (FAILED(hr)) goto out;
+
+		if (g_bUseSteamVR) {
+			step = "RenderTargetViewPostR";
+			hr = this->_d3dDevice->CreateRenderTargetView(this->_offscreenBufferPostR, &renderTargetViewDesc, &this->_renderTargetViewPostR);
+			if (FAILED(hr)) goto out;
+		}
 	}
 
 	/* depth stencil */
@@ -782,6 +799,9 @@ HRESULT DeviceResources::LoadResources()
 		return hr;
 
 	if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_BarrelPixelShader, sizeof(g_BarrelPixelShader), nullptr, &_barrelPixelShader)))
+		return hr;
+
+	if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_SingleBarrelPixelShader, sizeof(g_SingleBarrelPixelShader), nullptr, &_singleBarrelPixelShader)))
 		return hr;
 
 	D3D11_RASTERIZER_DESC rsDesc;
