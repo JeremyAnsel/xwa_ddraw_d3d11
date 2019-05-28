@@ -43,6 +43,7 @@ const float DEFAULT_COCKPIT_PZ_THRESHOLD = 0.166f; // I used 0.13f for a long ti
 const int DEFAULT_SKYBOX_INDEX = 2;
 const bool DEFAULT_INTERLEAVED_REPROJECTION = false;
 const bool DEFAULT_BARREL_EFFECT_STATE = true;
+const bool DEFAULT_BARREL_EFFECT_STATE_STEAMVR = false; // SteamVR provides its own lens correction, only enable it if the user really wants it
 const float DEFAULT_BRIGHTNESS = 0.95f;
 const float MAX_BRIGHTNESS = 1.0f;
 
@@ -68,7 +69,7 @@ const char *VR_MODE_NONE_SVAL = "None";
 const char *VR_MODE_DIRECT_SBS_SVAL = "DirectSBS";
 const char *VR_MODE_STEAMVR_SVAL = "SteamVR";
 const char *INTERLEAVED_REPROJ_VRPARAM = "SteamVR_Interleaved_Reprojection";
-const char *BARREL_EFFECT_STATE_VRPARAM = "barrel_effect";
+const char *BARREL_EFFECT_STATE_VRPARAM = "apply_lens_correction";
 
 /*
 typedef enum {
@@ -434,7 +435,7 @@ void ResetVRParams() {
 	if (g_bUseSteamVR)
 		g_pVRCompositor->ForceInterleavedReprojectionOn(g_bInterleavedReprojection);
 
-	g_bDisableBarrelEffect = !DEFAULT_BARREL_EFFECT_STATE;
+	g_bDisableBarrelEffect = g_bUseSteamVR ? !DEFAULT_BARREL_EFFECT_STATE_STEAMVR : !DEFAULT_BARREL_EFFECT_STATE;
 	// Load CRCs
 	ReloadCRCs();
 }
@@ -817,11 +818,6 @@ public:
 		this->ZWriteEnabled = TRUE;
 		this->ZFunc = D3DCMP_GREATER;
 	}
-
-	inline bool GetZWriteEnabled()
-	{
-		return this->ZWriteEnabled;
-	}
 	
 	static D3D11_TEXTURE_ADDRESS_MODE TextureAddressMode(D3DTEXTUREADDRESS address)
 	{
@@ -979,14 +975,28 @@ public:
 		this->ZEnabled = zEnabled;
 	}
 
+	inline bool GetZEnabled()
+	{
+		return this->ZEnabled;
+	}
+
 	inline void SetZWriteEnabled(BOOL zWriteEnabled)
 	{
 		this->ZWriteEnabled = zWriteEnabled;
 	}
 
+	inline bool GetZWriteEnabled()
+	{
+		return this->ZWriteEnabled;
+	}
+
 	inline void SetZFunc(D3DCMPFUNC zFunc)
 	{
 		this->ZFunc = zFunc;
+	}
+
+	inline D3DCMPFUNC GetZFunc() {
+		return this->ZFunc;
 	}
 
 private:
@@ -1334,8 +1344,8 @@ void PreprocessVerticesStereo(float width, float height, int numVerts)
 			project(X - g_fHalfIPD, Y, Z, qx, qy, qz);
 		} else {
 			float disp = 30.0f; // Objects "out there" need to have their parallax boosted or they just look flat
-			project(X +  g_fHalfIPD * disp, Y, Z, px, py, pz);
-			project(X + -g_fHalfIPD * disp, Y, Z, qx, qy, qz);
+			project(X + g_fHalfIPD * disp, Y, Z, px, py, pz);
+			project(X - g_fHalfIPD * disp, Y, Z, qx, qy, qz);
 		}
 
 		// (px,py) and (qx,qy) are now in the range [-0.5,..,0.5], we need
@@ -1675,7 +1685,7 @@ HRESULT Direct3DDevice::Execute(
 							lastTextureSelected = texture;
 						}
 
-						this->_deviceResources->InitPixelShader(pixelShader);
+						resources->InitPixelShader(pixelShader);
 						break;
 					}
 
@@ -1779,13 +1789,19 @@ HRESULT Direct3DDevice::Execute(
 				bool bIsText = (lastTextureSelected != NULL) && lastTextureSelected->is_Text;
 				bool bIsHUD = lastTextureSelected != NULL && lastTextureSelected->is_HUD;
 				bool bIsGUI = lastTextureSelected != NULL && lastTextureSelected->is_GUI;
-				bool bIsBracket = bIsNoZWrite && lastTextureSelected == NULL;
+				// In the hangar, shadows are enabled. Shadows don't have a texture and are rendered with
+				// ZWrite disabled. So, how can we tell if a bracket is being rendered or a shadow?
+				// Brackets are rendered with ZFunc D3DCMP_ALWAYS (8),
+				// Shadows are rendered with ZFunc D3DCMP_GREATEREQUAL (7)
+				bool bIsBracket = bIsNoZWrite && lastTextureSelected == NULL && 
+					this->_renderStates->GetZFunc() == D3DCMP_ALWAYS;
 				bool bIsFloatingGUI = lastTextureSelected != NULL && lastTextureSelected->is_Floating_GUI;
 				bool bIsFloating3DObject = g_bTargetCompDrawn && lastTextureSelected != NULL &&
 					!lastTextureSelected->is_Text && !lastTextureSelected->is_TrianglePointer &&
 					!lastTextureSelected->is_HUD && !lastTextureSelected->is_Floating_GUI;
 				// The GUI starts rendering whenever we detect a GUI element, or Text, or a bracket.
 				g_bStartedGUI |= bIsGUI || bIsText || bIsBracket;
+				//g_bStartedGUI |= bIsGUI || bIsText; // bIsBracket is true for brackets *and* for (hangar) shadows
 				// bIsScaleableGUIElem is true when we're about to render a HUD element that can be scaled down with Ctrl+Z
 				bool bIsScaleableGUIElem = g_bStartedGUI && !bIsHUD && !bIsBracket && !bIsTrianglePointer;
 				// lastTextureSelected can be NULL. This happens when drawing the square
@@ -1801,9 +1817,6 @@ HRESULT Direct3DDevice::Execute(
 				if (!bZWriteEnabled && g_iSkipNonZBufferDrawIdx > -1 && g_iNonZBufferCounter >= g_iSkipNonZBufferDrawIdx)
 					goto out;
 
-				//if (g_bStartedGUI && g_bSkipGUI)
-				//	goto out;
-
 				//if (bIsText && g_bSkipText)
 				//	goto out;
 
@@ -1813,8 +1826,19 @@ HRESULT Direct3DDevice::Execute(
 
 				if (bIsSkyBox && g_bSkipSkyBox)
 					goto out;
-#endif
 
+				if (g_bStartedGUI && g_bSkipGUI)
+					goto out;
+				// Engine glow:
+				//if (bIsNoZWrite && lastTextureSelected != NULL && g_bSkipGUI)
+				//	goto out;
+
+				/* if (bIsBracket) {
+					log_debug("[DBG] ZEnabled: %d, ZFunc: %d", this->_renderStates->GetZEnabled(),
+						this->_renderStates->GetZFunc());
+				} */
+#endif
+				
 				// Early exit: if we're not in VR mode, we only need the state; but not the extra
 				// processing. (The state will be used later to do post-processing like Bloom and AO.
 				if (!g_bEnableVR) {
@@ -1856,23 +1880,21 @@ HRESULT Direct3DDevice::Execute(
 				// The game renders brackets with ZWrite disabled; but we need to enable it temporarily so that we
 				// can place the brackets at infinity and avoid visual contention
 				if (bIsBracket) {
+					bModifiedShaders = true;
 					QuickSetZWriteEnabled(TRUE);
 					g_VSCBuffer.z_override = g_fZOverride;
-					//resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 				}
 
 				// Reduce the scale for GUI elements, except for the HUD
 				if (bIsScaleableGUIElem) {
 					bModifiedShaders = true;
 					g_VSCBuffer.viewportScale[3] = g_fGUIElemsScale;
-					//resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 				}
 
 				// Dim all the GUI elements
 				if (g_bStartedGUI && !bIsFloating3DObject) {
 					bModifiedShaders = true;
 					g_PSCBuffer.brightness = g_fBrightness;
-					//resources->InitPSConstantBufferBrightness(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 				}
 
 				if (bModifiedShaders)
@@ -2040,7 +2062,7 @@ HRESULT Direct3DDevice::Execute(
 
 				// out: label
 #ifdef DBG_VR
-				out:
+			out:
 #endif
 				// Update counters
 				g_iDrawCounter++;
@@ -2050,7 +2072,7 @@ HRESULT Direct3DDevice::Execute(
 
 				if (bIsBracket) {
 					// Restore the No-Z-Write state for bracket elements
-					QuickSetZWriteEnabled(FALSE);
+					QuickSetZWriteEnabled(bZWriteEnabled);
 					g_VSCBuffer.z_override = -1.0f;
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 				}
@@ -2061,6 +2083,7 @@ HRESULT Direct3DDevice::Execute(
 					g_VSCBuffer.viewportScale[3] = g_fGlobalScale;
 					g_VSCBuffer.parallax = 0.0f;
 					g_PSCBuffer.brightness = MAX_BRIGHTNESS;
+					g_VSCBuffer.z_override = -1.0f;
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 					resources->InitPSConstantBufferBrightness(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 				}

@@ -23,10 +23,10 @@ float4 main(PixelShaderInput input) : SV_TARGET
 {
 	float4 texelColor = texture0.Sample(sampler0, input.tex);
 
-	if (texelColor.a > 0.4f)
+	/*if (texelColor.a > 0.4f)
 	{
 		discard;
-	}
+	}*/
 
 	return float4(brightness * texelColor.xyz, 1.0f);
 }

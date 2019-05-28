@@ -46,6 +46,7 @@ extern bool g_bEnableVR, g_bForceViewportChange;
 #include <headers/openvr.h>
 extern bool g_bSteamVRInitialized, g_bUseSteamVR, g_bEnableVR, g_bSteamVRTexturesInitialized;
 extern uint32_t g_steamVRWidth, g_steamVRHeight;
+DWORD g_FullScreenWidth = 0, g_FullScreenHeight = 0;
 bool InitSteamVR();
 
 /* The different types of Constant Buffers used in the Vertex Shader: */
@@ -262,6 +263,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 	}
 
 	if (g_bUseSteamVR) {
+		// dwWidth, dwHeight are the in-game's resolution
 		// When using SteamVR, let's override the size with the recommended size
 		dwWidth = g_steamVRWidth;
 		dwHeight = g_steamVRHeight;
@@ -284,6 +286,8 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		this->_offscreenAsInputShaderResourceViewR.Release();
 		this->_renderTargetViewR.Release();
 		this->_renderTargetViewPostR.Release();
+		this->_steamVRPresentBuffer.Release();
+		this->_renderTargetViewSteamVRResize.Release();
 	}
 
 	this->_backBuffer.Release();
@@ -324,14 +328,14 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			DXGI_SWAP_CHAIN_DESC sd{};
 			sd.BufferCount = 2;
 			sd.SwapEffect = DXGI_SWAP_EFFECT_SEQUENTIAL;
-			if (g_bUseSteamVR) {
-				sd.BufferDesc.Width = g_steamVRWidth;
-				sd.BufferDesc.Height = g_steamVRHeight;
-			}
-			else {
+			//if (g_bUseSteamVR) {
+			//	sd.BufferDesc.Width = g_steamVRWidth;
+			//	sd.BufferDesc.Height = g_steamVRHeight;
+			//}
+			//else {
 				sd.BufferDesc.Width = 0;
 				sd.BufferDesc.Height = 0;
-			}
+			//}
 			sd.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
 			sd.BufferDesc.RefreshRate = md.RefreshRate;
 			sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -351,6 +355,15 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			if (SUCCEEDED(hr))
 			{
 				this->_refreshRate = sd.BufferDesc.RefreshRate;
+			}
+
+			if (SUCCEEDED(hr))
+			{
+				DXGI_SWAP_CHAIN_DESC sd{};
+				this->_swapChain->GetDesc(&sd);
+				g_FullScreenWidth = sd.BufferDesc.Width;
+				g_FullScreenHeight = sd.BufferDesc.Height;
+				//log_debug("[DBG] Fullscreen size: %d, %d", sd.BufferDesc.Width, sd.BufferDesc.Height);
 			}
 		}
 
@@ -421,7 +434,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			}
 		}
 
-		step = "OffscreenBuffer3";
+		step = "OffscreenBufferPost";
 		// offscreenBufferPost should be just like offscreenBuffer because it will be bound as a renderTarget
 		hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBufferPost);
 		if (FAILED(hr)) {
@@ -431,7 +444,16 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		}
 
 		if (g_bUseSteamVR) {
+			step = "OffscreenBufferPostR";
 			hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBufferPostR);
+			if (FAILED(hr)) {
+				log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
+				log_err_desc(step, hWnd, hr, desc);
+				goto out;
+			}
+
+			step = "SteamVRPresentBuffer";
+			hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_steamVRPresentBuffer);
 			if (FAILED(hr)) {
 				log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
 				log_err_desc(step, hWnd, hr, desc);
@@ -495,22 +517,25 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 	{
 		step = "RenderTargetView";
 		CD3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc(this->_useMultisampling ? D3D11_RTV_DIMENSION_TEXTURE2DMS : D3D11_RTV_DIMENSION_TEXTURE2D);
+
 		hr = this->_d3dDevice->CreateRenderTargetView(this->_offscreenBuffer, &renderTargetViewDesc, &this->_renderTargetView);
 		if (FAILED(hr)) goto out;
-
-		if (g_bUseSteamVR) {
-			step = "RenderTargetViewR";
-			hr = this->_d3dDevice->CreateRenderTargetView(this->_offscreenBufferR, &renderTargetViewDesc, &this->_renderTargetViewR);
-			if (FAILED(hr)) goto out;
-		}
 
 		step = "RenderTargetViewPost";
 		hr = this->_d3dDevice->CreateRenderTargetView(this->_offscreenBufferPost, &renderTargetViewDesc, &this->_renderTargetViewPost);
 		if (FAILED(hr)) goto out;
 
 		if (g_bUseSteamVR) {
+			step = "RenderTargetViewR";
+			hr = this->_d3dDevice->CreateRenderTargetView(this->_offscreenBufferR, &renderTargetViewDesc, &this->_renderTargetViewR);
+			if (FAILED(hr)) goto out;
+
 			step = "RenderTargetViewPostR";
 			hr = this->_d3dDevice->CreateRenderTargetView(this->_offscreenBufferPostR, &renderTargetViewDesc, &this->_renderTargetViewPostR);
+			if (FAILED(hr)) goto out;
+
+			step = "renderTargetViewSteamVRResize";
+			hr = this->_d3dDevice->CreateRenderTargetView(this->_steamVRPresentBuffer, &renderTargetViewDesc, &this->_renderTargetViewSteamVRResize);
 			if (FAILED(hr)) goto out;
 		}
 	}

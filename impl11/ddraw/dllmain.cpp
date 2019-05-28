@@ -12,9 +12,9 @@
 #include <stdio.h>
 #include <vector>
 
+extern bool g_bFixSkyBox, g_bSkipGUI, g_bSkipText, g_bSkipSkyBox;
 bool g_bCapture2DOffscreenBuffer = false;
 #ifdef DBG_VR
-extern bool g_bFixSkyBox, g_bSkipGUI, g_bSkipText, g_bSkipSkyBox;
 extern bool g_bDo3DCapture, g_bStart3DCapture;
 bool g_bDumpDebug = false;
 
@@ -144,12 +144,12 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 				log_debug("[DBG] g_bSkipGUI: %d", g_bSkipGUI);
 				return 0;
 #endif
+
 			case 'B':
 				g_bDisableBarrelEffect = !g_bDisableBarrelEffect;
 				return 0;
 			case 'R':
 				ResetVRParams();
-				//ReloadCRCs();
 				return 0;
 
 			case 'V':
@@ -214,11 +214,11 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 			case 'Z':
 				ToggleZoomOutMode();
 				return 0;
-
+			
+#if DBR_VR
 			case 'X':
 				g_bCapture2DOffscreenBuffer = true;
 				return 0;
-#if DBR_VR
 			case 'D':
 				g_bDumpDebug = !g_bDumpDebug;
 				return 0;
