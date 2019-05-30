@@ -26,5 +26,6 @@
     <FxCompile Include="SBSVertexShader.hlsl" />
     <FxCompile Include="BarrelPixelShader.hlsl" />
     <FxCompile Include="SingleBarrelPixelShader.hlsl" />
+    <FxCompile Include="qUINT_bloom.fx" />
   </ItemGroup>
 </Project>

@@ -2,6 +2,9 @@
 // Licensed under the MIT license. See LICENSE.txt
 // Extended for VR by Leo Reyes, 2019
 
+// Shaders by Marty McFly (used with permission from the author)
+// https://github.com/martymcmodding/qUINT/tree/master/Shaders
+
 #include "common.h"
 #include "DeviceResources.h"
 #include "Direct3DDevice.h"
@@ -35,7 +38,7 @@ const float DEFAULT_ASPECT_RATIO = 1.33f;
 const float DEFAULT_CONCOURSE_SCALE = 0.4f;
 const float DEFAULT_CONCOURSE_ASPECT_RATIO = 2.0f; // Default for non-SteamVR
 const float DEFAULT_GLOBAL_SCALE = 1.75f;
-const float DEFAULT_GLOBAL_SCALE_STEAMVR = 1.4f;
+//const float DEFAULT_GLOBAL_SCALE_STEAMVR = 1.4f;
 const float DEFAULT_LENS_K1 = 2.0f;
 const float DEFAULT_LENS_K2 = 0.22f;
 const float DEFAULT_LENS_K3 = 0.0f;
@@ -402,7 +405,8 @@ void ResetVRParams() {
 	g_bCockpitPZHackEnabled = true;
 	g_fGUIElemPZThreshold = DEFAULT_GUI_ELEM_PZ_THRESHOLD;
 	g_fGUIElemScale = DEFAULT_GUI_ELEM_SCALE;
-	g_fGlobalScale = g_bSteamVREnabled ? DEFAULT_GLOBAL_SCALE_STEAMVR : DEFAULT_GLOBAL_SCALE;
+	//g_fGlobalScale = g_bSteamVREnabled ? DEFAULT_GLOBAL_SCALE_STEAMVR : DEFAULT_GLOBAL_SCALE;
+	g_fGlobalScale = DEFAULT_GLOBAL_SCALE;
 	g_fGlobalScaleZoomOut = DEFAULT_ZOOM_OUT_SCALE;
 	g_fGUIElemsScale = g_bZoomOut ? g_fGlobalScaleZoomOut : g_fGlobalScale;
 	g_fConcourseScale = DEFAULT_CONCOURSE_SCALE;
@@ -661,6 +665,10 @@ next:
 static inline void
 back_project(float px, float py, float pz, float direct_pz, float &X, float &Y, float &Z)
 {
+	// This is the formula from qUINT_common.fxh for the logarithmic Z buffer:
+	//const float C = 0.01;
+	//depth = (exp(depth * log(C + 1.0)) - 1.0) / C;
+
 	//Z = (exp(pz * LOG_K) - 1.0f) / C;
 	Z = (exp(pz * LOG_K) - 1.0f) / direct_pz;
 	X = Z * px / g_fFocalDist;
@@ -695,8 +703,42 @@ char *GetTrackedDeviceString(vr::TrackedDeviceIndex_t unDevice, vr::TrackedDevic
 	return pchBuffer;
 }
 
+void DumpMatrix34(FILE *file, const vr::HmdMatrix34_t &m) {
+	if (file == NULL)
+		return;
+
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 4; j++) {
+			fprintf(file, "%0.6f", m.m[i][j]);
+			if (j < 3)
+				fprintf(file, ", ");
+		}
+		fprintf(file, "\n");
+	}
+}
+
+void DumpMatrix44(FILE *file, const vr::HmdMatrix44_t &m) {
+	if (file == NULL)
+		return;
+
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < 4; j++) {
+			fprintf(file, "%0.6f", m.m[i][j]);
+			if (j < 3)
+				fprintf(file, ", ");
+		}
+		fprintf(file, "\n");
+	}
+}
+
 bool InitSteamVR()
 {
+	char *strDriver = NULL;
+	char *strDisplay = NULL;
+	FILE *file = NULL;
+	bool result = true;
+
+	int file_error = fopen_s(&file, "./steamvr_mat.txt", "wt");
 	log_debug("[DBG] Initializing SteamVR");
 	vr::EVRInitError eError = vr::VRInitError_None;
 	g_pHMD = vr::VR_Init(&eError, vr::VRApplication_Scene);
@@ -705,31 +747,28 @@ bool InitSteamVR()
 	{
 		g_pHMD = NULL;
 		log_debug("[DBG] Unable to init VR runtime: %s", vr::VR_GetVRInitErrorAsEnglishDescription(eError));
-		return false;
+		result = false;
+		goto out;
 	}
 	log_debug("[DBG] SteamVR Initialized");
 	g_pHMD->GetRecommendedRenderTargetSize(&g_steamVRWidth, &g_steamVRHeight);
 	log_debug("[DBG] Recommended steamVR width, height: %d, %d", g_steamVRWidth, g_steamVRHeight);
 
-	char *strDriver = NULL;
-	char *strDisplay = NULL;
 	strDriver = GetTrackedDeviceString(vr::k_unTrackedDeviceIndex_Hmd, vr::Prop_TrackingSystemName_String);
 	if (strDriver) {
 		log_debug("[DBG] Driver: %s", strDriver);
 		strDisplay = GetTrackedDeviceString(vr::k_unTrackedDeviceIndex_Hmd, vr::Prop_SerialNumber_String);
-		delete[] strDriver;
 	}
 
-	if (strDisplay) {
+	if (strDisplay)
 		log_debug("[DBG] Display: %s", strDisplay);
-		delete[] strDisplay;
-	}
 
 	g_pVRCompositor = vr::VRCompositor();
 	if (g_pVRCompositor == NULL)
 	{
 		log_debug("[DBG] SteamVR Compositor Initialization failed.");
-		return false;
+		result = false;
+		goto out;
 	}
 	log_debug("[DBG] SteamVR Compositor Initialized");
 
@@ -744,7 +783,57 @@ bool InitSteamVR()
 	// Reset the seated pose
 	g_pHMD->ResetSeatedZeroPose();
 
-	return true;
+	// Dump information about the view matrices
+	if (file_error == 0) {
+		vr::HmdMatrix34_t eyeLeft = g_pHMD->GetEyeToHeadTransform(vr::EVREye::Eye_Left);
+		vr::HmdMatrix34_t eyeRight = g_pHMD->GetEyeToHeadTransform(vr::EVREye::Eye_Right);
+
+		if (strDriver != NULL)
+			fprintf(file, "Driver: %s\n", strDriver);
+		if (strDisplay != NULL)
+			fprintf(file, "Display: %s\n", strDisplay);
+		fprintf(file, "\n");
+
+		fprintf(file, "eyeLeft:\n");
+		DumpMatrix34(file, eyeLeft);
+		fprintf(file, "\n");
+
+		fprintf(file, "eyeRight:\n");
+		DumpMatrix34(file, eyeRight);
+		fprintf(file, "\n");
+
+		vr::HmdMatrix44_t projLeft = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Left, DEFAULT_FOCAL_DIST, Z_FAR);
+		vr::HmdMatrix44_t projRight = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Right, DEFAULT_FOCAL_DIST, Z_FAR);
+
+		fprintf(file, "projLeft:\n");
+		DumpMatrix44(file, projLeft);
+		fprintf(file, "\n");
+
+		fprintf(file, "projRight:\n");
+		DumpMatrix44(file, projRight);
+		fprintf(file, "\n");
+
+		float left, right, top, bottom;
+		g_pHMD->GetProjectionRaw(vr::EVREye::Eye_Left, &left, &right, &top, &bottom);
+		fprintf(file, "Raw data (Left eye):\n");
+		fprintf(file, "Left: %0.6f, Right: %0.6f, Top: %0.6f, Bottom: %0.6f\n",
+			left, right, top, bottom);
+
+		g_pHMD->GetProjectionRaw(vr::EVREye::Eye_Right, &left, &right, &top, &bottom);
+		fprintf(file, "Raw data (Right eye):\n");
+		fprintf(file, "Left: %0.6f, Right: %0.6f, Top: %0.6f, Bottom: %0.6f\n",
+			left, right, top, bottom);
+		fclose(file);
+	}
+
+out:
+	if (strDriver != NULL)
+		delete[] strDriver;
+	if (strDisplay != NULL)
+		delete[] strDisplay;
+	if (file != NULL)
+		fclose(file);
+	return result;
 }
 
 void ShutDownSteamVR() {
