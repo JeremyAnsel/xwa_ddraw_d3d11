@@ -631,11 +631,13 @@ void LoadVRParams() {
 				else if (_stricmp(svalue, VR_MODE_DIRECT_SBS_SVAL) == 0) {
 					//g_VRMode = VR_MODE_DIRECT_SBS;
 					g_bSteamVREnabled = false;
+					g_bEnableVR = true;
 					log_debug("[DBG] Using Direct SBS mode");
 				}
 				else if (_stricmp(svalue, VR_MODE_STEAMVR_SVAL) == 0) {
 					//g_VRMode = VR_MODE_STEAMVR;
 					g_bSteamVREnabled = true;
+					g_bEnableVR = true;
 					log_debug("[DBG] Using SteamVR");
 				}
 			}
