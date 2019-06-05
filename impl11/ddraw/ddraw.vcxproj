@@ -125,6 +125,7 @@ copy /Y $(TargetPath) "C:\Program Files (x86)\Steam\steamapps\common\Star Wars X
     <ClCompile Include="ExecuteBufferDumper.cpp" />
     <ClCompile Include="FrontbufferSurface.cpp" />
     <ClCompile Include="logger.cpp" />
+    <ClCompile Include="Matrices.cpp" />
     <ClCompile Include="MipmapSurface.cpp" />
     <ClCompile Include="OffscreenSurface.cpp" />
     <ClCompile Include="PrimarySurface.cpp" />
@@ -148,6 +149,7 @@ copy /Y $(TargetPath) "C:\Program Files (x86)\Steam\steamapps\common\Star Wars X
     <ClInclude Include="ExecuteBufferDumper.h" />
     <ClInclude Include="FrontbufferSurface.h" />
     <ClInclude Include="logger.h" />
+    <ClInclude Include="Matrices.h" />
     <ClInclude Include="MipmapSurface.h" />
     <ClInclude Include="OffscreenSurface.h" />
     <ClInclude Include="PrimarySurface.h" />
@@ -155,6 +157,7 @@ copy /Y $(TargetPath) "C:\Program Files (x86)\Steam\steamapps\common\Star Wars X
     <ClInclude Include="targetver.h" />
     <ClInclude Include="TextureSurface.h" />
     <ClInclude Include="utils.h" />
+    <ClInclude Include="Vectors.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="ddraw.rc" />

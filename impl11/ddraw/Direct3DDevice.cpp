@@ -5,6 +5,108 @@
 // Shaders by Marty McFly (used with permission from the author)
 // https://github.com/martymcmodding/qUINT/tree/master/Shaders
 
+/*
+
+Trevor:
+Steamvr_mat.txt
+Driver: oculus
+Display: 20B06R03EVHM
+
+eyeLeft:
+1.000000, 0.000000, 0.000000, -0.031750
+0.000000, 1.000000, 0.000000, 0.000000
+0.000000, 0.000000, 1.000000, 0.000000
+
+eyeRight:
+1.000000, 0.000000, 0.000000, 0.031750
+0.000000, 1.000000, 0.000000, 0.000000
+0.000000, 0.000000, 1.000000, 0.000000
+
+projLeft:
+0.929789, 0.000000, 0.015672, 0.000000
+0.000000, 0.750974, 0.000000, 0.000000
+0.000000, 0.000000, -1.010101, -0.505050
+0.000000, 0.000000, -1.000000, 0.000000
+
+projRight:
+0.929789, 0.000000, -0.015672, 0.000000
+0.000000, 0.750974, 0.000000, 0.000000
+0.000000, 0.000000, -1.010101, -0.505050
+0.000000, 0.000000, -1.000000, 0.000000
+
+Raw data (Left eye):
+Left: -1.058658, Right: 1.092368, Top: -1.331603, Bottom: 1.331603
+Raw data (Right eye):
+Left: -1.092368, Right: 1.058658, Top: -1.331603, Bottom: 1.331603
+
+
+FullBody:
+
+Driver: lighthouse
+Display: LHR-3395DDAF
+
+eyeLeft:
+1.000000, 0.000000, 0.000000, -0.033050
+0.000000, 1.000000, 0.000000, 0.000000
+0.000000, 0.000000, 1.000000, 0.015000
+
+eyeRight:
+1.000000, 0.000000, 0.000000, 0.033050
+0.000000, 1.000000, 0.000000, 0.000000
+0.000000, 0.000000, 1.000000, 0.015000
+
+projLeft:
+0.756668, 0.000000, -0.056751, 0.000000
+0.000000, 0.681272, -0.001673, 0.000000
+0.000000, 0.000000, -1.010101, -0.505050
+0.000000, 0.000000, -1.000000, 0.000000
+
+projRight:
+0.757176, 0.000000, 0.056972, 0.000000
+0.000000, 0.681598, -0.005991, 0.000000
+0.000000, 0.000000, -1.010101, -0.505050
+0.000000, 0.000000, -1.000000, 0.000000
+
+Raw data (Left eye):
+Left: -1.396584, Right: 1.246583, Top: -1.470297, Bottom: 1.465387
+Raw data (Right eye):
+Left: -1.245455, Right: 1.395940, Top: -1.475930, Bottom: 1.458352
+
+
+Chee:
+
+Driver: aapvr
+Display: Pimax 5K Plus
+
+eyeLeft:
+0.984808, 0.000000, 0.173648, -0.033236
+0.000000, 1.000000, 0.000000, 0.000000
+-0.173648, 0.000000, 0.984808, 0.000000
+
+eyeRight:
+0.984808, -0.000000, -0.173648, 0.033236
+0.000000, 1.000000, -0.000000, 0.000000
+0.173648, 0.000000, 0.984808, 0.000000
+
+projLeft:
+0.647594, 0.000000, -0.128239, 0.000000
+0.000000, 0.787500, 0.000000, 0.000000
+0.000000, 0.000000, -1.010101, -0.505050
+0.000000, 0.000000, -1.000000, 0.000000
+
+projRight:
+0.647594, 0.000000, 0.128239, 0.000000
+0.000000, 0.787500, 0.000000, 0.000000
+0.000000, 0.000000, -1.010101, -0.505050
+0.000000, 0.000000, -1.000000, 0.000000
+
+Raw data (Left eye):
+Left: -1.742203, Right: 1.346154, Top: -1.269841, Bottom: 1.269841
+Raw data (Right eye):
+Left: -1.346154, Right: 1.742203, Top: -1.269841, Bottom: 1.269841
+
+*/
+
 #include "common.h"
 #include "DeviceResources.h"
 #include "Direct3DDevice.h"
@@ -18,13 +120,14 @@
 #include <vector>
 
 #include <headers/openvr.h>
+#include "Matrices.h"
 
 #define DBG_MAX_PRESENT_LOGS 0
 
 FILE *g_HackFile = NULL;
 
 const float DEFAULT_FOCAL_DIST = 0.5f;
-const float DEFAULT_FOCAL_DIST_STEAMVR = 0.6f;
+//const float DEFAULT_FOCAL_DIST_STEAMVR = 0.6f;
 const float DEFAULT_IPD = 6.5f;
 const float DEFAULT_HUD_PARALLAX = 12.5f;
 const float DEFAULT_TEXT_PARALLAX = 40.0f;
@@ -93,9 +196,17 @@ bool g_bSteamVREnabled = false; // The user sets this flag to true to request su
 bool g_bSteamVRInitialized = false; // The system will set this flag after SteamVR has been initialized
 bool g_bUseSteamVR = false; // The system will set this flag if the user requested SteamVR and SteamVR was initialized properly
 bool g_bInterleavedReprojection = DEFAULT_INTERLEAVED_REPROJECTION;
+vr::HmdMatrix34_t g_EyeMatrixLeft, g_EyeMatrixRight;
+//vr::HmdMatrix44_t g_EyeMatrixLeftInv, g_EyeMatrixRightInv;
+Matrix4 g_EyeMatrixLeftInv, g_EyeMatrixRightInv;
+//vr::HmdMatrix44_t g_projLeft, g_projRight;
+Matrix4 g_projLeft, g_projRight;
+Matrix4 g_fullMatrixLeft, g_fullMatrixRight;
+void projectSteamVR(float X, float Y, float Z, vr::EVREye eye, float &x, float &y, float &z);
 
 /* Vertices that will be used for the VertexBuffer. */
 D3DTLVERTEX *g_OrigVerts = NULL, *g_LeftVerts = NULL, *g_RightVerts = NULL;
+D3DTLVERTEX *g_3DVerts = NULL;
 int g_iNumVertices = 0;
 
 // Counter for calls to DrawIndexed() (This helps us know where were are in the rendering process)
@@ -161,10 +272,18 @@ PixelShaderCBuffer g_PSCBuffer;
 float g_fCockpitPZThreshold = DEFAULT_COCKPIT_PZ_THRESHOLD; // The TIE-Interceptor needs this thresold!
 float g_fBackupCockpitPZThreshold = g_fCockpitPZThreshold; // Backup of the cockpit threshold, used when toggling this effect on or off.
 
-const float IPD_SCALE_FACTOR = 1625.0f; // Empirically estimated to correspond to an IPD of 6.5
+const float IPD_SCALE_FACTOR = 100.0f; // Transform centimeters to meters (IPD = 6.5 becomes 0.065)
+const float GAME_SCALE_FACTOR = 30.0f; // Estimated empirically
+const float GAME_SCALE_FACTOR_Z = 80.0f; // Estimated empirically
+//const float GAME_SCALE_FACTOR = 30.0f; // Estimated empirically
+//const float GAME_SCALE_FACTOR = 1.0f; // Estimated empirically
+
 // In reality, there should be a different factor per in-game resolution; but for now this should be enough
-const float C = 1.0f, Z_FAR = 50.0f;
-const float LOG_K = log(C*Z_FAR + 1.0f);
+//const float C = 1.0f, Z_FAR = 50.0f;
+//const float LOG_K = log(C*Z_FAR + 1.0f);
+
+const float C = 1.0f, Z_FAR = 1.0f;
+const float LOG_K = 1.0f;
 
 float g_fIPD = DEFAULT_IPD / IPD_SCALE_FACTOR;
 float g_fHalfIPD = g_fIPD / 2.0f;
@@ -271,12 +390,13 @@ void animTickZ() {
 
 // NewIPD is in cms
 void EvaluateIPD(float NewIPD) {
-	if (NewIPD < 0.0f)
+	/* if (NewIPD < 0.0f)
 		NewIPD = 0.0f;
 	if (NewIPD > 12.0f) {
 		NewIPD = 12.0f;
-	}
+	} */
 	g_fIPD = NewIPD / IPD_SCALE_FACTOR;
+	log_debug("[DBG] NewIPD: %0.3f, Actual g_fIPD: %0.6f", NewIPD, g_fIPD);
 	g_fHalfIPD = g_fIPD / 2.0f;
 	//log_debug("[DBG] New IPD: %f", IPD);
 }
@@ -400,7 +520,8 @@ void IncreaseLensK2(float Delta) {
 
 /* Restores the various VR parameters to their default values. */
 void ResetVRParams() {
-	g_fFocalDist = g_bSteamVREnabled ? DEFAULT_FOCAL_DIST_STEAMVR : DEFAULT_FOCAL_DIST;
+	//g_fFocalDist = g_bSteamVREnabled ? DEFAULT_FOCAL_DIST_STEAMVR : DEFAULT_FOCAL_DIST;
+	g_fFocalDist = DEFAULT_FOCAL_DIST;
 	EvaluateIPD(DEFAULT_IPD);
 	g_bCockpitPZHackEnabled = true;
 	g_fGUIElemPZThreshold = DEFAULT_GUI_ELEM_PZ_THRESHOLD;
@@ -675,6 +796,10 @@ back_project(float px, float py, float pz, float direct_pz, float &X, float &Y, 
 	Z = (exp(pz * LOG_K) - 1.0f) / direct_pz;
 	X = Z * px / g_fFocalDist;
 	Y = Z * py / g_fFocalDist;
+
+	X *= GAME_SCALE_FACTOR;
+	Y *= GAME_SCALE_FACTOR;
+	Z *= GAME_SCALE_FACTOR_Z;
 }
 
 /*
@@ -684,7 +809,10 @@ back_project(float px, float py, float pz, float direct_pz, float &X, float &Y, 
 static inline void
 project(float X, float Y, float Z, float &px, float &py, float &pz) 
 {
-	pz = log(Z * C + 1.0f) / LOG_K;
+	// Z = (exp(pz * LOG_K) - 1.0f) / direct_pz;
+	// Z / direct_pz + 1.0f = exp(pz * LOG_K)
+	//pz = log(Z * C + 1.0f) / LOG_K;
+	//pz = log(Z/(1 - pz) * C + 1.0f) / LOG_K;
 	px = X * g_fFocalDist / Z;
 	py = Y * g_fFocalDist / Z;
 }
@@ -733,6 +861,138 @@ void DumpMatrix44(FILE *file, const vr::HmdMatrix44_t &m) {
 	}
 }
 
+void ShowMatrix4(const Matrix4 &mat, char *name) {
+	log_debug("[DBG] -----------------------------------------");
+	if (name != NULL)
+		log_debug("[DBG] %s", name);
+	log_debug("[DBG] %0.6f, %0.6f, %0.6f, %0.6f", mat[0], mat[4], mat[8], mat[12]);
+	log_debug("[DBG] %0.6f, %0.6f, %0.6f, %0.6f", mat[1], mat[5], mat[9], mat[13]);
+	log_debug("[DBG] %0.6f, %0.6f, %0.6f, %0.6f", mat[2], mat[6], mat[10], mat[14]);
+	log_debug("[DBG] %0.6f, %0.6f, %0.6f, %0.6f", mat[3], mat[7], mat[11], mat[15]);
+	log_debug("[DBG] =========================================");
+}
+
+void ShowHmdMatrix34(const vr::HmdMatrix34_t &mat, char *name) {
+	log_debug("[DBG] -----------------------------------------");
+	if (name != NULL)
+		log_debug("[DBG] %s", name);
+	log_debug("[DBG] %0.6f, %0.6f, %0.6f, %0.6f", mat.m[0][0], mat.m[0][1], mat.m[0][2], mat.m[0][3]);
+	log_debug("[DBG] %0.6f, %0.6f, %0.6f, %0.6f", mat.m[1][0], mat.m[1][1], mat.m[1][2], mat.m[1][3]);
+	log_debug("[DBG] %0.6f, %0.6f, %0.6f, %0.6f", mat.m[2][0], mat.m[2][1], mat.m[2][2], mat.m[2][3]);
+	log_debug("[DBG] =========================================");
+}
+
+void ShowHmdMatrix44(const vr::HmdMatrix44_t &mat, char *name) {
+	log_debug("[DBG] -----------------------------------------");
+	if (name != NULL)
+		log_debug("[DBG] %s", name);
+	log_debug("[DBG] %0.6f, %0.6f, %0.6f, %0.6f", mat.m[0][0], mat.m[0][1], mat.m[0][2], mat.m[0][3]);
+	log_debug("[DBG] %0.6f, %0.6f, %0.6f, %0.6f", mat.m[1][0], mat.m[1][1], mat.m[1][2], mat.m[1][3]);
+	log_debug("[DBG] %0.6f, %0.6f, %0.6f, %0.6f", mat.m[2][0], mat.m[2][1], mat.m[2][2], mat.m[2][3]);
+	log_debug("[DBG] %0.6f, %0.6f, %0.6f, %0.6f", mat.m[3][0], mat.m[3][1], mat.m[3][2], mat.m[3][3]);
+	log_debug("[DBG] =========================================");
+}
+
+void Matrix4toHmdMatrix44(const Matrix4 &m4, vr::HmdMatrix44_t &mat) {
+	mat.m[0][0] = m4[0];  mat.m[1][0] = m4[1];  mat.m[2][0] = m4[2];  mat.m[3][0] = m4[3];
+	mat.m[0][1] = m4[4];  mat.m[1][1] = m4[5];  mat.m[2][1] = m4[6];  mat.m[3][1] = m4[7];
+	mat.m[0][2] = m4[8];  mat.m[1][2] = m4[9];  mat.m[2][2] = m4[10]; mat.m[3][2] = m4[11];
+	mat.m[0][3] = m4[12]; mat.m[1][3] = m4[13]; mat.m[2][3] = m4[14]; mat.m[3][3] = m4[14];
+}
+
+Matrix4 HmdMatrix44toMatrix4(const vr::HmdMatrix44_t &mat) {
+	Matrix4 matrixObj(
+		mat.m[0][0], mat.m[1][0], mat.m[2][0], mat.m[3][0],
+		mat.m[0][1], mat.m[1][1], mat.m[2][1], mat.m[3][1],
+		mat.m[0][2], mat.m[1][2], mat.m[2][2], mat.m[3][2],
+		mat.m[0][3], mat.m[1][3], mat.m[2][3], mat.m[3][3]
+	);
+	return matrixObj;
+}
+
+/*
+
+Chee:
+eyeLeft:
+0.984808, 0.000000, 0.173648, -0.033236
+0.000000, 1.000000, 0.000000, 0.000000
+-0.173648, 0.000000, 0.984808, 0.000000
+
+Fullbody:
+eyeLeft:
+1.000000, 0.000000, 0.000000, -0.033050
+0.000000, 1.000000, 0.000000, 0.000000
+0.000000, 0.000000, 1.000000, 0.015000
+
+*/
+void ProcessSteamVREyeMatrices(vr::EVREye eye) {
+	if (g_pHMD == NULL) {
+		log_debug("[DBG] Cannot process SteamVR matrices because g_pHMD == NULL");
+		return;
+	}
+
+	vr::HmdMatrix34_t eyeMatrix = g_pHMD->GetEyeToHeadTransform(eye);
+	//ShowHmdMatrix34(eyeMatrix, "HmdMatrix34_t eyeMatrix");
+	if (eye == vr::EVREye::Eye_Left)
+		g_EyeMatrixLeft = eyeMatrix;
+	else
+		g_EyeMatrixRight = eyeMatrix;
+
+	Matrix4 matrixObj(
+		eyeMatrix.m[0][0], eyeMatrix.m[1][0], eyeMatrix.m[2][0], 0.0f,
+		eyeMatrix.m[0][1], eyeMatrix.m[1][1], eyeMatrix.m[2][1], 0.0f,
+		eyeMatrix.m[0][2], eyeMatrix.m[1][2], eyeMatrix.m[2][2], 0.0f,
+		eyeMatrix.m[0][3], eyeMatrix.m[1][3], eyeMatrix.m[2][3], 1.0f
+	);
+
+	/*
+	// Pimax matrix: 11.11 degrees on the Y axis and 6.64 IPD
+	Matrix4 matrixObj(
+		0.984808, 0.000000, 0.173648, -0.033236,
+		0.000000, 1.000000, 0.000000, 0.000000,
+		-0.173648, 0.000000, 0.984808, 0.000000,
+		0, 0, 0, 1);
+	matrixObj.transpose();
+	*/
+
+	// Invert the matrix and store it
+	matrixObj.invertGeneral();
+	if (eye == vr::EVREye::Eye_Left)
+		g_EyeMatrixLeftInv = matrixObj;
+	else
+		g_EyeMatrixRightInv = matrixObj;
+}
+
+void ShowVector4(const Vector4 &X, char *name) {
+	if (name != NULL)
+		log_debug("[DBG] %s = %0.6f, %0.6f, %0.6f, %0.6f",
+			name, X[0], X[1], X[2], X[3]);
+	else
+		log_debug("[DBG] %0.6f, %0.6f, %0.6f, %0.6f",
+			X[0], X[1], X[2], X[3]);
+}
+
+void TestProjMatrices() {
+	Vector4 X;
+	float x, y, z;
+
+	X.set(0, 0, 1, 1);
+	ShowVector4(X, "0,0,1, left = ");
+	projectSteamVR(X[0], X[1], X[2], vr::EVREye::Eye_Left, x, y, z);
+	log_debug("[DBG] (%0.3f, %0.3f, %0.3f)", x, y, z);
+
+	X.set(-1, -1, 1, 1);
+	ShowVector4(X, "-1, -1, 1, left = ");
+	projectSteamVR(X[0], X[1], X[2], vr::EVREye::Eye_Left, x, y, z);
+	log_debug("[DBG] (%0.3f, %0.3f, %0.3f)", x, y, z);
+
+	X.set(1, 1, 1, 1);
+	ShowVector4(X, "1, 1, 1, left = ");
+	projectSteamVR(X[0], X[1], X[2], vr::EVREye::Eye_Left, x, y, z);
+	log_debug("[DBG] (%0.3f, %0.3f, %0.3f)", x, y, z);
+
+}
+
 bool InitSteamVR()
 {
 	char *strDriver = NULL;
@@ -774,7 +1034,7 @@ bool InitSteamVR()
 	}
 	log_debug("[DBG] SteamVR Compositor Initialized");
 
-	g_pVRCompositor->ForceInterleavedReprojectionOn(g_bInterleavedReprojection); // Looks like we get slightly better performance with this setting.
+	g_pVRCompositor->ForceInterleavedReprojectionOn(g_bInterleavedReprojection);
 	log_debug("[DBG] InterleavedReprojection: %d", g_bInterleavedReprojection);
 
 	g_pVRScreenshots = vr::VRScreenshots();
@@ -785,11 +1045,43 @@ bool InitSteamVR()
 	// Reset the seated pose
 	g_pHMD->ResetSeatedZeroPose();
 
+	// Preprocess the eye and projection matrices
+	ProcessSteamVREyeMatrices(vr::EVREye::Eye_Left);
+	ProcessSteamVREyeMatrices(vr::EVREye::Eye_Right);
+
+	// Should I use Z_FAR here?
+	vr::HmdMatrix44_t projLeft  = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Left, 0.0001f, 2000.0f);
+	vr::HmdMatrix44_t projRight = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Left, 0.0001f, 2000.0f);
+
+	//vr::HmdMatrix44_t projLeft  = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Left, DEFAULT_FOCAL_DIST, 50.0f);
+	//vr::HmdMatrix44_t projRight = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Left, DEFAULT_FOCAL_DIST, 50.0f);
+
+	//vr::HmdMatrix44_t projLeft = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Left, DEFAULT_FOCAL_DIST, Z_FAR);
+	//vr::HmdMatrix44_t projRight = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Left, DEFAULT_FOCAL_DIST, Z_FAR);
+
+	g_projLeft  = HmdMatrix44toMatrix4(projLeft);
+	g_projRight = HmdMatrix44toMatrix4(projRight);
+
+	// The order is wrong; but I'm not sure if I also should transpose, so multiply each
+	// matrix separately for now
+	g_fullMatrixLeft  = g_EyeMatrixLeftInv  * g_projLeft;
+	g_fullMatrixRight = g_EyeMatrixRightInv * g_projRight;
+
+	//ShowHmdMatrix44(projLeft, "progLeft Z_FAR: 1");
+	//ShowMatrix4(g_projLeft, "g_progLeft Z_FAR: 1");
+	ShowMatrix4(g_EyeMatrixLeftInv, "g_EyeMatrixLeftInv");
+	ShowMatrix4(g_projLeft, "g_projLeft");
+
+	ShowMatrix4(g_EyeMatrixRightInv, "g_EyeMatrixRightInv");
+	ShowMatrix4(g_projRight, "g_projRight");
+	
+	//ShowMatrix4(g_fullMatrixLeft, "g_fullMatrixLeft");
+	//ShowMatrix4(g_fullMatrixRight, "g_fullMatrixRight");
+
+	TestProjMatrices();
+
 	// Dump information about the view matrices
 	if (file_error == 0) {
-		vr::HmdMatrix34_t eyeLeft = g_pHMD->GetEyeToHeadTransform(vr::EVREye::Eye_Left);
-		vr::HmdMatrix34_t eyeRight = g_pHMD->GetEyeToHeadTransform(vr::EVREye::Eye_Right);
-
 		if (strDriver != NULL)
 			fprintf(file, "Driver: %s\n", strDriver);
 		if (strDisplay != NULL)
@@ -797,15 +1089,16 @@ bool InitSteamVR()
 		fprintf(file, "\n");
 
 		fprintf(file, "eyeLeft:\n");
-		DumpMatrix34(file, eyeLeft);
+		DumpMatrix34(file, g_EyeMatrixLeft);
 		fprintf(file, "\n");
 
 		fprintf(file, "eyeRight:\n");
-		DumpMatrix34(file, eyeRight);
+		DumpMatrix34(file, g_EyeMatrixLeft);
 		fprintf(file, "\n");
 
-		vr::HmdMatrix44_t projLeft = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Left, DEFAULT_FOCAL_DIST, Z_FAR);
-		vr::HmdMatrix44_t projRight = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Right, DEFAULT_FOCAL_DIST, Z_FAR);
+		// Z_FAR was 50 for version 0.9.6, and I believe Z_Near was 0.5 (focal dist)
+		vr::HmdMatrix44_t projLeft = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Left, DEFAULT_FOCAL_DIST, 50.0f);
+		vr::HmdMatrix44_t projRight = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Right, DEFAULT_FOCAL_DIST, 50.0f);
 
 		fprintf(file, "projLeft:\n");
 		DumpMatrix44(file, projLeft);
@@ -1303,6 +1596,10 @@ HRESULT Direct3DDevice::CreateExecuteBuffer(
 			return DDERR_INVALIDOBJECT;
 		if (FAILED(device->CreateBuffer(&vertexBufferDesc, nullptr, &this->_vertexBufferR)))
 			return DDERR_INVALIDOBJECT;
+		if (g_bUseSteamVR) {
+			if (FAILED(device->CreateBuffer(&vertexBufferDesc, nullptr, &this->_vertexBuffer3D)))
+				return DDERR_INVALIDOBJECT;
+		}
 
 		D3D11_BUFFER_DESC indexBufferDesc;
 		indexBufferDesc.ByteWidth = lpDesc->dwBufferSize;
@@ -1354,6 +1651,8 @@ void DeleteStereoVertices() {
 		delete[] g_LeftVerts;
 	if (g_RightVerts != NULL)
 		delete[] g_RightVerts;
+	if (g_3DVerts != NULL)
+		delete[] g_3DVerts;
 }
 
 void ResizeStereoVertices(int numVerts) {
@@ -1367,6 +1666,7 @@ void ResizeStereoVertices(int numVerts) {
 	g_OrigVerts = new D3DTLVERTEX[g_iNumVertices];
 	g_LeftVerts = new D3DTLVERTEX[g_iNumVertices];
 	g_RightVerts = new D3DTLVERTEX[g_iNumVertices];
+	g_3DVerts = new D3DTLVERTEX[g_iNumVertices];
 }
 
 #ifdef DBG_VR
@@ -1392,6 +1692,32 @@ void DumpOrigVertices(FILE *file, int numVerts)
 }
 #endif
 
+/* 
+ * In SteamVR, the coordinate system is as follows:
+ * +x is right
+ * +y is up
+ * -z is forward
+ * Distance is meters
+ */
+void projectSteamVR(float X, float Y, float Z, vr::EVREye eye, float &x, float &y, float &z) {
+	Vector4 PX;
+
+	PX.set(X, -Y, -Z, 1.0f);
+	if (eye == vr::EVREye::Eye_Left) {
+		PX = g_EyeMatrixLeftInv * PX;
+		PX = g_projLeft * PX;
+	} else {
+		PX = g_EyeMatrixRightInv * PX;
+		PX = g_projRight * PX;
+	}
+	// Normalize
+	PX /= PX[3];
+	// Project
+	x =  PX[0]; // / PX[2];
+	y = -PX[1]; // / PX[2];
+	z =  PX[2];
+}
+
 void PreprocessVerticesStereo(float width, float height, int numVerts)
 {
 	// Pre-process vertices for Stereo
@@ -1399,16 +1725,18 @@ void PreprocessVerticesStereo(float width, float height, int numVerts)
 	bool is_cockpit;
 	float scale_x = 1.0f / width;
 	float scale_y = 1.0f / height;
+	float scale = scale_x;
 	bool is_GUI = false;
 
 	// Back-project and do stereo
 	for (register int i = 0; i < numVerts; i++) {
 		g_LeftVerts[i]  = g_OrigVerts[i];
 		g_RightVerts[i] = g_OrigVerts[i];
+		g_3DVerts[i]    = g_OrigVerts[i];
 		// Normalize the coords: move the screen's center to (0,0) and scale the (x,y) axes
 		// to -0.5..0.5
-		px = g_OrigVerts[i].sx * scale_x - 0.5f;
-		py = g_OrigVerts[i].sy * scale_y - 0.5f;
+		px = g_OrigVerts[i].sx * scale - 0.5f;
+		py = g_OrigVerts[i].sy * scale - 0.5f;
 		// Also invert the Z axis so that z = 0 is the screen plane and z = 1 is ZFar, the original
 		// values have ZFar = 0, and ZNear = 1
 		direct_pz = g_OrigVerts[i].sz;
@@ -1420,6 +1748,9 @@ void PreprocessVerticesStereo(float width, float height, int numVerts)
 
 		// Back-project into 3D space
 		back_project(px, py, pz, direct_pz, X, Y, Z);
+		g_3DVerts[i].sx = X;
+		g_3DVerts[i].sy = Y;
+		g_3DVerts[i].sz = Z;
 
 		// Reproject back into 2D space
 		if (is_GUI) {
@@ -1430,14 +1761,19 @@ void PreprocessVerticesStereo(float width, float height, int numVerts)
 			qx = px;
 			qy = py;
 			qz = pz;
-		} else if (is_cockpit) {
-			project(X + g_fHalfIPD, Y, Z, px, py, pz);
-			project(X - g_fHalfIPD, Y, Z, qx, qy, qz);
-		} else {
-			float disp = 30.0f; // Objects "out there" need to have their parallax boosted or they just look flat
+		} else { //if (is_cockpit) {
+			if (g_bUseSteamVR) {
+				projectSteamVR(X, Y, Z, vr::EVREye::Eye_Left, px, py, pz);
+				projectSteamVR(X, Y, Z, vr::EVREye::Eye_Right, qx, qy, qz);
+			} else {
+				project(X + g_fHalfIPD, Y, Z, px, py, pz);
+				project(X - g_fHalfIPD, Y, Z, qx, qy, qz);
+			}			
+		} /* else {
+			float disp = 10.0f; // Objects "out there" need to have their parallax boosted or they just look flat
 			project(X + g_fHalfIPD * disp, Y, Z, px, py, pz);
 			project(X - g_fHalfIPD * disp, Y, Z, qx, qy, qz);
-		}
+		} */
 
 		// (px,py) and (qx,qy) are now in the range [-0.5,..,0.5], we need
 		// to map them to the range [0..width, 0..height]
@@ -1445,15 +1781,15 @@ void PreprocessVerticesStereo(float width, float height, int numVerts)
 		// Compute the vertices for the left image
 		{
 			// De-normalize coords (left image)
-			g_LeftVerts[i].sx = (px + 0.5f) / scale_x;
-			g_LeftVerts[i].sy = (py + 0.5f) / scale_y;
+			g_LeftVerts[i].sx = (px + 0.5f) / scale;
+			g_LeftVerts[i].sy = (py + 0.5f) / scale;
 			g_LeftVerts[i].sz = 1.0f - pz;
 		}
 		// Compute the vertices for the right image
 		{
 			// De-normalize coords (right image)
-			g_RightVerts[i].sx = (qx + 0.5f) / scale_x;
-			g_RightVerts[i].sy = (qy + 0.5f) / scale_y;
+			g_RightVerts[i].sx = (qx + 0.5f) / scale;
+			g_RightVerts[i].sy = (qy + 0.5f) / scale;
 			g_RightVerts[i].sz = 1.0f - qz;
 		}
 		// Restore the original Z for the GUI elements: this will avoid Z-fighting
@@ -1588,6 +1924,15 @@ HRESULT Direct3DDevice::Execute(
 		{
 			memcpy(map.pData, g_RightVerts, vertsLength);
 			context->Unmap(this->_vertexBufferR, 0);
+		}
+
+		// 3D vertices
+		step = "VertexBuffer (3D)";
+		hr = context->Map(this->_vertexBuffer3D, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
+		if (SUCCEEDED(hr))
+		{
+			memcpy(map.pData, g_3DVerts, vertsLength);
+			context->Unmap(this->_vertexBuffer3D, 0);
 		}
 	}
 

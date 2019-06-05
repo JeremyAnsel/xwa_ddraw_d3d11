@@ -8,6 +8,9 @@
 #include <memory>
 #include <gdiplus.h>
 
+// SteamVR
+#include <headers/openvr.h>
+
 #pragma comment(lib, "Gdiplus")
 
 using namespace Gdiplus;
