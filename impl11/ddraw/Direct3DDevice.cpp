@@ -202,6 +202,7 @@ Matrix4 g_EyeMatrixLeftInv, g_EyeMatrixRightInv;
 //vr::HmdMatrix44_t g_projLeft, g_projRight;
 Matrix4 g_projLeft, g_projRight;
 Matrix4 g_fullMatrixLeft, g_fullMatrixRight;
+VertexShaderMatrixCB g_VSMatrixCB;
 void projectSteamVR(float X, float Y, float Z, vr::EVREye eye, float &x, float &y, float &z);
 
 /* Vertices that will be used for the VertexBuffer. */
@@ -273,9 +274,12 @@ float g_fCockpitPZThreshold = DEFAULT_COCKPIT_PZ_THRESHOLD; // The TIE-Intercept
 float g_fBackupCockpitPZThreshold = g_fCockpitPZThreshold; // Backup of the cockpit threshold, used when toggling this effect on or off.
 
 const float IPD_SCALE_FACTOR = 100.0f; // Transform centimeters to meters (IPD = 6.5 becomes 0.065)
-const float GAME_SCALE_FACTOR = 30.0f; // Estimated empirically
-const float GAME_SCALE_FACTOR_Z = 80.0f; // Estimated empirically
-//const float GAME_SCALE_FACTOR = 30.0f; // Estimated empirically
+const float GAME_SCALE_FACTOR = 60.0f; // Estimated empirically
+const float GAME_SCALE_FACTOR_Z = 60.0f; // Estimated empirically
+//const float GAME_SCALE_FACTOR = 2.0f; // Estimated empirically
+//const float GAME_SCALE_FACTOR_Z = 2.0f; // Estimated empirically
+
+										 //const float GAME_SCALE_FACTOR = 30.0f; // Estimated empirically
 //const float GAME_SCALE_FACTOR = 1.0f; // Estimated empirically
 
 // In reality, there should be a different factor per in-game resolution; but for now this should be enough
@@ -1050,22 +1054,22 @@ bool InitSteamVR()
 	ProcessSteamVREyeMatrices(vr::EVREye::Eye_Right);
 
 	// Should I use Z_FAR here?
-	vr::HmdMatrix44_t projLeft  = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Left, 0.0001f, 2000.0f);
-	vr::HmdMatrix44_t projRight = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Left, 0.0001f, 2000.0f);
+	vr::HmdMatrix44_t projLeft  = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Left, 0.001f, 25000.0f);
+	vr::HmdMatrix44_t projRight = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Right, 0.001f, 25000.0f);
 
 	//vr::HmdMatrix44_t projLeft  = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Left, DEFAULT_FOCAL_DIST, 50.0f);
-	//vr::HmdMatrix44_t projRight = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Left, DEFAULT_FOCAL_DIST, 50.0f);
+	//vr::HmdMatrix44_t projRight = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Right, DEFAULT_FOCAL_DIST, 50.0f);
 
 	//vr::HmdMatrix44_t projLeft = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Left, DEFAULT_FOCAL_DIST, Z_FAR);
-	//vr::HmdMatrix44_t projRight = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Left, DEFAULT_FOCAL_DIST, Z_FAR);
+	//vr::HmdMatrix44_t projRight = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Right, DEFAULT_FOCAL_DIST, Z_FAR);
 
 	g_projLeft  = HmdMatrix44toMatrix4(projLeft);
 	g_projRight = HmdMatrix44toMatrix4(projRight);
 
 	// The order is wrong; but I'm not sure if I also should transpose, so multiply each
 	// matrix separately for now
-	g_fullMatrixLeft  = g_EyeMatrixLeftInv  * g_projLeft;
-	g_fullMatrixRight = g_EyeMatrixRightInv * g_projRight;
+	g_fullMatrixLeft  = g_projLeft  * g_EyeMatrixLeftInv;
+	g_fullMatrixRight = g_projRight * g_EyeMatrixRightInv;
 
 	//ShowHmdMatrix44(projLeft, "progLeft Z_FAR: 1");
 	//ShowMatrix4(g_projLeft, "g_progLeft Z_FAR: 1");
@@ -1260,13 +1264,15 @@ public:
 		case D3DCMP_NEVER:
 			return D3D11_COMPARISON_NEVER;
 		case D3DCMP_LESS:
-			return D3D11_COMPARISON_LESS;
+			return D3D11_COMPARISON_LESS; // Original setting
+			//return D3D11_COMPARISON_GREATER;
 		case D3DCMP_EQUAL:
 			return D3D11_COMPARISON_EQUAL;
 		case D3DCMP_LESSEQUAL:
 			return D3D11_COMPARISON_LESS_EQUAL;
 		case D3DCMP_GREATER:
-			return D3D11_COMPARISON_GREATER;
+			return D3D11_COMPARISON_GREATER; // Original setting
+			//return D3D11_COMPARISON_LESS;
 		case D3DCMP_NOTEQUAL:
 			return D3D11_COMPARISON_NOT_EQUAL;
 		case D3DCMP_GREATEREQUAL:
@@ -1700,19 +1706,17 @@ void DumpOrigVertices(FILE *file, int numVerts)
  * Distance is meters
  */
 void projectSteamVR(float X, float Y, float Z, vr::EVREye eye, float &x, float &y, float &z) {
-	Vector4 PX;
+	Vector4 PX; // PY;
 
 	PX.set(X, -Y, -Z, 1.0f);
 	if (eye == vr::EVREye::Eye_Left) {
-		PX = g_EyeMatrixLeftInv * PX;
-		PX = g_projLeft * PX;
+		PX = g_fullMatrixLeft * PX;
 	} else {
-		PX = g_EyeMatrixRightInv * PX;
-		PX = g_projRight * PX;
+		PX = g_fullMatrixRight * PX;
 	}
-	// Normalize
-	PX /= PX[3];
 	// Project
+	PX /= PX[3];
+	// Convert to 2D
 	x =  PX[0]; // / PX[2];
 	y = -PX[1]; // / PX[2];
 	z =  PX[2];
@@ -1725,7 +1729,7 @@ void PreprocessVerticesStereo(float width, float height, int numVerts)
 	bool is_cockpit;
 	float scale_x = 1.0f / width;
 	float scale_y = 1.0f / height;
-	float scale = scale_x;
+	//float scale = scale_x;
 	bool is_GUI = false;
 
 	// Back-project and do stereo
@@ -1735,8 +1739,8 @@ void PreprocessVerticesStereo(float width, float height, int numVerts)
 		g_3DVerts[i]    = g_OrigVerts[i];
 		// Normalize the coords: move the screen's center to (0,0) and scale the (x,y) axes
 		// to -0.5..0.5
-		px = g_OrigVerts[i].sx * scale - 0.5f;
-		py = g_OrigVerts[i].sy * scale - 0.5f;
+		px = g_OrigVerts[i].sx * scale_x - 0.5f;
+		py = g_OrigVerts[i].sy * scale_y - 0.5f;
 		// Also invert the Z axis so that z = 0 is the screen plane and z = 1 is ZFar, the original
 		// values have ZFar = 0, and ZNear = 1
 		direct_pz = g_OrigVerts[i].sz;
@@ -1751,6 +1755,7 @@ void PreprocessVerticesStereo(float width, float height, int numVerts)
 		g_3DVerts[i].sx = X;
 		g_3DVerts[i].sy = Y;
 		g_3DVerts[i].sz = Z;
+		g_3DVerts[i].rhw = g_OrigVerts[i].sz; // Store the original Z value in the W component
 
 		// Reproject back into 2D space
 		if (is_GUI) {
@@ -1761,6 +1766,7 @@ void PreprocessVerticesStereo(float width, float height, int numVerts)
 			qx = px;
 			qy = py;
 			qz = pz;
+			g_3DVerts[i].sz = g_fFocalDist; // / 2.0f;
 		} else { //if (is_cockpit) {
 			if (g_bUseSteamVR) {
 				projectSteamVR(X, Y, Z, vr::EVREye::Eye_Left, px, py, pz);
@@ -1781,15 +1787,15 @@ void PreprocessVerticesStereo(float width, float height, int numVerts)
 		// Compute the vertices for the left image
 		{
 			// De-normalize coords (left image)
-			g_LeftVerts[i].sx = (px + 0.5f) / scale;
-			g_LeftVerts[i].sy = (py + 0.5f) / scale;
+			g_LeftVerts[i].sx = (px + 0.5f) / scale_x;
+			g_LeftVerts[i].sy = (py + 0.5f) / scale_y;
 			g_LeftVerts[i].sz = 1.0f - pz;
 		}
 		// Compute the vertices for the right image
 		{
 			// De-normalize coords (right image)
-			g_RightVerts[i].sx = (qx + 0.5f) / scale;
-			g_RightVerts[i].sy = (qy + 0.5f) / scale;
+			g_RightVerts[i].sx = (qx + 0.5f) / scale_x;
+			g_RightVerts[i].sy = (qy + 0.5f) / scale_y;
 			g_RightVerts[i].sz = 1.0f - qz;
 		}
 		// Restore the original Z for the GUI elements: this will avoid Z-fighting
@@ -1875,10 +1881,10 @@ HRESULT Direct3DDevice::Execute(
 	char* step = "";
 
 	this->_deviceResources->InitInputLayout(resources->_inputLayout);
-	// The original code used _vertexShader:
 	if (g_bEnableVR)
 		this->_deviceResources->InitVertexShader(resources->_sbsVertexShader);
 	else
+		// The original code used _vertexShader:
 		this->_deviceResources->InitVertexShader(resources->_vertexShader);	
 	this->_deviceResources->InitPixelShader(resources->_pixelShaderTexture);
 	this->_deviceResources->InitTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -1934,6 +1940,9 @@ HRESULT Direct3DDevice::Execute(
 			memcpy(map.pData, g_3DVerts, vertsLength);
 			context->Unmap(this->_vertexBuffer3D, 0);
 		}
+
+		// Send the 3D vertices, let the shader do the projection
+		resources->InitVertexBuffer(this->_vertexBuffer3D.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
 	}
 
 	// Constant Buffer step (and aspect ratio)
@@ -2286,7 +2295,11 @@ HRESULT Direct3DDevice::Execute(
 					viewport.MaxDepth = D3D11_MAX_DEPTH;
 					resources->InitViewport(&viewport);
 
+					// For non-VR mode, send the original 2D vertices
+					//g_VSMatrixCB.projEye.identity();
+					//resources->InitVSConstantBufferMatrix(resources->_VSMatrixBuffer.GetAddressOf(), &g_VSMatrixCB);
 					resources->InitVertexBuffer(this->_vertexBuffer.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
+
 					context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
 						resources->_depthStencilViewL.Get());
 					context->DrawIndexed(3 * instruction->wCount, currentIndexLocation, 0);
@@ -2333,6 +2346,11 @@ HRESULT Direct3DDevice::Execute(
 					g_PSCBuffer.brightness = g_fBrightness;
 				}
 
+				if (bIsSkyBox) {
+					bModifiedShaders = true;
+					g_VSCBuffer.z_override = 1.0f;
+				}
+
 				if (bModifiedShaders)
 					resources->InitPSConstantBufferBrightness(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 
@@ -2374,10 +2392,12 @@ HRESULT Direct3DDevice::Execute(
 				if (SUCCEEDED(hr))
 				{
 					// Use the original vertices for the Sky, HUD, Text and Brackets:
+					/*
 					if (bIsSkyBox || bIsHUD || bIsText || bIsBracket) // Should I add Floating GUI elements here as well?
 						resources->InitVertexBuffer(this->_vertexBuffer.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
 					else
 						resources->InitVertexBuffer(this->_vertexBufferL.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
+					*/
 				}
 
 				if (bModifiedShaders)
@@ -2415,6 +2435,9 @@ HRESULT Direct3DDevice::Execute(
 				viewport.MinDepth = D3D11_MIN_DEPTH;
 				viewport.MaxDepth = D3D11_MAX_DEPTH;
 				resources->InitViewport(&viewport);
+				// Set the left projection matrix
+				g_VSMatrixCB.projEye = g_fullMatrixLeft;
+				resources->InitVSConstantBufferMatrix(resources->_VSMatrixBuffer.GetAddressOf(), &g_VSMatrixCB);
 				// Draw the Left Image
 				context->DrawIndexed(3 * instruction->wCount, currentIndexLocation, 0);
 
@@ -2456,10 +2479,12 @@ HRESULT Direct3DDevice::Execute(
 				if (SUCCEEDED(hr))
 				{
 					// Use the original vertices for the Sky, HUD, Text and Brackets:
+					/*
 					if (bIsSkyBox || bIsHUD || bIsText || bIsBracket) // Should I add Floating GUI elements here as well?
 						resources->InitVertexBuffer(this->_vertexBuffer.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
 					else
 						resources->InitVertexBuffer(this->_vertexBufferR.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
+					*/
 				}
 
 				if (bModifiedShaders)
@@ -2493,6 +2518,9 @@ HRESULT Direct3DDevice::Execute(
 				viewport.MinDepth = D3D11_MIN_DEPTH;
 				viewport.MaxDepth = D3D11_MAX_DEPTH;
 				resources->InitViewport(&viewport);
+				// Set the right projection matrix
+				g_VSMatrixCB.projEye = g_fullMatrixRight;
+				resources->InitVSConstantBufferMatrix(resources->_VSMatrixBuffer.GetAddressOf(), &g_VSMatrixCB);
 				// Draw the Right Image
 				context->DrawIndexed(3 * instruction->wCount, currentIndexLocation, 0);
 

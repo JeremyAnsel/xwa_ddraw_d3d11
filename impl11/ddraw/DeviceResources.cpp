@@ -856,6 +856,10 @@ HRESULT DeviceResources::LoadResources()
 	if (FAILED(hr = this->_d3dDevice->CreateBuffer(&constantBufferDesc, nullptr, &this->_VSConstantBuffer)))
 		return hr;
 
+	constantBufferDesc.ByteWidth = 64; // 4x4 elems in a matrix = 16 elems. Each elem is a float, so 4 bytes * 16 = 64, which is a multiple of 16
+	if (FAILED(hr = this->_d3dDevice->CreateBuffer(&constantBufferDesc, nullptr, &this->_VSMatrixBuffer)))
+		return hr;
+
 	// Create the constant buffer for the (3D) textured pixel shader
 	constantBufferDesc.ByteWidth = 16;
 	if (FAILED(hr = this->_d3dDevice->CreateBuffer(&constantBufferDesc, nullptr, &this->_PSConstantBuffer)))
@@ -1086,6 +1090,34 @@ void DeviceResources::InitVSConstantBuffer3D(ID3D11Buffer** buffer, const Vertex
 		this->_d3dDeviceContext->VSSetConstantBuffers(0, 1, buffer);
 	}
 	g_LastVSConstantBufferSet = VS_CONSTANT_BUFFER_3D;
+}
+
+void DeviceResources::InitVSConstantBufferMatrix(ID3D11Buffer** buffer, const VertexShaderMatrixCB* vsCBuffer)
+{
+	//static ID3D11Buffer** currentBuffer = nullptr;
+	//static VertexShaderCBuffer currentVSConstants{};
+	//static int sizeof_constants = sizeof(VertexShaderCBuffer);
+
+	/*
+	if (g_LastVSConstantBufferSet == VS_CONSTANT_BUFFER_NONE ||
+		g_LastVSConstantBufferSet != VS_CONSTANT_BUFFER_3D ||
+		memcmp(vsCBuffer, &currentVSConstants, sizeof_constants) != 0)
+	{ 
+		memcpy(&currentVSConstants, vsCBuffer, sizeof_constants);
+		this->_d3dDeviceContext->UpdateSubresource(buffer[0], 0, nullptr, vsCBuffer, 0, 0);
+	}	
+
+	if (g_LastVSConstantBufferSet == VS_CONSTANT_BUFFER_NONE ||
+		g_LastVSConstantBufferSet != VS_CONSTANT_BUFFER_3D ||
+		buffer != currentBuffer)
+	{
+		currentBuffer = buffer;
+		this->_d3dDeviceContext->VSSetConstantBuffers(0, 1, buffer);
+	}
+	g_LastVSConstantBufferSet = VS_CONSTANT_BUFFER_3D;
+	*/
+	this->_d3dDeviceContext->UpdateSubresource(buffer[0], 0, nullptr, vsCBuffer, 0, 0);
+	this->_d3dDeviceContext->VSSetConstantBuffers(1, 1, buffer);
 }
 
 void DeviceResources::InitVSConstantBuffer2D(ID3D11Buffer** buffer, const float parallax,
