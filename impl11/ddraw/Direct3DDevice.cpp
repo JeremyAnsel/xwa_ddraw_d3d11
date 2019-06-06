@@ -234,6 +234,8 @@ int g_iPresentCounter = 0, g_iNonZBufferCounter = 0, g_iSkipNonZBufferDrawIdx = 
 // It's reset to false every time the backbuffer is swapped.
 //bool g_bGUIIsRendered = false;
 float g_fZOverride = 0.05f; // 0 is Z-Far and 1 is ZNear in ZBuffer-Log coords. 0.05 is almost at ZFar
+//float g_fZOverride = 0.95f;
+
 // g_fZOverride is activated when it's greater than -0.9f, and it's used for bracket rendering so that 
 // objects cover the brackets. In this way, we avoid visual contention from the brackets.
 bool g_bCockpitPZHackEnabled = true;
@@ -445,17 +447,17 @@ void IncreaseZoomOutScale(float Delta) {
 
 void IncreaseHUDParallax(float Delta) {
 	g_fHUDParallax += Delta;
-	//log_debug("[DBG] HUD parallax: %f", g_fHUDParallax);
+	log_debug("[DBG] HUD parallax: %f", g_fHUDParallax);
 }
 
 void IncreaseFloatingGUIParallax(float Delta) {
 	g_fFloatingGUIParallax += Delta;
-	//log_debug("[DBG] GUI parallax: %f", g_fFloatingGUIParallax);
+	log_debug("[DBG] GUI parallax: %f", g_fFloatingGUIParallax);
 }
 
 void IncreaseTextParallax(float Delta) {
 	g_fTextParallax += Delta;
-	//log_debug("[DBG] Text parallax: %f", g_fTextParallax);
+	log_debug("[DBG] Text parallax: %f", g_fTextParallax);
 }
 
 void IncreaseCockpitThreshold(float Delta) {
@@ -1049,7 +1051,7 @@ bool InitSteamVR()
 	// Reset the seated pose
 	g_pHMD->ResetSeatedZeroPose();
 
-	// Preprocess the eye and projection matrices
+	// Pre-multiply and store the eye and projection matrices:
 	ProcessSteamVREyeMatrices(vr::EVREye::Eye_Left);
 	ProcessSteamVREyeMatrices(vr::EVREye::Eye_Right);
 
@@ -1725,10 +1727,11 @@ void projectSteamVR(float X, float Y, float Z, vr::EVREye eye, float &x, float &
 void PreprocessVerticesStereo(float width, float height, int numVerts)
 {
 	// Pre-process vertices for Stereo
-	float X, Y, Z, px, py, pz, qx, qy, qz, direct_pz;
+	float /* X, Y, Z, */ px, py, pz, /* qx, qy, qz, */ direct_pz;
 	bool is_cockpit;
 	float scale_x = 1.0f / width;
 	float scale_y = 1.0f / height;
+	//float w;
 	//float scale = scale_x;
 	bool is_GUI = false;
 
@@ -1750,12 +1753,8 @@ void PreprocessVerticesStereo(float width, float height, int numVerts)
 		is_GUI = (pz <= g_fGUIElemPZThreshold);
 		is_cockpit = (pz <= g_fCockpitPZThreshold);
 
-		// Back-project into 3D space
-		back_project(px, py, pz, direct_pz, X, Y, Z);
-		g_3DVerts[i].sx = X;
-		g_3DVerts[i].sy = Y;
-		g_3DVerts[i].sz = Z;
-		g_3DVerts[i].rhw = g_OrigVerts[i].sz; // Store the original Z value in the W component
+		g_3DVerts[i].sx = px;
+		g_3DVerts[i].sy = py;
 
 		// Reproject back into 2D space
 		if (is_GUI) {
@@ -1763,11 +1762,17 @@ void PreprocessVerticesStereo(float width, float height, int numVerts)
 			// they will cause Z-Fighting with the 3D objects. Also the depth of the
 			// GUI elements is fixed by directly setting their parallax. So, nothing
 			// to do here.
+			/*
 			qx = px;
 			qy = py;
 			qz = pz;
-			g_3DVerts[i].sz = g_fFocalDist; // / 2.0f;
-		} else { //if (is_cockpit) {
+			*/
+			//g_3DVerts[i].sz = g_fFocalDist;
+			//g_3DVerts[i].sz = 0.0008f;
+			g_3DVerts[i].sz = g_fFloatingGUIParallax;
+		} 
+		/*
+		else { //if (is_cockpit) {
 			if (g_bUseSteamVR) {
 				projectSteamVR(X, Y, Z, vr::EVREye::Eye_Left, px, py, pz);
 				projectSteamVR(X, Y, Z, vr::EVREye::Eye_Right, qx, qy, qz);
@@ -1781,6 +1786,7 @@ void PreprocessVerticesStereo(float width, float height, int numVerts)
 			project(X - g_fHalfIPD * disp, Y, Z, qx, qy, qz);
 		} */
 
+		/*
 		// (px,py) and (qx,qy) are now in the range [-0.5,..,0.5], we need
 		// to map them to the range [0..width, 0..height]
 
@@ -1804,6 +1810,8 @@ void PreprocessVerticesStereo(float width, float height, int numVerts)
 			g_LeftVerts[i].sz  = g_OrigVerts[i].sz;
 			g_RightVerts[i].sz = g_OrigVerts[i].sz;
 		//}
+
+		*/
 	}
 
 #ifdef DBG_VR
@@ -2348,7 +2356,36 @@ HRESULT Direct3DDevice::Execute(
 
 				if (bIsSkyBox) {
 					bModifiedShaders = true;
+					// Make the skybox a bit bigger to enable roll in the future:
+					g_VSCBuffer.viewportScale[3] = g_fGlobalScale + 0.2f;
+					// Send the skybox to infinity:
 					g_VSCBuffer.z_override = 1.0f;
+				}
+
+				// Add an extra parallax to HUD elements
+				if (bIsHUD) {
+					bModifiedShaders = true;
+					g_VSCBuffer.z_override = g_fHUDParallax;
+				}
+
+				if (bIsTrianglePointer) { // Now a common setting
+					bModifiedShaders = true;
+					g_VSCBuffer.viewportScale[3] = g_fGUIElemScale;
+					//g_VSCBuffer.parallax = g_fHalfIPD * g_fTextParallax;
+					g_VSCBuffer.parallax = g_fTextParallax;
+				}
+
+				// Add extra parallax to Floating GUI elements, left image
+				if (bIsFloatingGUI || bIsFloating3DObject || bIsScaleableGUIElem) { // This is now a common setting
+					bModifiedShaders = true;
+					/*
+					g_VSCBuffer.parallax = bIsFloating3DObject ?
+						g_fHalfIPD * (g_fFloatingGUIParallax + g_fFloatingGUIObjParallax) :
+						g_fHalfIPD * g_fFloatingGUIParallax;
+					*/
+					g_VSCBuffer.z_override = bIsFloating3DObject ?
+						g_fFloatingGUIParallax + g_fFloatingGUIObjParallax :
+						g_fFloatingGUIParallax;
 				}
 
 				if (bModifiedShaders)
@@ -2360,30 +2397,13 @@ HRESULT Direct3DDevice::Execute(
 
 				// Let's render the triangle pointer closer to the center so that we can see it all the time,
 				// also, render the triangle pointer at text depth.
-				if (bIsTrianglePointer) {
-					bModifiedShaders = true;
-					g_VSCBuffer.viewportScale[3] = g_fGUIElemScale;
-					g_VSCBuffer.parallax = g_fHalfIPD * g_fTextParallax;
-				}
-
-				// Add an extra parallax to HUD elements, left image
-				if (bIsHUD) {
-					bModifiedShaders = true;
-					g_VSCBuffer.parallax = g_fHalfIPD * g_fHUDParallax;
-				}
-
-				// Add extra parallax to Floating GUI elements, left image
-				if (bIsFloatingGUI || bIsFloating3DObject || bIsScaleableGUIElem) {
-					bModifiedShaders = true;
-					g_VSCBuffer.parallax = bIsFloating3DObject ?
-						g_fHalfIPD * (g_fFloatingGUIParallax + g_fFloatingGUIObjParallax) :
-						g_fHalfIPD * g_fFloatingGUIParallax;
-				}
+				
 
 				// Add an extra parallax to Text elements, left image
-				if (bIsText) {
+				if (bIsText) { // This is now a common setting
 					bModifiedShaders = true;
-					g_VSCBuffer.parallax = g_fHalfIPD * g_fTextParallax;
+					//g_VSCBuffer.parallax = g_fHalfIPD * g_fTextParallax;
+					g_VSCBuffer.z_override = g_fTextParallax;
 				}
 
 				// Select either the original vertex buffer or the left-image vertex buffer. Certain elements are
@@ -2447,30 +2467,38 @@ HRESULT Direct3DDevice::Execute(
 
 				// Let's render the triangle pointer closer to the center so that we can see it all the time,
 				// also, render the triangle pointer at text depth.
+				/*
 				if (bIsTrianglePointer) {
 					bModifiedShaders = true;
 					g_VSCBuffer.viewportScale[3] = g_fGUIElemScale;
 					g_VSCBuffer.parallax = -g_fHalfIPD * g_fTextParallax;
 				}
-
+				*/
 				// Add an extra parallax to HUD elements, right image
-				if (bIsHUD) {
+				/*
+				if (bIsHUD) { // This is now a common setting, no need to re-do it here
 					bModifiedShaders = true;
-					g_VSCBuffer.parallax = -g_fHalfIPD * g_fHUDParallax;
+					//g_VSCBuffer.parallax = -g_fHalfIPD * g_fHUDParallax;
+					g_VSCBuffer.parallax = g_fHUDParallax;
 				}
+				*/
 
+				/*
 				// Add extra parallax to Floating GUI elements, right image
-				if (bIsFloatingGUI || bIsFloating3DObject || bIsScaleableGUIElem) {
+				if (bIsFloatingGUI || bIsFloating3DObject || bIsScaleableGUIElem) { // THis is now a common setting
 					bModifiedShaders = true;
-					g_VSCBuffer.parallax = bIsFloating3DObject ?
+					 g_VSCBuffer.parallax = bIsFloating3DObject ?
 						-g_fHalfIPD * (g_fFloatingGUIParallax + g_fFloatingGUIObjParallax) :
-						-g_fHalfIPD * g_fFloatingGUIParallax;
+						-g_fHalfIPD * g_fFloatingGUIParallax; 
+					g_VSCBuffer.z_override = g_fFloatingGUIParallax;
 				}
+				*/
 
 				// Add an extra parallax to Text elements, right image
-				if (bIsText) {
+				if (bIsText) { // This is now a common setting
 					bModifiedShaders = true;
-					g_VSCBuffer.parallax = -g_fHalfIPD * g_fTextParallax;
+					//g_VSCBuffer.parallax = -g_fHalfIPD * g_fTextParallax;
+					g_VSCBuffer.z_override = g_fTextParallax;
 				}
 
 				// Select either the original vertex buffer or the right-image vertex buffer. Certain elements are

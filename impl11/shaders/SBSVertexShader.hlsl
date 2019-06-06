@@ -28,28 +28,46 @@ struct PixelShaderInput
 	float2 tex : TEXCOORD;
 };
 
+static float GAME_SCALE_FACTOR = 60.0;
+static float GAME_SCALE_FACTOR_Z = 60.0;
+//float C = 1.0f, Z_FAR = 1.0f;
+static float LOG_K = 1.0;
+static float g_fFocalDist = 0.5;
+
+float3 back_project(float3 p)
+{
+	float3 Q;
+	float invz = 1.0 - p.z;
+	Q.z = (exp(invz * LOG_K) - 1.0) / p.z;
+	Q.xy = Q.z * p.xy / g_fFocalDist;
+	Q *= GAME_SCALE_FACTOR;
+	//Q.z *= GAME_SCALE_FACTOR_Z;
+	return Q;
+}
+
 PixelShaderInput main(VertexShaderInput input)
 {
 	PixelShaderInput output;
 
+	// input.pos is in 2D; but normalized to -1..1, back-project into 3D:
+	float3 P = back_project(input.pos.xyz);
+	// and then project into 2D; but using the right projEje matrix:
+	P.y = -P.y;
+	P.z = -P.z;
 	// Project 3D --> 2D
-	input.pos.z = -input.pos.z;
-	output.pos = mul(projEyeMatrix, float4(input.pos.xyz, 1));
-	//output.pos = mul(input.pos, projEyeMatrix);
-	
-	output.pos.x *= vpScale.z;
-	output.pos.y *= vpScale.z;
-	output.pos.y = -output.pos.y;
-	
-	output.pos /= output.pos.w;
-	output.pos.w = 1.0;
-	// input.pos.w isn't really the W component: it's storing the original Z value
-	// computed by the game
+	output.pos = mul(projEyeMatrix, float4(P, 1));
+	// Normalize:
+	output.pos  /=  output.pos.w;
+
+	// We have normalized 2D again, continue processing as before:
+	output.pos.x = (output.pos.x - 0.0f) * vpScale.z;
+	output.pos.y = (output.pos.y + 0.0f) * vpScale.z;
 	if (z_override > -0.9f) {
 		output.pos.z = z_override;
 	} else {
-		output.pos.z = input.pos.w;
+		output.pos.z = input.pos.z;
 	}
+	output.pos.w = 1.0f;
 	
 	// Halve the size of the screen; but scale according to vpScale.w, which is
 	// set to g_global_scale or GUI_elem_scale depending on the type of element
@@ -57,9 +75,39 @@ PixelShaderInput main(VertexShaderInput input)
 	output.pos.x *= vpScale.w * 0.5 * aspect_ratio;
 	output.pos.y *= vpScale.w * 0.5;
 
-	//output.pos /= input.pos.w;
+	output.pos /= input.pos.w;
 
 	output.color = input.color.zyxw;
-	output.tex = input.tex; // * input.pos.w;
+	output.tex = input.tex;
 	return output;
 }
+
+
+/*
+PixelShaderInput main_old(VertexShaderInput input) // This was the original DirectSBS shader
+{
+	PixelShaderInput output;
+
+	output.pos.x = (input.pos.x * vpScale.x - 1.0f + parallax) * vpScale.z;
+	output.pos.y = (input.pos.y * vpScale.y + 1.0f) * vpScale.z;
+	if (z_override > -0.9f) {
+		output.pos.z = z_override;
+	}
+	else {
+		output.pos.z = input.pos.z;
+	}
+	output.pos.w = 1.0f;
+
+	// Halve the size of the screen; but scale according to vpScale.w, which is
+	// set to g_global_scale or GUI_elem_scale depending on the type of element
+	// being drawn
+	output.pos.x *= vpScale.w * 0.5 * aspect_ratio;
+	output.pos.y *= vpScale.w * 0.5;
+
+	output.pos /= input.pos.w;
+
+	output.color = input.color.zyxw;
+	output.tex = input.tex;
+	return output;
+}
+*/

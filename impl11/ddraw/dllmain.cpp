@@ -27,8 +27,8 @@ void IncreaseNoDrawAfterIndex(int Delta);
 //void IncreaseZOverride(float Delta);
 void IncreaseSkipNonZBufferDrawIdx(int Delta);
 void IncreaseSkyBoxIndex(int Delta);
-#endif
 void IncreaseFocalDist(float Delta);
+#endif
 
 extern bool g_bDisableBarrelEffect, g_bEnableVR;
 extern bool g_bLeftKeyDown, g_bRightKeyDown, g_bUpKeyDown, g_bDownKeyDown, g_bUpKeyDownShift, g_bDownKeyDownShift;
@@ -85,17 +85,17 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 				return 0;
 
 			case VK_RIGHT:
-				IncreaseFocalDist(0.1f);
+				IncreaseFloatingGUIParallax( 0.005f);
 				return 0;
 			case VK_LEFT:
-				IncreaseFocalDist(-0.1f);
+				IncreaseFloatingGUIParallax(-0.005f);
 				return 0;
 
 			case VK_UP: // Delta is in cms
-				IncreaseIPD(0.1f);
+				IncreaseHUDParallax( 0.005f);
 				return 0;
 			case VK_DOWN:
-				IncreaseIPD(-0.1f);
+				IncreaseHUDParallax(-0.005f);
 				return 0;
 			}
 		}
@@ -225,10 +225,10 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 #endif
 
 			case VK_RIGHT:
-				IncreaseSkipNonZBufferDrawIdx(1);
+				//IncreaseSkipNonZBufferDrawIdx(1);
 				return 0;
 			case VK_LEFT:
-				IncreaseSkipNonZBufferDrawIdx(-1);
+				//IncreaseSkipNonZBufferDrawIdx(-1);
 				return 0;
 
 			}
@@ -249,16 +249,17 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 #endif
 
 			case VK_UP:
-				IncreaseFloatingGUIParallax(3.0f);
+				//IncreaseFloatingGUIParallax(3.0f);
+				IncreaseFloatingGUIParallax(0.1f);
 				return 0;
 			case VK_DOWN:
-				IncreaseFloatingGUIParallax(-3.0f);
+				IncreaseFloatingGUIParallax(-0.1f);
 				return 0;
 			case VK_LEFT:
-				IncreaseTextParallax(-3.0f);
+				IncreaseTextParallax(-0.1f);
 				return 0;
 			case VK_RIGHT:
-				IncreaseTextParallax(3.0f);
+				IncreaseTextParallax(0.1f);
 				return 0;
 			}
 		}
@@ -267,10 +268,10 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 		if (ShiftKey && !AltKey && !CtrlKey) {
 			switch (wParam) {
 			case VK_LEFT:
-				IncreaseHUDParallax(-3.0f);
+				IncreaseHUDParallax(-0.1f);
 				return 0;
 			case VK_RIGHT:
-				IncreaseHUDParallax(3.0f);
+				IncreaseHUDParallax(0.1f);
 				return 0;
 
 			case VK_UP:
