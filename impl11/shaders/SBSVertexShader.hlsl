@@ -49,6 +49,14 @@ PixelShaderInput main(VertexShaderInput input)
 {
 	PixelShaderInput output;
 
+	// Override the depth of this element if z_override is set
+	if (z_override > -0.1)
+		input.pos.z = z_override;
+	// Apply the scale in 2D coordinates before back-projecting. This is
+	// either g_fGlobalScale or g_fGUIElemScale (used to zoom-out the HUD
+	// so that it's readable
+	input.pos.xy *= vpScale.w;
+
 	// input.pos is in 2D; but normalized to -1..1, back-project into 3D:
 	float3 P = back_project(input.pos.xyz);
 	// and then project into 2D; but using the right projEje matrix:
@@ -57,24 +65,15 @@ PixelShaderInput main(VertexShaderInput input)
 	// Project 3D --> 2D
 	output.pos = mul(projEyeMatrix, float4(P, 1));
 	// Normalize:
-	output.pos  /=  output.pos.w;
+	output.pos /= output.pos.w;
 
 	// We have normalized 2D again, continue processing as before:
-	output.pos.x = (output.pos.x - 0.0f) * vpScale.z;
-	output.pos.y = (output.pos.y + 0.0f) * vpScale.z;
-	if (z_override > -0.9f) {
-		output.pos.z = z_override;
-	} else {
-		output.pos.z = input.pos.z;
-	}
+	output.pos.xy = output.pos.xy * vpScale.z;
+	output.pos.z = input.pos.z; // Restore the original Z to avoid Z-fighting
 	output.pos.w = 1.0f;
 	
-	// Halve the size of the screen; but scale according to vpScale.w, which is
-	// set to g_global_scale or GUI_elem_scale depending on the type of element
-	// being drawn
-	output.pos.x *= vpScale.w * 0.5 * aspect_ratio;
-	output.pos.y *= vpScale.w * 0.5;
-
+	// Halve the size of the screen
+	output.pos.xy *= 0.5 * float2(aspect_ratio, 1);
 	output.pos /= input.pos.w;
 
 	output.color = input.color.zyxw;

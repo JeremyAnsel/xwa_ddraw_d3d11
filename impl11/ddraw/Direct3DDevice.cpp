@@ -2357,9 +2357,9 @@ HRESULT Direct3DDevice::Execute(
 				if (bIsSkyBox) {
 					bModifiedShaders = true;
 					// Make the skybox a bit bigger to enable roll in the future:
-					g_VSCBuffer.viewportScale[3] = g_fGlobalScale + 0.2f;
+					g_VSCBuffer.viewportScale[3] = g_fGlobalScale /* + 0.2f */;
 					// Send the skybox to infinity:
-					g_VSCBuffer.z_override = 1.0f;
+					g_VSCBuffer.z_override = 0.01f;
 				}
 
 				// Add an extra parallax to HUD elements
@@ -2371,7 +2371,6 @@ HRESULT Direct3DDevice::Execute(
 				if (bIsTrianglePointer) { // Now a common setting
 					bModifiedShaders = true;
 					g_VSCBuffer.viewportScale[3] = g_fGUIElemScale;
-					//g_VSCBuffer.parallax = g_fHalfIPD * g_fTextParallax;
 					g_VSCBuffer.parallax = g_fTextParallax;
 				}
 
