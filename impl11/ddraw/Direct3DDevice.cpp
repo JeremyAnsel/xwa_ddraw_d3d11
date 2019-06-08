@@ -128,16 +128,25 @@ FILE *g_HackFile = NULL;
 
 const float DEFAULT_FOCAL_DIST = 0.5f;
 //const float DEFAULT_FOCAL_DIST_STEAMVR = 0.6f;
-const float DEFAULT_IPD = 6.5f;
+const float DEFAULT_IPD = 6.5f; // Ignored in SteamVR mode.
+/*
+
 const float DEFAULT_HUD_PARALLAX = 12.5f;
 const float DEFAULT_TEXT_PARALLAX = 40.0f;
 const float DEFAULT_FLOATING_GUI_PARALLAX = 34.5f;
-const float DEFAULT_TECH_LIB_PARALLAX = 0.05f;
 const float DEFAULT_FLOATING_OBJ_PARALLAX = 3.0f;
+*/
+const float DEFAULT_HUD_PARALLAX = 0.970f;
+const float DEFAULT_TEXT_PARALLAX = 0.993;
+const float DEFAULT_FLOATING_GUI_PARALLAX = 0.990f;
+const float DEFAULT_FLOATING_OBJ_PARALLAX = 0.0015f;
+
+const float DEFAULT_TECH_LIB_PARALLAX = 0.05f;
 const float DEFAULT_GUI_ELEM_SCALE = 0.75f;
 const float DEFAULT_GUI_ELEM_PZ_THRESHOLD = 0.0008f;
-const float DEFAULT_ZOOM_OUT_SCALE = 0.8f;
-const float DEFAULT_ASPECT_RATIO = 1.33f;
+const float DEFAULT_ZOOM_OUT_SCALE = 0.9f;
+//const float DEFAULT_ASPECT_RATIO = 1.33f;
+const float DEFAULT_ASPECT_RATIO = 1.25f;
 const float DEFAULT_CONCOURSE_SCALE = 0.4f;
 const float DEFAULT_CONCOURSE_ASPECT_RATIO = 2.0f; // Default for non-SteamVR
 const float DEFAULT_GLOBAL_SCALE = 1.75f;
@@ -228,13 +237,17 @@ bool g_bSkipGUI = false; // Skip non-skybox draw calls with disabled Z-Buffer
 bool g_bSkipText = false; // Skips text draw calls
 bool g_bSkipAfterTargetComp = false; // Skip all draw calls after the targetting computer has been drawn
 bool g_bTargetCompDrawn = false; // Becomes true after the targetting computer has been drawn
+bool g_bPrevIsFloatingGUI3DObject = false; // Stores the last value of g_bIsFloatingGUI3DObject -- useful to detect when the targeted craft is about to be drawn
+bool g_bIsFloating3DObject = false; // true when rendering the targeted 3D object.
 unsigned int g_iFloatingGUIDrawnCounter = 0;
 int g_iPresentCounter = 0, g_iNonZBufferCounter = 0, g_iSkipNonZBufferDrawIdx = -1;
 // The following flag tells us when the main GUI elements (HUD, radars, etc) have been rendered
 // It's reset to false every time the backbuffer is swapped.
 //bool g_bGUIIsRendered = false;
-float g_fZOverride = 0.05f; // 0 is Z-Far and 1 is ZNear in ZBuffer-Log coords. 0.05 is almost at ZFar
+float g_fZBracketOverride = 0.05f; // 0 is Z-Far and 1 is ZNear in ZBuffer-Log coords. 0.05 is almost at ZFar
 //float g_fZOverride = 0.95f;
+//float g_fZFloatingOffset = 0.97f;
+float g_fZFloatingOffset = 0.0f;
 
 // g_fZOverride is activated when it's greater than -0.9f, and it's used for bracket rendering so that 
 // objects cover the brackets. In this way, we avoid visual contention from the brackets.
@@ -404,7 +417,6 @@ void EvaluateIPD(float NewIPD) {
 	g_fIPD = NewIPD / IPD_SCALE_FACTOR;
 	log_debug("[DBG] NewIPD: %0.3f, Actual g_fIPD: %0.6f", NewIPD, g_fIPD);
 	g_fHalfIPD = g_fIPD / 2.0f;
-	//log_debug("[DBG] New IPD: %f", IPD);
 }
 
 // Delta is in cms here
@@ -428,7 +440,7 @@ void ToggleZoomOutMode() {
 }
 
 void IncreaseZOverride(float Delta) {
-	g_fZOverride += Delta;
+	g_fZBracketOverride += Delta;
 	//log_debug("[DBG] g_fZOverride: %f", g_fZOverride);
 }
 
@@ -608,16 +620,19 @@ void SaveVRParams() {
 	//fprintf(file, "focal_dist = %0.6f # Try not to modify this value, change IPD instead.\n", focal_dist);
 
 	fprintf(file, "; %s is measured in cms; but it's an approximation to in-game units. Set it to 0 to\n", STEREOSCOPY_STRENGTH_VRPARAM);
-	fprintf(file, "; remove the stereoscopy effect. The maximum allowed by the engine is 12cm\n");
+	fprintf(file, "; remove the stereoscopy effect. The maximum allowed by the engine is 12cm.\n");
+	fprintf(file, "; This setting is ignored in SteamVR mode. Configure the IPD through SteamVR instead.\n");
 	fprintf(file, "%s = %0.1f\n", STEREOSCOPY_STRENGTH_VRPARAM, g_fIPD * IPD_SCALE_FACTOR);
 	fprintf(file, "%s = %0.3f\n", SIZE_3D_WINDOW_VRPARAM, g_fGlobalScale);
 	fprintf(file, "%s = %0.3f\n", SIZE_3D_WINDOW_ZOOM_OUT_VRPARAM, g_fGlobalScaleZoomOut);
 	fprintf(file, "%s = %0.3f\n", CONCOURSE_WINDOW_SCALE_VRPARAM, g_fConcourseScale);
+	/*
 	fprintf(file, "; The following is a hack to increase the stereoscopy on objects. Unfortunately it\n");
 	fprintf(file, "; also causes some minor artifacts: this is basically the threshold between the\n");
 	fprintf(file, "; cockpit and the 'outside' world in normalized coordinates (0 is ZNear 1 is ZFar).\n");
 	fprintf(file, "; Set it to 2 to disable this hack (stereoscopy will be reduced).\n");
 	fprintf(file, "%s = %0.3f\n\n", COCKPIT_Z_THRESHOLD_VRPARAM, g_fCockpitPZThreshold);
+	*/
 
 	fprintf(file, "; Specify the aspect ratio here to override the aspect ratio computed by the library.\n");
 	fprintf(file, "; ALWAYS specify BOTH the Concourse and 3D window aspect ratio.\n");
@@ -649,7 +664,9 @@ void SaveVRParams() {
 	fprintf(file, "; A value of 1 is normal brightness, 0 will render everything black.\n");
 	fprintf(file, "%s = %0.3f\n", BRIGHTNESS_VRPARAM, g_fBrightness);
 
-	fprintf(file, "\n");
+	fprintf(file, "Interleaved Reprojection is a SteamVR setting that locks the framerate at 45fps.\n");
+	fprintf(file, "In some cases, it may help provide a smoother experience. Try toggling it\n");
+	fprintf(file, "to see what works better for your specific case.\n");
 	fprintf(file, "%s = %d\n", INTERLEAVED_REPROJ_VRPARAM, g_bInterleavedReprojection);
 
 	fclose(file);
@@ -978,32 +995,12 @@ void ShowVector4(const Vector4 &X, char *name) {
 			X[0], X[1], X[2], X[3]);
 }
 
-void TestProjMatrices() {
-	Vector4 X;
-	float x, y, z;
-
-	X.set(0, 0, 1, 1);
-	ShowVector4(X, "0,0,1, left = ");
-	projectSteamVR(X[0], X[1], X[2], vr::EVREye::Eye_Left, x, y, z);
-	log_debug("[DBG] (%0.3f, %0.3f, %0.3f)", x, y, z);
-
-	X.set(-1, -1, 1, 1);
-	ShowVector4(X, "-1, -1, 1, left = ");
-	projectSteamVR(X[0], X[1], X[2], vr::EVREye::Eye_Left, x, y, z);
-	log_debug("[DBG] (%0.3f, %0.3f, %0.3f)", x, y, z);
-
-	X.set(1, 1, 1, 1);
-	ShowVector4(X, "1, 1, 1, left = ");
-	projectSteamVR(X[0], X[1], X[2], vr::EVREye::Eye_Left, x, y, z);
-	log_debug("[DBG] (%0.3f, %0.3f, %0.3f)", x, y, z);
-
-}
-
 bool InitSteamVR()
 {
 	char *strDriver = NULL;
 	char *strDisplay = NULL;
 	FILE *file = NULL;
+	Matrix4 RollTest;
 	bool result = true;
 
 	int file_error = fopen_s(&file, "./steamvr_mat.txt", "wt");
@@ -1068,8 +1065,7 @@ bool InitSteamVR()
 	g_projLeft  = HmdMatrix44toMatrix4(projLeft);
 	g_projRight = HmdMatrix44toMatrix4(projRight);
 
-	// The order is wrong; but I'm not sure if I also should transpose, so multiply each
-	// matrix separately for now
+	//RollTest.rotateZ(45.0f);
 	g_fullMatrixLeft  = g_projLeft  * g_EyeMatrixLeftInv;
 	g_fullMatrixRight = g_projRight * g_EyeMatrixRightInv;
 
@@ -1083,8 +1079,6 @@ bool InitSteamVR()
 	
 	//ShowMatrix4(g_fullMatrixLeft, "g_fullMatrixLeft");
 	//ShowMatrix4(g_fullMatrixRight, "g_fullMatrixRight");
-
-	TestProjMatrices();
 
 	// Dump information about the view matrices
 	if (file_error == 0) {
@@ -1103,8 +1097,8 @@ bool InitSteamVR()
 		fprintf(file, "\n");
 
 		// Z_FAR was 50 for version 0.9.6, and I believe Z_Near was 0.5 (focal dist)
-		vr::HmdMatrix44_t projLeft = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Left, DEFAULT_FOCAL_DIST, 50.0f);
-		vr::HmdMatrix44_t projRight = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Right, DEFAULT_FOCAL_DIST, 50.0f);
+		//vr::HmdMatrix44_t projLeft = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Left, DEFAULT_FOCAL_DIST, 50.0f);
+		//vr::HmdMatrix44_t projRight = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Right, DEFAULT_FOCAL_DIST, 50.0f);
 
 		fprintf(file, "projLeft:\n");
 		DumpMatrix44(file, projLeft);
@@ -1769,7 +1763,8 @@ void PreprocessVerticesStereo(float width, float height, int numVerts)
 			*/
 			//g_3DVerts[i].sz = g_fFocalDist;
 			//g_3DVerts[i].sz = 0.0008f;
-			g_3DVerts[i].sz = g_fFloatingGUIParallax;
+			//g_3DVerts[i].sz = g_fFloatingGUIParallax;
+			//g_3DVerts[i].sz += 0.9f;
 		} 
 		/*
 		else { //if (is_cockpit) {
@@ -1789,7 +1784,7 @@ void PreprocessVerticesStereo(float width, float height, int numVerts)
 		/*
 		// (px,py) and (qx,qy) are now in the range [-0.5,..,0.5], we need
 		// to map them to the range [0..width, 0..height]
-
+		
 		// Compute the vertices for the left image
 		{
 			// De-normalize coords (left image)
@@ -2020,7 +2015,7 @@ HRESULT Direct3DDevice::Execute(
 		g_VSCBuffer.viewportScale[2] = scale;
 		g_VSCBuffer.viewportScale[3] = g_fGlobalScale;
 		g_VSCBuffer.aspect_ratio = g_fAspectRatio;
-		g_VSCBuffer.parallax = 0.0f;
+		g_VSCBuffer.restoreZ = 0.0f;
 		g_VSCBuffer.z_override = -1.0f;
 		resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 		resources->InitPSConstantBufferBrightness(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
@@ -2221,6 +2216,7 @@ HRESULT Direct3DDevice::Execute(
 					At the beginning of every frame:
 					  - g_bTargetCompDrawn will be set to false
 					  - g_iFloating_GUI_drawn_counter is set to 0
+					  - g_bPrevIsFloatingGUI3DObject && g_bIsFloating3DObject are set to false
 
 					We're using a non-exhaustive list of GUI CRCs to tell when the 3D content has finished drawing.
 				*/
@@ -2231,7 +2227,9 @@ HRESULT Direct3DDevice::Execute(
 				bZWriteEnabled = this->_renderStates->GetZWriteEnabled();
 
 				/* If we have drawn at least one Floating GUI element and now the ZWrite has been enabled
-				   again, then we're about to draw the floating 3D element */
+				   again, then we're about to draw the floating 3D element. Although, g_bTargetCompDrawn
+				   isn't fully semantically correct because it should be set to true *after* it has actually
+				   been drawn. Here it's being set *before* it's drawn. */
 				if (!g_bTargetCompDrawn && g_iFloatingGUIDrawnCounter > 0 && bZWriteEnabled)
 					g_bTargetCompDrawn = true;
 				// bIsNoZWrite is true if ZWrite is disabled and the SkyBox has been rendered.
@@ -2249,11 +2247,13 @@ HRESULT Direct3DDevice::Execute(
 				bool bIsBracket = bIsNoZWrite && lastTextureSelected == NULL && 
 					this->_renderStates->GetZFunc() == D3DCMP_ALWAYS;
 				bool bIsFloatingGUI = lastTextureSelected != NULL && lastTextureSelected->is_Floating_GUI;
-				bool bIsFloating3DObject = g_bTargetCompDrawn && lastTextureSelected != NULL &&
+				g_bPrevIsFloatingGUI3DObject = g_bIsFloating3DObject;
+				g_bIsFloating3DObject = g_bTargetCompDrawn && lastTextureSelected != NULL &&
 					!lastTextureSelected->is_Text && !lastTextureSelected->is_TrianglePointer &&
-					!lastTextureSelected->is_HUD && !lastTextureSelected->is_Floating_GUI;
+					!lastTextureSelected->is_HUD && !lastTextureSelected->is_Floating_GUI &&
+					!lastTextureSelected->is_TargetingComp;
 				// The GUI starts rendering whenever we detect a GUI element, or Text, or a bracket.
-				g_bStartedGUI |= bIsGUI || bIsText || bIsBracket;
+				g_bStartedGUI |= bIsGUI || bIsText || bIsBracket || bIsFloatingGUI;
 				//g_bStartedGUI |= bIsGUI || bIsText; // bIsBracket is true for brackets *and* for (hangar) shadows
 				// bIsScaleableGUIElem is true when we're about to render a HUD element that can be scaled down with Ctrl+Z
 				bool bIsScaleableGUIElem = g_bStartedGUI && !bIsHUD && !bIsBracket && !bIsTrianglePointer;
@@ -2339,7 +2339,22 @@ HRESULT Direct3DDevice::Execute(
 				if (bIsBracket) {
 					bModifiedShaders = true;
 					QuickSetZWriteEnabled(TRUE);
-					g_VSCBuffer.z_override = g_fZOverride;
+					g_VSCBuffer.z_override = g_fZBracketOverride;
+				}
+
+				//if (lastTextureSelected != NULL && lastTextureSelected->is_TargetingComp || bIsFloatingGUI || bIsText) {
+				/*
+				if (lastTextureSelected != NULL && lastTextureSelected->is_TargetingComp) {
+					context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
+					context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewR, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
+					goto out;
+				}
+				*/
+
+				if (!g_bPrevIsFloatingGUI3DObject && g_bIsFloating3DObject) {
+					// The targeted craft is about to be drawn! Clear both depth stencils?
+					context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
+					context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewR, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
 				}
 
 				// Reduce the scale for GUI elements, except for the HUD
@@ -2349,15 +2364,15 @@ HRESULT Direct3DDevice::Execute(
 				}
 
 				// Dim all the GUI elements
-				if (g_bStartedGUI && !bIsFloating3DObject) {
+				if (g_bStartedGUI && !g_bIsFloating3DObject) {
 					bModifiedShaders = true;
 					g_PSCBuffer.brightness = g_fBrightness;
 				}
 
 				if (bIsSkyBox) {
 					bModifiedShaders = true;
-					// Make the skybox a bit bigger to enable roll in the future:
-					g_VSCBuffer.viewportScale[3] = g_fGlobalScale /* + 0.2f */;
+					// If we make the skybox a bit bigger to enable roll, it "swims" -- it's probably not going to work.
+					g_VSCBuffer.viewportScale[3] = g_fGlobalScale; // +0.2f;
 					// Send the skybox to infinity:
 					g_VSCBuffer.z_override = 0.01f;
 				}
@@ -2368,59 +2383,59 @@ HRESULT Direct3DDevice::Execute(
 					g_VSCBuffer.z_override = g_fHUDParallax;
 				}
 
-				if (bIsTrianglePointer) { // Now a common setting
+				// Let's render the triangle pointer closer to the center so that we can see it all the time,
+				// and let's put it at text depth so that it doesn't cause visual contention against the
+				// cockpit
+				if (bIsTrianglePointer) {
 					bModifiedShaders = true;
 					g_VSCBuffer.viewportScale[3] = g_fGUIElemScale;
-					g_VSCBuffer.parallax = g_fTextParallax;
+					g_VSCBuffer.z_override = g_fTextParallax;
 				}
 
 				// Add extra parallax to Floating GUI elements, left image
-				if (bIsFloatingGUI || bIsFloating3DObject || bIsScaleableGUIElem) { // This is now a common setting
+				if (bIsFloatingGUI || g_bIsFloating3DObject || bIsScaleableGUIElem) {
 					bModifiedShaders = true;
-					/*
-					g_VSCBuffer.parallax = bIsFloating3DObject ?
-						g_fHalfIPD * (g_fFloatingGUIParallax + g_fFloatingGUIObjParallax) :
-						g_fHalfIPD * g_fFloatingGUIParallax;
-					*/
-					g_VSCBuffer.z_override = bIsFloating3DObject ?
-						g_fFloatingGUIParallax + g_fFloatingGUIObjParallax :
-						g_fFloatingGUIParallax;
+					g_VSCBuffer.z_override = g_fFloatingGUIParallax;
+					if (g_bIsFloating3DObject) {
+						g_VSCBuffer.z_override += g_fFloatingGUIObjParallax;
+						g_VSCBuffer.restoreZ = 1.0f;
+					}
 				}
-
-				if (bModifiedShaders)
-					resources->InitPSConstantBufferBrightness(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
-
-				// ****************************************************************************
-				// Left image state settings
-				// ****************************************************************************
-
-				// Let's render the triangle pointer closer to the center so that we can see it all the time,
-				// also, render the triangle pointer at text depth.
-				
 
 				// Add an extra parallax to Text elements, left image
 				if (bIsText) { // This is now a common setting
 					bModifiedShaders = true;
-					//g_VSCBuffer.parallax = g_fHalfIPD * g_fTextParallax;
 					g_VSCBuffer.z_override = g_fTextParallax;
 				}
+
+				if (bModifiedShaders) {
+					resources->InitPSConstantBufferBrightness(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
+					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
+				}
+
+				// ****************************************************************************
+				// Left image state settings
+				// ****************************************************************************				
+
 
 				// Select either the original vertex buffer or the left-image vertex buffer. Certain elements are
 				// rendered at infinity using the original VB and others are rendered at various depths but using
 				// the original VB and adding a specific parallax (like the text and HUD)
+				/*
 				if (SUCCEEDED(hr))
 				{
 					// Use the original vertices for the Sky, HUD, Text and Brackets:
-					/*
 					if (bIsSkyBox || bIsHUD || bIsText || bIsBracket) // Should I add Floating GUI elements here as well?
 						resources->InitVertexBuffer(this->_vertexBuffer.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
 					else
 						resources->InitVertexBuffer(this->_vertexBufferL.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
-					*/
 				}
+				*/
 
+				/*
 				if (bModifiedShaders)
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
+				*/
 
 				// Skip the draw call for debugging purposes depending on g_iNoDrawBeforeIndex and g_iNoDrawAfterIndex
 #ifdef DBG_VR
@@ -2434,7 +2449,9 @@ HRESULT Direct3DDevice::Execute(
 				// Render the left image
 				// ****************************************************************************
 				// SteamVR probably requires independent ZBuffers; for non-Steam we can get away
-				// with just using one, though.
+				// with just using one, though... but why would we use just one? To make AO 
+				// computation faster? On the other hand, having always 2 z-buffers makes the code
+				// easier.
 				if (g_bUseSteamVR)
 					context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
 						resources->_depthStencilViewL.Get());
@@ -2464,58 +2481,24 @@ HRESULT Direct3DDevice::Execute(
 				// Right image state settings
 				// ****************************************************************************
 
-				// Let's render the triangle pointer closer to the center so that we can see it all the time,
-				// also, render the triangle pointer at text depth.
-				/*
-				if (bIsTrianglePointer) {
-					bModifiedShaders = true;
-					g_VSCBuffer.viewportScale[3] = g_fGUIElemScale;
-					g_VSCBuffer.parallax = -g_fHalfIPD * g_fTextParallax;
-				}
-				*/
-				// Add an extra parallax to HUD elements, right image
-				/*
-				if (bIsHUD) { // This is now a common setting, no need to re-do it here
-					bModifiedShaders = true;
-					//g_VSCBuffer.parallax = -g_fHalfIPD * g_fHUDParallax;
-					g_VSCBuffer.parallax = g_fHUDParallax;
-				}
-				*/
-
-				/*
-				// Add extra parallax to Floating GUI elements, right image
-				if (bIsFloatingGUI || bIsFloating3DObject || bIsScaleableGUIElem) { // THis is now a common setting
-					bModifiedShaders = true;
-					 g_VSCBuffer.parallax = bIsFloating3DObject ?
-						-g_fHalfIPD * (g_fFloatingGUIParallax + g_fFloatingGUIObjParallax) :
-						-g_fHalfIPD * g_fFloatingGUIParallax; 
-					g_VSCBuffer.z_override = g_fFloatingGUIParallax;
-				}
-				*/
-
-				// Add an extra parallax to Text elements, right image
-				if (bIsText) { // This is now a common setting
-					bModifiedShaders = true;
-					//g_VSCBuffer.parallax = -g_fHalfIPD * g_fTextParallax;
-					g_VSCBuffer.z_override = g_fTextParallax;
-				}
-
 				// Select either the original vertex buffer or the right-image vertex buffer. Certain elements are
 				// rendered at infinity using the original VB and others are rendered at various depths but using
 				// the original VB and adding a specific parallax (like the text and HUD)
+				/*
 				if (SUCCEEDED(hr))
 				{
 					// Use the original vertices for the Sky, HUD, Text and Brackets:
-					/*
 					if (bIsSkyBox || bIsHUD || bIsText || bIsBracket) // Should I add Floating GUI elements here as well?
 						resources->InitVertexBuffer(this->_vertexBuffer.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
 					else
 						resources->InitVertexBuffer(this->_vertexBufferR.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
-					*/
 				}
+				*/
 
+				/*
 				if (bModifiedShaders)
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
+				*/
 
 				// ****************************************************************************
 				// Render the right image
@@ -2552,9 +2535,9 @@ HRESULT Direct3DDevice::Execute(
 				context->DrawIndexed(3 * instruction->wCount, currentIndexLocation, 0);
 
 				// out: label
-#ifdef DBG_VR
+//#ifdef DBG_VR
 			out:
-#endif
+//#endif
 				// Update counters
 				g_iDrawCounter++;
 				// Have we just finished drawing the targetting computer?
@@ -2572,7 +2555,7 @@ HRESULT Direct3DDevice::Execute(
 				// constant buffers); but only if we altered it previously.
 				if (bModifiedShaders) {
 					g_VSCBuffer.viewportScale[3] = g_fGlobalScale;
-					g_VSCBuffer.parallax = 0.0f;
+					g_VSCBuffer.restoreZ = 0.0f;
 					g_PSCBuffer.brightness = MAX_BRIGHTNESS;
 					g_VSCBuffer.z_override = -1.0f;
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);

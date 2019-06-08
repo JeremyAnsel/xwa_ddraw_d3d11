@@ -8,6 +8,7 @@ class TextureSurface;
 
 #define TRIANGLE_PTR_CRC 0x6cf63265		// Triangle that indicates where is the target (master branch)
 #define WARHEAD_CRC 0xa4870ab3			// Main Warhead HUD (master branch)
+#define TARGETING_COMP_CRC 0x3b9a3741   // The main targetting computer, where the targeted craft is displayed
 
 class Direct3DTexture : public IDirect3DTexture
 {
@@ -25,6 +26,8 @@ public:
 	bool is_Floating_GUI;
 	// This flag is set to true if this is a regular GUI element
 	bool is_GUI;
+	// This flag is set to true if this is the main targeting computer (center, low)
+	bool is_TargetingComp;
 
 	Direct3DTexture(DeviceResources* deviceResources, TextureSurface* surface);
 

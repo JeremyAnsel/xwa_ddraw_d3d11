@@ -35,7 +35,7 @@ extern bool g_bStartedGUI;
 extern bool g_bEnableVR, g_bDisableBarrelEffect;
 extern bool g_bDumpGUI;
 extern int g_iDrawCounter, g_iExecBufCounter, g_iPresentCounter, g_iNonZBufferCounter;
-extern bool g_bTargetCompDrawn;
+extern bool g_bTargetCompDrawn, g_bPrevIsFloatingGUI3DObject, g_bIsFloating3DObject;
 extern unsigned int g_iFloatingGUIDrawnCounter;
 
 bool g_bRendering3D = false; // Set to true when the system is about to render in 3D
@@ -513,10 +513,12 @@ void PrimarySurface::barrelEffect2D(int iteration) {
 	// Set the lens distortion constants for the barrel shader
 	resources->InitPSConstantBufferBarrel(resources->_barrelConstantBuffer.GetAddressOf(), g_fLensK1, g_fLensK2, g_fLensK3);
 
-	context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewL, D3D11_CLEAR_DEPTH, 1.0f, 0);
-	context->ClearRenderTargetView(this->_deviceResources->_renderTargetViewPost, bgColor);
-	context->OMSetRenderTargets(1, this->_deviceResources->_renderTargetViewPost.GetAddressOf(), this->_deviceResources->_depthStencilViewL.Get());
-	context->PSSetShaderResources(0, 1, this->_deviceResources->_offscreenAsInputShaderResourceView.GetAddressOf());
+	// Maybe it should be like this:
+	// context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
+	context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	context->ClearRenderTargetView(resources->_renderTargetViewPost, bgColor);
+	context->OMSetRenderTargets(1, resources->_renderTargetViewPost.GetAddressOf(), resources->_depthStencilViewL.Get());
+	context->PSSetShaderResources(0, 1, resources->_offscreenAsInputShaderResourceView.GetAddressOf());
 
 	resources->InitViewport(&viewport);
 	context->Draw(6, 0);
@@ -594,6 +596,7 @@ void PrimarySurface::barrelEffect3D() {
 	resources->InitPSConstantBufferBarrel(resources->_barrelConstantBuffer.GetAddressOf(), g_fLensK1, g_fLensK2, g_fLensK3);
 
 	// Clear the depth stencil
+	// Maybe I should be using resources->clearDepth instead of 1.0f:
 	context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	// Clear the render target
 	context->ClearRenderTargetView(resources->_renderTargetViewPost, bgColor);
@@ -720,8 +723,8 @@ void PrimarySurface::barrelEffectSteamVR() {
 	resources->InitPSConstantBufferBarrel(resources->_barrelConstantBuffer.GetAddressOf(), g_fLensK1, g_fLensK2, g_fLensK3);
 
 	// Clear the depth stencil and render target
-	context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, 1.0f, 0);
-	context->ClearDepthStencilView(resources->_depthStencilViewR, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
+	context->ClearDepthStencilView(resources->_depthStencilViewR, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
 	context->ClearRenderTargetView(resources->_renderTargetViewPost, bgColor);
 	context->ClearRenderTargetView(resources->_renderTargetViewPostR, bgColor);
 	context->IASetInputLayout(resources->_mainInputLayout);
@@ -855,7 +858,7 @@ void PrimarySurface::resizeForSteamVR(int iteration) {
 	resources->InitVertexShader(resources->_mainVertexShader);
 	resources->InitPixelShader(resources->_mainPixelShader);
 
-	context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
 	context->ClearRenderTargetView(resources->_renderTargetViewSteamVRResize, bgColor);
 	context->OMSetRenderTargets(1, resources->_renderTargetViewSteamVRResize.GetAddressOf(),
 		resources->_depthStencilViewL.Get());
@@ -1241,6 +1244,8 @@ HRESULT PrimarySurface::Flip(
 			g_iDrawCounter = 0; g_iExecBufCounter = 0; g_iNonZBufferCounter = 0;
 			g_iFloatingGUIDrawnCounter = 0;
 			g_bTargetCompDrawn = false;
+			g_bPrevIsFloatingGUI3DObject = false;
+			g_bIsFloating3DObject = false;
 			g_bStartedGUI = false;
 			
 			// Perform the lean left/right etc animations

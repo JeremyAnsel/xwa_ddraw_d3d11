@@ -180,6 +180,7 @@ Direct3DTexture::Direct3DTexture(DeviceResources* deviceResources, TextureSurfac
 	this->is_Text = false;
 	this->is_Floating_GUI = false;
 	this->is_GUI = false;
+	this->is_TargetingComp = false;
 }
 
 int Direct3DTexture::GetWidth() {
@@ -474,6 +475,9 @@ HRESULT Direct3DTexture::Load(
 			// Check this CRC to see if it's interesting
 			if (this->crc == TRIANGLE_PTR_CRC)
 				this->is_TrianglePointer = true;
+			else if (this->crc == TARGETING_COMP_CRC) {
+				this->is_TargetingComp = true;
+			}
 			else if (isInVector(this->crc, HUD_CRCs)) {
 				this->is_HUD = true;
 			}

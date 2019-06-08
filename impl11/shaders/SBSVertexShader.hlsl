@@ -5,7 +5,7 @@
 cbuffer ConstantBuffer : register(b0)
 {
 	float4 vpScale;
-	float aspect_ratio, parallax, z_override;
+	float aspect_ratio, restoreZ, z_override;
 };
 
 cbuffer ConstantBuffer : register(b1)
@@ -48,10 +48,12 @@ float3 back_project(float3 p)
 PixelShaderInput main(VertexShaderInput input)
 {
 	PixelShaderInput output;
+	float sz = input.pos.z;
 
 	// Override the depth of this element if z_override is set
 	if (z_override > -0.1)
 		input.pos.z = z_override;
+
 	// Apply the scale in 2D coordinates before back-projecting. This is
 	// either g_fGlobalScale or g_fGUIElemScale (used to zoom-out the HUD
 	// so that it's readable
@@ -69,7 +71,11 @@ PixelShaderInput main(VertexShaderInput input)
 
 	// We have normalized 2D again, continue processing as before:
 	output.pos.xy = output.pos.xy * vpScale.z;
-	output.pos.z = input.pos.z; // Restore the original Z to avoid Z-fighting
+	if (restoreZ < 0.5)
+		output.pos.z = input.pos.z;
+	else
+		output.pos.z = sz;
+	
 	output.pos.w = 1.0f;
 	
 	// Halve the size of the screen

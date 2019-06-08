@@ -85,17 +85,17 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 				return 0;
 
 			case VK_RIGHT:
-				IncreaseFloatingGUIParallax( 0.0025f);
+				//IncreaseFloatingGUIParallax( 0.0025f);
 				return 0;
 			case VK_LEFT:
-				IncreaseFloatingGUIParallax(-0.0025f);
+				//IncreaseFloatingGUIParallax(-0.0025f);
 				return 0;
 
 			case VK_UP: // Delta is in Z-Buffer coords (0 = ZFar .. 1 = ZNear)
-				IncreaseHUDParallax( 0.0025f);
+				//IncreaseHUDParallax( 0.0025f);
 				return 0;
 			case VK_DOWN:
-				IncreaseHUDParallax(-0.0025f);
+				//IncreaseHUDParallax(-0.0025f);
 				return 0;
 			}
 		}
