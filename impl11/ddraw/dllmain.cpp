@@ -13,8 +13,9 @@
 #include <vector>
 
 extern bool g_bFixSkyBox, g_bSkipGUI, g_bSkipText, g_bSkipSkyBox;
-bool g_bCapture2DOffscreenBuffer = false;
+
 #ifdef DBG_VR
+bool g_bCapture2DOffscreenBuffer = false;
 extern bool g_bDo3DCapture, g_bStart3DCapture;
 bool g_bDumpDebug = false;
 

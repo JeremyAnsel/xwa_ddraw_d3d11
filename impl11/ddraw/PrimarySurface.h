@@ -41,7 +41,7 @@ public:
 
 	void barrelEffect2D(int iteration);
 
-	void resizeForSteamVR(int iteration);
+	void resizeForSteamVR(int iteration, bool is_2D);
 
 	void barrelEffect3D();
 

@@ -58,6 +58,7 @@ MainVertex g_BarrelEffectVertices[6] = {
 };
 ID3D11Buffer* g_BarrelEffectVertBuffer = NULL;
 
+
 #ifdef DBR_VR
 extern bool g_bCapture2DOffscreenBuffer;
 extern bool g_bStart3DCapture, g_bDo3DCapture;
@@ -506,7 +507,7 @@ void PrimarySurface::barrelEffect2D(int iteration) {
 	viewport.MaxDepth = D3D11_MAX_DEPTH;
 	viewport.MinDepth = D3D11_MIN_DEPTH;
 
-	resources->InitVSConstantBuffer2D(resources->_mainShadersConstantBuffer.GetAddressOf(), 0.0f, 1.0f, 1.0f, 1.0f);
+	resources->InitVSConstantBuffer2D(resources->_mainShadersConstantBuffer.GetAddressOf(), 0.0f, 1.0f, 1.0f, 1.0f, 0.0f); // Do not use 3D projection matrices
 	resources->InitVertexShader(resources->_mainVertexShader);
 	resources->InitPixelShader(resources->_barrelPixelShader);
 	
@@ -587,7 +588,7 @@ void PrimarySurface::barrelEffect3D() {
 	context->ResolveSubresource(resources->_offscreenBufferAsInput, 0, resources->_offscreenBuffer,
 		0, DXGI_FORMAT_B8G8R8A8_UNORM);
 
-	resources->InitVSConstantBuffer2D(resources->_mainShadersConstantBuffer.GetAddressOf(), 0.0f, 1.0f, 1.0f, 1.0f);
+	resources->InitVSConstantBuffer2D(resources->_mainShadersConstantBuffer.GetAddressOf(), 0.0f, 1.0f, 1.0f, 1.0f, 0.0f); // Do not use 3D projection matrices
 	resources->InitVertexShader(resources->_mainVertexShader);
 	resources->InitPixelShader(resources->_barrelPixelShader);
 	
@@ -715,7 +716,7 @@ void PrimarySurface::barrelEffectSteamVR() {
 	}
 #endif
 
-	resources->InitVSConstantBuffer2D(resources->_mainShadersConstantBuffer.GetAddressOf(), 0.0f, 1.0f, 1.0f, 1.0f);
+	resources->InitVSConstantBuffer2D(resources->_mainShadersConstantBuffer.GetAddressOf(), 0.0f, 1.0f, 1.0f, 1.0f, 0.0f); // Do not use 3D projection matrices
 	resources->InitVertexShader(resources->_mainVertexShader);
 	resources->InitPixelShader(resources->_singleBarrelPixelShader);
 
@@ -771,7 +772,7 @@ void PrimarySurface::barrelEffectSteamVR() {
  * Input: _offscreenBuffer
  * Output: _steamVRPresentBuffer
  */
-void PrimarySurface::resizeForSteamVR(int iteration) {
+void PrimarySurface::resizeForSteamVR(int iteration, bool is_2D) {
 	/*
 	We need to avoid resolving the offscreen buffer multiple times. It's probably easier to
 	skip method this altogether if we already rendered all this in the first iteration.
@@ -814,6 +815,15 @@ void PrimarySurface::resizeForSteamVR(int iteration) {
 	context->ResolveSubresource(resources->_offscreenBufferAsInput, 0, resources->_offscreenBuffer,
 		0, DXGI_FORMAT_B8G8R8A8_UNORM);
 
+	// Resize the buffer to be presented for SteamVR
+	float scale_x = screen_res_x / g_steamVRWidth;
+	float scale_y = screen_res_y / g_steamVRHeight;
+	float scale = (scale_x + scale_y);
+	if (!is_2D)
+		scale /= 2.0f;
+	float newWidth = g_steamVRWidth * scale;
+	float newHeight = g_steamVRHeight * scale;
+
 #ifdef DBG_VR
 	if (g_bCapture2DOffscreenBuffer) {
 		static int frame = 0;
@@ -822,26 +832,25 @@ void PrimarySurface::resizeForSteamVR(int iteration) {
 				this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight);
 			log_debug("[DBG] [Capture] backBuffer Width, Height: %d, %d",
 				this->_deviceResources->_backbufferWidth, this->_deviceResources->_backbufferHeight);
+			log_debug("[DBG] screen_res_x,y: %0.1f, %0.1f", screen_res_x, screen_res_y);
+			log_debug("[DBG] g_steamVRWidth,Height: %d, %d", g_steamVRWidth, g_steamVRHeight);
+			log_debug("[DBG] scale, newWidth,Height: %0.3f, (%0.3f, %0.3f)", scale, newWidth, newHeight);
 		}
 		wchar_t filename[120];
 		swprintf_s(filename, 120, L"c:\\temp\\offscreenBuf-%d-A.jpg", frame++);
-		capture(0, this->_deviceResources->_offscreenBuffer2, filename);
-		if (frame >= 40)
+		capture(0, this->_deviceResources->_offscreenBufferAsInput, filename);
+		if (frame >= 1)
 			g_bCapture2DOffscreenBuffer = false;
 	}
 #endif
 
-	// Resize the buffer to be presented for SteamVR
-	float scale_x = screen_res_x / g_steamVRWidth;
-	float scale_y = screen_res_y / g_steamVRHeight;
-	float scale = (scale_x + scale_y) / 2.0f;
-	float newWidth = g_steamVRWidth * scale;
-	float newHeight = g_steamVRHeight * scale;
-
 	//viewport.TopLeftX = (screen_res_x - g_steamVRWidth) / 2.0f;
-	//viewport.TopLeftY = 0.0f;
-	//viewport.Width = (float)g_steamVRWidth;
-	//viewport.Height = (float)g_steamVRHeight;
+	/*
+	viewport.TopLeftX = 0.0f;
+	viewport.TopLeftY = 0.0f;
+	viewport.Width = (float)g_steamVRWidth;
+	viewport.Height = (float)g_steamVRHeight;
+	*/
 
 	viewport.TopLeftX = (screen_res_x - newWidth) / 2.0f;
 	viewport.TopLeftY = (screen_res_y - newHeight) / 2.0f;
@@ -851,10 +860,10 @@ void PrimarySurface::resizeForSteamVR(int iteration) {
 	viewport.MinDepth = D3D11_MIN_DEPTH;
 	resources->InitViewport(&viewport);
 
-	resources->InitVSConstantBuffer2D(resources->_mainShadersConstantBuffer.GetAddressOf(),
-		0.0f, 1.0f, 1.0f, 1.0f);
 	resources->InitPSConstantBuffer2D(resources->_mainShadersConstantBuffer.GetAddressOf(),
 		0.0f, 1.0f, 1.0f, 1.0f);
+	resources->InitVSConstantBuffer2D(resources->_mainShadersConstantBuffer.GetAddressOf(),
+		0.0f, 1.0f, 1.0f, 1.0f, 0.0f); // Don't use 3D projection matrices
 	resources->InitVertexShader(resources->_mainVertexShader);
 	resources->InitPixelShader(resources->_mainPixelShader);
 
@@ -1095,7 +1104,7 @@ HRESULT PrimarySurface::Flip(
 						*/
 						// In SteamVR mode this will display the left image:
 						if (g_bUseSteamVR) {
-							resizeForSteamVR(0);
+							resizeForSteamVR(0, true);
 							this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0,
 								this->_deviceResources->_steamVRPresentBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
 						}
@@ -1223,7 +1232,7 @@ HRESULT PrimarySurface::Flip(
 							this->_deviceResources->_offscreenBufferPost);
 					}
 					// Resize the buffer to be presented (_offscreenBuffer -> _steamVRPresentBuffer)
-					resizeForSteamVR(0);
+					resizeForSteamVR(0, false);
 					// Resolve steamVRPresentBuffer to backBuffer so that it gets presented
 					this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0,
 						this->_deviceResources->_steamVRPresentBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);

@@ -21,6 +21,7 @@ class OffscreenSurface;
 /* 2D Constant Buffers */
 typedef struct MainShadersCBStruct {
 	float scale, aspectRatio, parallax, brightness;
+	float use_3D;
 } MainShadersCBuffer;
 
 typedef struct BarrelPixelShaderCBStruct {
@@ -68,7 +69,7 @@ public:
 	void InitViewport(D3D11_VIEWPORT* viewport);
 	void InitVSConstantBuffer3D(ID3D11Buffer** buffer, const VertexShaderCBuffer* vsCBuffer);
 	void InitVSConstantBufferMatrix(ID3D11Buffer** buffer, const VertexShaderMatrixCB* vsCBuffer);
-	void InitVSConstantBuffer2D(ID3D11Buffer** buffer, const float parallax, const float aspectRatio, const float scale, const float brightness);
+	void InitVSConstantBuffer2D(ID3D11Buffer** buffer, const float parallax, const float aspectRatio, const float scale, const float brightness, const float use_3D);
 	void InitPSConstantBuffer2D(ID3D11Buffer** buffer, const float parallax, const float aspectRatio, const float scale, const float brightness);
 	void InitPSConstantBufferBarrel(ID3D11Buffer** buffer, const float k1, const float k2, const float k3);
 	void InitPSConstantBufferBrightness(ID3D11Buffer** buffer, const PixelShaderCBuffer *psConstants);
