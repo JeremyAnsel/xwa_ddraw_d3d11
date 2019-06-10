@@ -7,8 +7,41 @@
 
 /*
 
-Trevor:
-Steamvr_mat.txt
+Chimpsky: (0.9.7)
+
+Driver: oculus
+Display: WMHD314A300N88
+
+eyeLeft:
+1.000000, 0.000000, 0.000000, -0.034100
+0.000000, 1.000000, 0.000000, 0.000000
+0.000000, 0.000000, 1.000000, 0.000000
+
+eyeRight:
+1.000000, 0.000000, 0.000000, -0.034100 (my mistake, I was writting the left matrix to disk twice)
+0.000000, 1.000000, 0.000000, 0.000000
+0.000000, 0.000000, 1.000000, 0.000000
+
+projLeft:
+1.190342, 0.000000, -0.148592, 0.000000
+0.000000, 0.999788, -0.110690, 0.000000
+0.000000, 0.000000, -1.000000, -0.001000
+0.000000, 0.000000, -1.000000, 0.000000
+
+projRight:
+1.190342, 0.000000, 0.148592, 0.000000
+0.000000, 0.999788, -0.110690, 0.000000
+0.000000, 0.000000, -1.000000, -0.001000
+0.000000, 0.000000, -1.000000, 0.000000
+
+Raw data (Left eye):
+Left: -0.964926, Right: 0.715264, Top: -1.110925, Bottom: 0.889498
+Raw data (Right eye):
+Left: -0.715264, Right: 0.964926, Top: -1.110925, Bottom: 0.889498
+
+
+Trevor: (0.9.6)
+
 Driver: oculus
 Display: 20B06R03EVHM
 
@@ -137,7 +170,7 @@ const float DEFAULT_FLOATING_GUI_PARALLAX = 34.5f;
 const float DEFAULT_FLOATING_OBJ_PARALLAX = 3.0f;
 */
 const float DEFAULT_HUD_PARALLAX = 0.970f;
-const float DEFAULT_TEXT_PARALLAX = 0.993;
+const float DEFAULT_TEXT_PARALLAX = 0.993f;
 const float DEFAULT_FLOATING_GUI_PARALLAX = 0.990f;
 const float DEFAULT_FLOATING_OBJ_PARALLAX = 0.0015f;
 
@@ -160,6 +193,7 @@ const bool DEFAULT_INTERLEAVED_REPROJECTION = false;
 const bool DEFAULT_BARREL_EFFECT_STATE = true;
 const bool DEFAULT_BARREL_EFFECT_STATE_STEAMVR = false; // SteamVR provides its own lens correction, only enable it if the user really wants it
 const float DEFAULT_BRIGHTNESS = 0.95f;
+const bool DEFAULT_INVERSE_TRANSPOSE = false;
 const float MAX_BRIGHTNESS = 1.0f;
 
 const char *FOCAL_DIST_VRPARAM = "focal_dist";
@@ -185,6 +219,7 @@ const char *VR_MODE_DIRECT_SBS_SVAL = "DirectSBS";
 const char *VR_MODE_STEAMVR_SVAL = "SteamVR";
 const char *INTERLEAVED_REPROJ_VRPARAM = "SteamVR_Interleaved_Reprojection";
 const char *BARREL_EFFECT_STATE_VRPARAM = "apply_lens_correction";
+const char *INVERSE_TRANSPOSE_VRPARAM = "alternate_steamvr_eye_inverse";
 
 /*
 typedef enum {
@@ -205,10 +240,9 @@ bool g_bSteamVREnabled = false; // The user sets this flag to true to request su
 bool g_bSteamVRInitialized = false; // The system will set this flag after SteamVR has been initialized
 bool g_bUseSteamVR = false; // The system will set this flag if the user requested SteamVR and SteamVR was initialized properly
 bool g_bInterleavedReprojection = DEFAULT_INTERLEAVED_REPROJECTION;
+bool g_bInverseTranspose = DEFAULT_INVERSE_TRANSPOSE; // Transpose the eye matrices before computing the inverse
 vr::HmdMatrix34_t g_EyeMatrixLeft, g_EyeMatrixRight;
-//vr::HmdMatrix44_t g_EyeMatrixLeftInv, g_EyeMatrixRightInv;
 Matrix4 g_EyeMatrixLeftInv, g_EyeMatrixRightInv;
-//vr::HmdMatrix44_t g_projLeft, g_projRight;
 Matrix4 g_projLeft, g_projRight;
 Matrix4 g_fullMatrixLeft, g_fullMatrixRight;
 VertexShaderMatrixCB g_VSMatrixCB;
@@ -669,6 +703,9 @@ void SaveVRParams() {
 	fprintf(file, "to see what works better for your specific case.\n");
 	fprintf(file, "%s = %d\n", INTERLEAVED_REPROJ_VRPARAM, g_bInterleavedReprojection);
 
+	fprintf(file, "\n");
+	fprintf(file, "%s = %d\n", INVERSE_TRANSPOSE_VRPARAM, g_bInverseTranspose);
+
 	fclose(file);
 	log_debug("[DBG] vrparams.cfg saved");
 }
@@ -787,11 +824,15 @@ void LoadVRParams() {
 			}
 			else if (_stricmp(param, INTERLEAVED_REPROJ_VRPARAM) == 0) {
 				g_bInterleavedReprojection = (bool)value;
-				if (g_bUseSteamVR && g_bInterleavedReprojection) {
+				if (g_bUseSteamVR) {
 					log_debug("[DBG] Setting Interleaved Reprojection to: %d", g_bInterleavedReprojection);
 					g_pVRCompositor->ForceInterleavedReprojectionOn(g_bInterleavedReprojection);
 				}
-
+			}
+			else if (_stricmp(param, INVERSE_TRANSPOSE_VRPARAM) == 0) {
+				log_debug("[DBG] Found %s in the params", INVERSE_TRANSPOSE_VRPARAM);
+				g_bInverseTranspose = (bool)value;
+				log_debug("[DBG] Inverse Transpose set to: %d", g_bInverseTranspose);
 			}
 			param_read_count++;
 		}
@@ -884,6 +925,13 @@ void DumpMatrix44(FILE *file, const vr::HmdMatrix44_t &m) {
 	}
 }
 
+void DumpMatrix4(FILE *file, const Matrix4 &mat) {
+	fprintf(file, "%0.6f, %0.6f, %0.6f, %0.6f\n", mat[0], mat[4], mat[8], mat[12]);
+	fprintf(file, "%0.6f, %0.6f, %0.6f, %0.6f\n", mat[1], mat[5], mat[9], mat[13]);
+	fprintf(file, "%0.6f, %0.6f, %0.6f, %0.6f\n", mat[2], mat[6], mat[10], mat[14]);
+	fprintf(file, " %0.6f, %0.6f, %0.6f, %0.6f\n", mat[3], mat[7], mat[11], mat[15]);
+}
+
 void ShowMatrix4(const Matrix4 &mat, char *name) {
 	log_debug("[DBG] -----------------------------------------");
 	if (name != NULL)
@@ -933,6 +981,16 @@ Matrix4 HmdMatrix44toMatrix4(const vr::HmdMatrix44_t &mat) {
 	return matrixObj;
 }
 
+Matrix4 HmdMatrix34toMatrix4(const vr::HmdMatrix34_t &mat) {
+	Matrix4 matrixObj(
+		mat.m[0][0], mat.m[1][0], mat.m[2][0], 0.0f,
+		mat.m[0][1], mat.m[1][1], mat.m[2][1], 0.0f,
+		mat.m[0][2], mat.m[1][2], mat.m[2][2], 0.0f,
+		mat.m[0][3], mat.m[1][3], mat.m[2][3], 1.0f
+	);
+	return matrixObj;
+}
+
 /*
 
 Chee:
@@ -961,13 +1019,7 @@ void ProcessSteamVREyeMatrices(vr::EVREye eye) {
 	else
 		g_EyeMatrixRight = eyeMatrix;
 
-	Matrix4 matrixObj(
-		eyeMatrix.m[0][0], eyeMatrix.m[1][0], eyeMatrix.m[2][0], 0.0f,
-		eyeMatrix.m[0][1], eyeMatrix.m[1][1], eyeMatrix.m[2][1], 0.0f,
-		eyeMatrix.m[0][2], eyeMatrix.m[1][2], eyeMatrix.m[2][2], 0.0f,
-		eyeMatrix.m[0][3], eyeMatrix.m[1][3], eyeMatrix.m[2][3], 1.0f
-	);
-
+	Matrix4 matrixObj = HmdMatrix34toMatrix4(eyeMatrix);
 	/*
 	// Pimax matrix: 11.11 degrees on the Y axis and 6.64 IPD
 	Matrix4 matrixObj(
@@ -978,6 +1030,10 @@ void ProcessSteamVREyeMatrices(vr::EVREye eye) {
 	matrixObj.transpose();
 	*/
 
+	if (g_bInverseTranspose) {
+		log_debug("[DBG] Computing Inverse Transpose");
+		matrixObj.transpose();
+	}
 	// Invert the matrix and store it
 	matrixObj.invertGeneral();
 	if (eye == vr::EVREye::Eye_Left)
@@ -993,6 +1049,65 @@ void ShowVector4(const Vector4 &X, char *name) {
 	else
 		log_debug("[DBG] %0.6f, %0.6f, %0.6f, %0.6f",
 			X[0], X[1], X[2], X[3]);
+}
+
+void TestPimax() {
+	vr::HmdMatrix34_t eyeLeft;
+	eyeLeft.m[0][0] =  0.984808f; eyeLeft.m[0][1] = 0.000000f, eyeLeft.m[0][2] = 0.173648f; eyeLeft.m[0][3] = -0.033236f;
+	eyeLeft.m[1][0] =  0.000000f; eyeLeft.m[1][1] = 1.000000f; eyeLeft.m[1][2] = 0.000000f; eyeLeft.m[1][3] =  0.000000f;
+	eyeLeft.m[2][0] = -0.173648f; eyeLeft.m[2][1] = 0.000000f; eyeLeft.m[2][2] = 0.984808f; eyeLeft.m[2][3] =  0.000000f;
+
+	vr::HmdMatrix34_t eyeRight;
+	eyeRight.m[0][0] = 0.984808f; eyeRight.m[0][1] = 0.000000f, eyeRight.m[0][2] = -0.173648f; eyeRight.m[0][3] = 0.033236f;
+	eyeRight.m[1][0] = 0.000000f; eyeRight.m[1][1] = 1.000000f; eyeRight.m[1][2] =  0.000000f; eyeRight.m[1][3] = 0.000000f;
+	eyeRight.m[2][0] = 0.173648f; eyeRight.m[2][1] = 0.000000f; eyeRight.m[2][2] =  0.984808f; eyeRight.m[2][3] = 0.000000f;
+
+	g_EyeMatrixLeftInv = HmdMatrix34toMatrix4(eyeLeft);
+	g_EyeMatrixRightInv = HmdMatrix34toMatrix4(eyeRight);
+	g_EyeMatrixLeftInv.invertGeneral();
+	g_EyeMatrixRightInv.invertGeneral();
+
+	vr::HmdMatrix44_t projLeft;
+	projLeft.m[0][0] = 0.647594f; projLeft.m[0][1] = 0.000000f; projLeft.m[0][2] = -0.128239f; projLeft.m[0][3] =  0.000000f;
+	projLeft.m[1][0] = 0.000000f; projLeft.m[1][1] = 0.787500f; projLeft.m[1][2] =  0.000000f; projLeft.m[1][3] =  0.000000f;
+	projLeft.m[2][0] = 0.000000f; projLeft.m[2][1] = 0.000000f; projLeft.m[2][2] = -1.010101f; projLeft.m[2][3] = -0.505050f;
+	projLeft.m[3][0] = 0.000000f; projLeft.m[3][1] = 0.000000f; projLeft.m[3][2] = -1.000000f; projLeft.m[3][3] =  0.000000f;
+
+	vr::HmdMatrix44_t projRight;
+	projRight.m[0][0] = 0.647594f; projRight.m[0][1] = 0.000000f; projRight.m[0][2] =  0.128239f; projRight.m[0][3] =  0.000000f;
+	projRight.m[1][0] = 0.000000f; projRight.m[1][1] = 0.787500f; projRight.m[1][2] =  0.000000f; projRight.m[1][3] =  0.000000f;
+	projRight.m[2][0] = 0.000000f; projRight.m[2][1] = 0.000000f; projRight.m[2][2] = -1.010101f; projRight.m[2][3] = -0.505050f;
+	projRight.m[3][0] = 0.000000f; projRight.m[3][1] = 0.000000f; projRight.m[3][2] = -1.000000f; projRight.m[3][3] =  0.000000f;
+
+	g_projLeft = HmdMatrix44toMatrix4(projLeft);
+	g_projRight = HmdMatrix44toMatrix4(projRight);
+
+	/*
+	vr::HmdMatrix34_t eyeInv;
+	log_debug("[DBG] Testing Pimax Matrices...");
+	eyeInv.m[0][0] = 0.984808f; eyeInv.m[0][1] = 0.000000f; eyeInv.m[0][2] = -0.173648f; eyeInv.m[0][3] = 0.033236f;
+	eyeInv.m[1][0] = 0.000000f; eyeInv.m[1][1] = 1.000000f; eyeInv.m[1][2] = 0.000000f; eyeInv.m[1][3] = 0.000000f;
+	eyeInv.m[2][0] = 0.173648f; eyeInv.m[2][1] = 0.000000f; eyeInv.m[2][2] = 0.984808f; eyeInv.m[2][3] = 0.000000f;
+	*/
+
+	/*
+	ShowHmdMatrix34(eyeLeft, "Original Pimax Eye matrix:");
+
+	Matrix4 matrixObj = HmdMatrix34toMatrix4(eyeLeft);
+	matrixObj.transpose();
+	
+	Matrix4 inv = matrixObj;
+	inv.invertGeneral();
+	//Matrix4 inv = HmdMatrix34toMatrix4(eyeInv);
+
+	ShowMatrix4(inv, "invertGeneral:");
+
+	Matrix4 test1 = inv * matrixObj;
+	ShowMatrix4(test1, "inv * matrixObj:");
+
+	Matrix4 test2 = matrixObj * inv;
+	ShowMatrix4(test2, "matrixObj * inv");
+	*/
 }
 
 bool InitSteamVR()
@@ -1065,6 +1180,9 @@ bool InitSteamVR()
 	g_projLeft  = HmdMatrix44toMatrix4(projLeft);
 	g_projRight = HmdMatrix44toMatrix4(projRight);
 
+	// Override all of the above with the Pimax matrices
+	//TestPimax();
+
 	//RollTest.rotateZ(45.0f);
 	g_fullMatrixLeft  = g_projLeft  * g_EyeMatrixLeftInv;
 	g_fullMatrixRight = g_projRight * g_EyeMatrixRightInv;
@@ -1082,18 +1200,42 @@ bool InitSteamVR()
 
 	// Dump information about the view matrices
 	if (file_error == 0) {
+		Matrix4 eye, test;
+
 		if (strDriver != NULL)
 			fprintf(file, "Driver: %s\n", strDriver);
 		if (strDisplay != NULL)
 			fprintf(file, "Display: %s\n", strDisplay);
 		fprintf(file, "\n");
 
+		// Left Eye matrix
 		fprintf(file, "eyeLeft:\n");
 		DumpMatrix34(file, g_EyeMatrixLeft);
 		fprintf(file, "\n");
 
+		fprintf(file, "eyeLeftInv:\n");
+		DumpMatrix4(file, g_EyeMatrixLeftInv);
+		fprintf(file, "\n");
+
+		eye = HmdMatrix34toMatrix4(g_EyeMatrixLeft);
+		test = eye * g_EyeMatrixLeftInv;
+		fprintf(file, "Left Eye inverse test:\n");
+		DumpMatrix4(file, test);
+		fprintf(file, "\n");
+
+		// Right Eye matrix
 		fprintf(file, "eyeRight:\n");
-		DumpMatrix34(file, g_EyeMatrixLeft);
+		DumpMatrix34(file, g_EyeMatrixRight);
+		fprintf(file, "\n");
+
+		fprintf(file, "eyeRightInv:\n");
+		DumpMatrix4(file, g_EyeMatrixRightInv);
+		fprintf(file, "\n");
+
+		eye = HmdMatrix34toMatrix4(g_EyeMatrixRight);
+		test = eye * g_EyeMatrixRightInv;
+		fprintf(file, "Right Eye inverse test:\n");
+		DumpMatrix4(file, test);
 		fprintf(file, "\n");
 
 		// Z_FAR was 50 for version 0.9.6, and I believe Z_Near was 0.5 (focal dist)
@@ -2395,8 +2537,9 @@ HRESULT Direct3DDevice::Execute(
 				// Add extra parallax to Floating GUI elements, left image
 				if (bIsFloatingGUI || g_bIsFloating3DObject || bIsScaleableGUIElem) {
 					bModifiedShaders = true;
-					g_VSCBuffer.z_override = g_fFloatingGUIParallax;
-					if (g_bIsFloating3DObject) {
+					if (!bIsBracket)
+						g_VSCBuffer.z_override = g_fFloatingGUIParallax;
+					if (g_bIsFloating3DObject && !bIsBracket) {
 						g_VSCBuffer.z_override += g_fFloatingGUIObjParallax;
 						g_VSCBuffer.restoreZ = 1.0f;
 					}
@@ -2473,6 +2616,8 @@ HRESULT Direct3DDevice::Execute(
 				resources->InitViewport(&viewport);
 				// Set the left projection matrix
 				g_VSMatrixCB.projEye = g_fullMatrixLeft;
+				// TEMPORARY SWAP OF LEFT-RIGHT TO TEST ISSUES SEEN IN THE FIELD
+				//g_VSMatrixCB.projEye = g_fullMatrixRight;
 				resources->InitVSConstantBufferMatrix(resources->_VSMatrixBuffer.GetAddressOf(), &g_VSMatrixCB);
 				// Draw the Left Image
 				context->DrawIndexed(3 * instruction->wCount, currentIndexLocation, 0);
@@ -2530,6 +2675,8 @@ HRESULT Direct3DDevice::Execute(
 				resources->InitViewport(&viewport);
 				// Set the right projection matrix
 				g_VSMatrixCB.projEye = g_fullMatrixRight;
+				// TEMPORARY SWAP OF LEFT-RIGHT TO TEST ISSUES SEEN IN THE FIELD
+				//g_VSMatrixCB.projEye = g_fullMatrixLeft;
 				resources->InitVSConstantBufferMatrix(resources->_VSMatrixBuffer.GetAddressOf(), &g_VSMatrixCB);
 				// Draw the Right Image
 				context->DrawIndexed(3 * instruction->wCount, currentIndexLocation, 0);

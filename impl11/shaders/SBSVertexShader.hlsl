@@ -50,6 +50,51 @@ PixelShaderInput main(VertexShaderInput input)
 	PixelShaderInput output;
 	float sz = input.pos.z;
 
+	float3 temp = input.pos.xyz;
+	// Apply the scale in 2D coordinates before back-projecting. This is
+	// either g_fGlobalScale or g_fGUIElemScale (used to zoom-out the HUD
+	// so that it's readable
+	temp.xy *= 0.5 * vpScale.w * vpScale.z * float2(aspect_ratio, 1);
+	//temp.xy *= vpScale.w * vpScale.z * float2(aspect_ratio, 1);
+
+	// Override the depth of this element if z_override is set
+	if (z_override > -0.1)
+		temp.z = z_override;
+
+	// input.pos is in 2D; but normalized to -1..1, back-project into 3D:
+	float3 P = back_project(temp.xyz);
+	// and then project into 2D; but using the right projEje matrix:
+	P.y = -P.y;
+	P.z = -P.z;
+	// Project 3D --> 2D
+	output.pos = mul(projEyeMatrix, float4(P, 1));
+	// Normalize:
+	output.pos /= output.pos.w;
+
+	// We have normalized 2D again, continue processing as before:
+	//output.pos.xy = output.pos.xy * vpScale.z;
+	if (restoreZ < 0.5)
+		output.pos.z = input.pos.z;
+	else
+		output.pos.z = sz;
+
+	output.pos.w = 1.0f;
+
+	// Halve the size of the screen
+	//output.pos.xy *= 0.5 * float2(aspect_ratio, 1);
+	output.pos /= input.pos.w;
+
+	output.color = input.color.zyxw;
+	output.tex = input.tex;
+	return output;
+}
+
+/*
+PixelShaderInput main(VertexShaderInput input)
+{
+	PixelShaderInput output;
+	float sz = input.pos.z;
+
 	// Override the depth of this element if z_override is set
 	if (z_override > -0.1)
 		input.pos.z = z_override;
@@ -86,7 +131,7 @@ PixelShaderInput main(VertexShaderInput input)
 	output.tex = input.tex;
 	return output;
 }
-
+*/
 
 /*
 PixelShaderInput main_old(VertexShaderInput input) // This was the original DirectSBS shader
