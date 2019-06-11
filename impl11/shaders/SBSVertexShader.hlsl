@@ -53,7 +53,7 @@ PixelShaderInput main(VertexShaderInput input)
 	float3 temp = input.pos.xyz;
 	// Apply the scale in 2D coordinates before back-projecting. This is
 	// either g_fGlobalScale or g_fGUIElemScale (used to zoom-out the HUD
-	// so that it's readable
+	// so that it's readable)
 	temp.xy *= 0.5 * vpScale.w * vpScale.z * float2(aspect_ratio, 1);
 	//temp.xy *= vpScale.w * vpScale.z * float2(aspect_ratio, 1);
 
@@ -70,20 +70,21 @@ PixelShaderInput main(VertexShaderInput input)
 	output.pos = mul(projEyeMatrix, float4(P, 1));
 	// Normalize:
 	output.pos /= output.pos.w;
+	output.pos.w = 1.0f;
 
 	// We have normalized 2D again, continue processing as before:
-	//output.pos.xy = output.pos.xy * vpScale.z;
+	output.pos.z = sz;
+	if (z_override > -0.1)
+		output.pos.z = z_override;
+	if (restoreZ > 0.5)
+		output.pos.z = sz;
+	/*
 	if (restoreZ < 0.5)
 		output.pos.z = input.pos.z;
 	else
-		output.pos.z = sz;
-
-	output.pos.w = 1.0f;
-
-	// Halve the size of the screen
-	//output.pos.xy *= 0.5 * float2(aspect_ratio, 1);
+		output.pos.z = sz;	
+	*/
 	output.pos /= input.pos.w;
-
 	output.color = input.color.zyxw;
 	output.tex = input.tex;
 	return output;

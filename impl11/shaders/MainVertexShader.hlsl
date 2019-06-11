@@ -42,8 +42,9 @@ PixelShaderInput main(VertexShaderInput input)
 			1);
 		// Project to 2D
 		output.pos = mul(projEyeMatrix, P);
-		// Normalize
-		output.pos /= output.pos.w;
+		// Normalize -- normalizing by w messes the perspective-correct texturing; but this is 
+		// precisely what we do in the main SBSVertexShader...
+		//output.pos /= output.pos.w;
 	} else {
 		output.pos = float4((input.pos.x + parallax) * scale * aspect_ratio, input.pos.y * scale, 0.5f, 1.0f);
 	}

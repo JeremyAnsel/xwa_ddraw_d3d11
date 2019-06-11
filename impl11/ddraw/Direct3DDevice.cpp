@@ -180,8 +180,10 @@ const float DEFAULT_GUI_ELEM_PZ_THRESHOLD = 0.0008f;
 const float DEFAULT_ZOOM_OUT_SCALE = 0.9f;
 //const float DEFAULT_ASPECT_RATIO = 1.33f;
 const float DEFAULT_ASPECT_RATIO = 1.25f;
-const float DEFAULT_CONCOURSE_SCALE = 0.4f;
-const float DEFAULT_CONCOURSE_ASPECT_RATIO = 2.0f; // Default for non-SteamVR
+//const float DEFAULT_CONCOURSE_SCALE = 0.4f;
+const float DEFAULT_CONCOURSE_SCALE = 12.0f;
+//const float DEFAULT_CONCOURSE_ASPECT_RATIO = 2.0f; // Default for non-SteamVR
+const float DEFAULT_CONCOURSE_ASPECT_RATIO = 1.33f; // Default for non-SteamVR
 const float DEFAULT_GLOBAL_SCALE = 1.75f;
 //const float DEFAULT_GLOBAL_SCALE_STEAMVR = 1.4f;
 const float DEFAULT_LENS_K1 = 2.0f;
@@ -278,7 +280,7 @@ int g_iPresentCounter = 0, g_iNonZBufferCounter = 0, g_iSkipNonZBufferDrawIdx = 
 // The following flag tells us when the main GUI elements (HUD, radars, etc) have been rendered
 // It's reset to false every time the backbuffer is swapped.
 //bool g_bGUIIsRendered = false;
-float g_fZBracketOverride = 0.05f; // 0 is Z-Far and 1 is ZNear in ZBuffer-Log coords. 0.05 is almost at ZFar
+float g_fZBracketOverride = 0.1f; // 0 is Z-Far and 1 is ZNear in ZBuffer-Log coords. 0.05 is almost at ZFar
 //float g_fZOverride = 0.95f;
 //float g_fZFloatingOffset = 0.97f;
 float g_fZFloatingOffset = 0.0f;
@@ -1168,8 +1170,11 @@ bool InitSteamVR()
 	ProcessSteamVREyeMatrices(vr::EVREye::Eye_Right);
 
 	// Should I use Z_FAR here?
-	vr::HmdMatrix44_t projLeft  = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Left, 0.001f, 25000.0f);
-	vr::HmdMatrix44_t projRight = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Right, 0.001f, 25000.0f);
+	//vr::HmdMatrix44_t projLeft  = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Left, 0.001f, 25000.0f);
+	//vr::HmdMatrix44_t projRight = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Right, 0.001f, 25000.0f);
+
+	vr::HmdMatrix44_t projLeft = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Left, 0.001f, 100.0f);
+	vr::HmdMatrix44_t projRight = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Right, 0.001f, 100.0f);
 
 	//vr::HmdMatrix44_t projLeft  = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Left, DEFAULT_FOCAL_DIST, 50.0f);
 	//vr::HmdMatrix44_t projRight = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Right, DEFAULT_FOCAL_DIST, 50.0f);
