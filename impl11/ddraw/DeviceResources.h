@@ -31,7 +31,7 @@ typedef struct BarrelPixelShaderCBStruct {
 /* 3D Constant Bufffers */
 typedef struct VertexShaderCBStruct {
 	float viewportScale[4];
-	float aspect_ratio, restoreZ, z_override;
+	float aspect_ratio, restoreZ, z_override, sz_override;
 } VertexShaderCBuffer;
 
 typedef struct PixelShaderCBStruct {
@@ -41,7 +41,12 @@ typedef struct PixelShaderCBStruct {
 typedef struct VertexShaderMatrixCBStruct
 {
 	Matrix4 projEye;
+	Matrix4 viewMat;
 } VertexShaderMatrixCB;
+
+typedef struct HeadPosStruct {
+	float x, y, z;
+} HeadPos;
 
 class DeviceResources
 {

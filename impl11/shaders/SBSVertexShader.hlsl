@@ -5,12 +5,13 @@
 cbuffer ConstantBuffer : register(b0)
 {
 	float4 vpScale;
-	float aspect_ratio, restoreZ, z_override;
+	float aspect_ratio, restoreZ, z_override, sz_override;
 };
 
 cbuffer ConstantBuffer : register(b1)
 {
 	matrix projEyeMatrix;
+	matrix viewMatrix;
 };
 
 struct VertexShaderInput
@@ -34,7 +35,7 @@ static float GAME_SCALE_FACTOR_Z = 60.0;
 static float LOG_K = 1.0;
 static float g_fFocalDist = 0.5;
 
-float3 back_project(float3 p)
+float3 back_project_exp(float3 p)
 {
 	float3 Q;
 	float invz = 1.0 - p.z;
@@ -46,6 +47,52 @@ float3 back_project(float3 p)
 }
 
 PixelShaderInput main(VertexShaderInput input)
+{
+	PixelShaderInput output;
+	float sz = input.pos.z;
+	float w = 1.0 / input.pos.w;
+
+	float3 temp = input.pos.xyz;
+	// Apply the scale in 2D coordinates before back-projecting. This is
+	// either g_fGlobalScale or g_fGUIElemScale (used to zoom-out the HUD
+	// so that it's readable)
+	//temp.xy *= 0.5 * vpScale.w * vpScale.z * float2(aspect_ratio, 1);
+	temp.xy *= vpScale.w * vpScale.z * float2(aspect_ratio, 1);
+
+	// Override the depth of this element if z_override is set
+	temp.z = 20 * w; // This value was determined empirically so that the X-Wing cockpit had a reasonably metric size
+	// temp.z = w; // This setting provides a really nice depth for distant objects.
+	if (z_override > -0.1)
+		temp.z = z_override;
+
+	// input.pos is in 2D; but normalized to -1..1, back-project into 3D:
+	//float3 P = back_project(temp.xyz);
+	// back-project: the rhw coordinate is already Z-linear
+	float3 P = float3(temp.z * temp.xy, temp.z);
+	// and then project into 2D; but using the right projEje matrix:
+	P.y = -P.y;
+	P.z = -P.z;
+	// Apply head position and project 3D --> 2D
+	output.pos = mul(viewMatrix, float4(P, 1));
+	output.pos = mul(projEyeMatrix, output.pos);
+	// Normalize:
+	output.pos /= output.pos.w;
+	output.pos.w = 1.0f;
+
+	// We have normalized 2D again, continue processing as before:
+	output.pos.z = sz;
+	if (sz_override > -0.1)
+		output.pos.z = sz_override;
+	if (restoreZ > 0.5)
+		output.pos.z = sz;
+
+	output.pos /= input.pos.w;
+	output.color = input.color.zyxw;
+	output.tex = input.tex;
+	return output;
+}
+
+PixelShaderInput old_main_0_9_8(VertexShaderInput input)
 {
 	PixelShaderInput output;
 	float sz = input.pos.z;
@@ -62,7 +109,7 @@ PixelShaderInput main(VertexShaderInput input)
 		temp.z = z_override;
 
 	// input.pos is in 2D; but normalized to -1..1, back-project into 3D:
-	float3 P = back_project(temp.xyz);
+	float3 P = back_project_exp(temp.xyz);
 	// and then project into 2D; but using the right projEje matrix:
 	P.y = -P.y;
 	P.z = -P.z;

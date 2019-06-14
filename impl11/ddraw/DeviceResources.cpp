@@ -858,7 +858,7 @@ HRESULT DeviceResources::LoadResources()
 	if (FAILED(hr = this->_d3dDevice->CreateBuffer(&constantBufferDesc, nullptr, &this->_VSConstantBuffer)))
 		return hr;
 
-	constantBufferDesc.ByteWidth = 64; // 4x4 elems in a matrix = 16 elems. Each elem is a float, so 4 bytes * 16 = 64, which is a multiple of 16
+	constantBufferDesc.ByteWidth = 128; // 4x4 elems in a matrix = 16 elems. Each elem is a float, so 4 bytes * 16 = 64 bytes per matrix. This is a multiple of 16
 	if (FAILED(hr = this->_d3dDevice->CreateBuffer(&constantBufferDesc, nullptr, &this->_VSMatrixBuffer)))
 		return hr;
 

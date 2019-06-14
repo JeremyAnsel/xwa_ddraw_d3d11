@@ -10,6 +10,7 @@
 #include "PrimarySurface.h"
 #include "BackbufferSurface.h"
 #include "FrontbufferSurface.h"
+#include "Matrices.h"
 
 #define DBG_MAX_PRESENT_LOGS 0
 
@@ -42,7 +43,11 @@ bool g_bRendering3D = false; // Set to true when the system is about to render i
 
 // SteamVR
 extern DWORD g_FullScreenWidth, g_FullScreenHeight;
+extern Matrix4 g_viewMatrix;
+extern VertexShaderMatrixCB g_VSMatrixCB;
 
+
+extern HeadPos g_HeadPos;
 void animTickX();
 void animTickY();
 void animTickZ();
@@ -59,10 +64,10 @@ MainVertex g_BarrelEffectVertices[6] = {
 ID3D11Buffer* g_BarrelEffectVertBuffer = NULL;
 
 
-#ifdef DBR_VR
-extern bool g_bCapture2DOffscreenBuffer;
 extern bool g_bStart3DCapture, g_bDo3DCapture;
 extern FILE *g_HackFile;
+#ifdef DBR_VR
+extern bool g_bCapture2DOffscreenBuffer;
 #endif
 
 /* SteamVR HMD */
@@ -1135,8 +1140,8 @@ HRESULT PrimarySurface::Flip(
 					else if (g_bStart3DCapture && g_bDo3DCapture) {
 						g_bDo3DCapture = false;
 						g_bStart3DCapture = false;
-						fclose(g_hack_file);
-						g_hack_file = NULL;
+						fclose(g_HackFile);
+						g_HackFile = NULL;
 					}
 #endif
 
@@ -1258,21 +1263,26 @@ HRESULT PrimarySurface::Flip(
 			g_bStartedGUI = false;
 			
 			// Perform the lean left/right etc animations
-			//animTickX();
-			//animTickY();
-			//animTickZ();
+			animTickX();
+			animTickY();
+			animTickZ();
+			g_viewMatrix.identity();
+			g_viewMatrix[12] = g_HeadPos.x;
+			g_viewMatrix[13] = g_HeadPos.y;
+			g_viewMatrix[14] = g_HeadPos.z;
+			g_VSMatrixCB.viewMat = g_viewMatrix;
 
-#ifdef DBG_VR
+//#ifdef DBG_VR
 			if (g_bStart3DCapture && !g_bDo3DCapture) {
 				g_bDo3DCapture = true;
 			}
 			else if (g_bStart3DCapture && g_bDo3DCapture) {
 				g_bDo3DCapture = false;
 				g_bStart3DCapture = false;
-				fclose(g_hack_file);
-				g_hack_file = NULL;
+				fclose(g_HackFile);
+				g_HackFile = NULL;
 			}
-#endif
+//#endif
 
 			if (g_bUseSteamVR) {
 				//if (!g_pHMD->GetTimeSinceLastVsync(&seconds, &frame))

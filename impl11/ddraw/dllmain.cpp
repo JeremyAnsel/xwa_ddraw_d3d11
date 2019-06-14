@@ -14,9 +14,9 @@
 
 extern bool g_bFixSkyBox, g_bSkipGUI, g_bSkipText, g_bSkipSkyBox;
 
+extern bool g_bDo3DCapture, g_bStart3DCapture;
 #ifdef DBG_VR
 bool g_bCapture2DOffscreenBuffer = false;
-extern bool g_bDo3DCapture, g_bStart3DCapture;
 bool g_bDumpDebug = false;
 
 //extern bool g_bDumpSpecificTex;
@@ -104,12 +104,13 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 		// Ctrl + Alt
 		if (AltKey && CtrlKey && !ShiftKey) {
 			switch (wParam) {
-#if DBG_VR
+
 			case 'C':
 				log_debug("[DBG] Capture 3D");
 				//g_bDo3DCapture = true;
 				g_bStart3DCapture = true;
 				return 0;
+#if DBG_VR
 			case 'D':
 				// Force a refresh of the display width
 				g_bDisplayWidth = true;

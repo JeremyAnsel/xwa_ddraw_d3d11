@@ -247,11 +247,12 @@ vr::HmdMatrix34_t g_EyeMatrixLeft, g_EyeMatrixRight;
 Matrix4 g_EyeMatrixLeftInv, g_EyeMatrixRightInv;
 Matrix4 g_projLeft, g_projRight;
 Matrix4 g_fullMatrixLeft, g_fullMatrixRight;
+Matrix4 g_viewMatrix;
 VertexShaderMatrixCB g_VSMatrixCB;
 void projectSteamVR(float X, float Y, float Z, vr::EVREye eye, float &x, float &y, float &z);
 
 /* Vertices that will be used for the VertexBuffer. */
-D3DTLVERTEX *g_OrigVerts = NULL, *g_LeftVerts = NULL, *g_RightVerts = NULL;
+D3DTLVERTEX *g_OrigVerts = NULL; // , *g_LeftVerts = NULL, *g_RightVerts = NULL;
 D3DTLVERTEX *g_3DVerts = NULL;
 int g_iNumVertices = 0;
 
@@ -378,19 +379,15 @@ float centered_sine(float x) {
 }
 */
 
-typedef struct HeadPosStruct {
-	float x, y, z;
-} HeadPos;
-
 HeadPos g_HeadPosAnim = { 0 }, g_HeadPos = { 0 };
 bool g_bLeftKeyDown, g_bRightKeyDown, g_bUpKeyDown, g_bDownKeyDown, g_bUpKeyDownShift, g_bDownKeyDownShift;
-const float ANIM_INCR = 0.1f, MAX_LEAN_X = 0.015f, MAX_LEAN_Y = 0.015f, MAX_LEAN_Z = 0.03f;
+const float ANIM_INCR = 0.1f, MAX_LEAN_X = 0.15f, MAX_LEAN_Y = 0.15f, MAX_LEAN_Z = 0.3f;
 
 void animTickX() {
 	if (g_bRightKeyDown)
-		g_HeadPosAnim.x += ANIM_INCR;
-	else if (g_bLeftKeyDown)
 		g_HeadPosAnim.x -= ANIM_INCR;
+	else if (g_bLeftKeyDown)
+		g_HeadPosAnim.x += ANIM_INCR;
 	else if (!g_bRightKeyDown && !g_bLeftKeyDown) {
 		if (g_HeadPosAnim.x < 0.0001)
 			g_HeadPosAnim.x += ANIM_INCR;
@@ -1741,10 +1738,10 @@ HRESULT Direct3DDevice::CreateExecuteBuffer(
 
 		if (FAILED(device->CreateBuffer(&vertexBufferDesc, nullptr, &this->_vertexBuffer)))
 			return DDERR_INVALIDOBJECT;
-		if (FAILED(device->CreateBuffer(&vertexBufferDesc, nullptr, &this->_vertexBufferL)))
-			return DDERR_INVALIDOBJECT;
-		if (FAILED(device->CreateBuffer(&vertexBufferDesc, nullptr, &this->_vertexBufferR)))
-			return DDERR_INVALIDOBJECT;
+		//if (FAILED(device->CreateBuffer(&vertexBufferDesc, nullptr, &this->_vertexBufferL)))
+		//	return DDERR_INVALIDOBJECT;
+		//if (FAILED(device->CreateBuffer(&vertexBufferDesc, nullptr, &this->_vertexBufferR)))
+		//	return DDERR_INVALIDOBJECT;
 		if (g_bUseSteamVR) {
 			if (FAILED(device->CreateBuffer(&vertexBufferDesc, nullptr, &this->_vertexBuffer3D)))
 				return DDERR_INVALIDOBJECT;
@@ -1796,10 +1793,10 @@ HRESULT Direct3DDevice::GetStats(
 void DeleteStereoVertices() {
 	if (g_OrigVerts != NULL)
 		delete[] g_OrigVerts;
-	if (g_LeftVerts != NULL)
-		delete[] g_LeftVerts;
-	if (g_RightVerts != NULL)
-		delete[] g_RightVerts;
+	//if (g_LeftVerts != NULL)
+	//	delete[] g_LeftVerts;
+	//if (g_RightVerts != NULL)
+	//	delete[] g_RightVerts;
 	if (g_3DVerts != NULL)
 		delete[] g_3DVerts;
 }
@@ -1813,16 +1810,16 @@ void ResizeStereoVertices(int numVerts) {
 	DeleteStereoVertices();
 
 	g_OrigVerts = new D3DTLVERTEX[g_iNumVertices];
-	g_LeftVerts = new D3DTLVERTEX[g_iNumVertices];
-	g_RightVerts = new D3DTLVERTEX[g_iNumVertices];
+	//g_LeftVerts = new D3DTLVERTEX[g_iNumVertices];
+	//g_RightVerts = new D3DTLVERTEX[g_iNumVertices];
 	g_3DVerts = new D3DTLVERTEX[g_iNumVertices];
 }
 
-#ifdef DBG_VR
+//#ifdef DBG_VR
 void DumpOrigVertices(FILE *file, int numVerts)
 {
 	char buf[256];
-	float px, py, pz;
+	float px, py, pz, rhw;
 
 	// Don't catpure things we are not drawing
 	if (g_iDrawCounter < g_iNoDrawBeforeIndex)
@@ -1831,15 +1828,17 @@ void DumpOrigVertices(FILE *file, int numVerts)
 		return;
 
 	for (register int i = 0; i < numVerts; i++) {
-		px = g_orig_verts[i].sx;
-		py = g_orig_verts[i].sy;
-		pz = g_orig_verts[i].sz;
+		px = g_OrigVerts[i].sx;
+		py = g_OrigVerts[i].sy;
+		pz = g_OrigVerts[i].sz;
+		rhw = g_OrigVerts[i].rhw;
 
-		sprintf_s(buf, 256, "v %f %f %f\n", px, py, pz);
+		// What happens if I use 1/rhw instead of Z? What happens if I use sz/rhw instead of Z?
+		sprintf_s(buf, 256, "v %f %f %f; %f %f\n", px, py, pz, rhw, 1.0f/rhw);
 		fprintf(file, buf);
 	}
 }
-#endif
+//#endif
 
 /* 
  * In SteamVR, the coordinate system is as follows:
@@ -1878,8 +1877,8 @@ void PreprocessVerticesStereo(float width, float height, int numVerts)
 
 	// Back-project and do stereo
 	for (register int i = 0; i < numVerts; i++) {
-		g_LeftVerts[i]  = g_OrigVerts[i];
-		g_RightVerts[i] = g_OrigVerts[i];
+		//g_LeftVerts[i]  = g_OrigVerts[i];
+		//g_RightVerts[i] = g_OrigVerts[i];
 		g_3DVerts[i]    = g_OrigVerts[i];
 		// Normalize the coords: move the screen's center to (0,0) and scale the (x,y) axes
 		// to -0.5..0.5
@@ -1956,15 +1955,15 @@ void PreprocessVerticesStereo(float width, float height, int numVerts)
 		*/
 	}
 
-#ifdef DBG_VR
+//#ifdef DBG_VR
 	// DBG: Hack: Dump the 3D scene. Triggered with Ctrl-Alt-C
 	if (g_bDo3DCapture)
 	{
-		if (g_hack_file == NULL)
-			fopen_s(&g_hack_file, "./vertexbuf.obj", "wt");
-		DumpOrigVertices(g_hack_file, numVerts);
+		if (g_HackFile == NULL)
+			fopen_s(&g_HackFile, "./vertexbuf.obj", "wt");
+		DumpOrigVertices(g_HackFile, numVerts);
 	}
-#endif
+//#endif
 }
 
 /* Function to quickly enable/disable ZWrite. Currently only used for brackets */
@@ -2064,6 +2063,7 @@ HRESULT Direct3DDevice::Execute(
 
 	// Copy the vertex data to the left and right VertexBuffers
 	if (g_bEnableVR) {
+		/*
 		// Left vertices
 		step = "VertexBuffer (Left)";
 		hr = context->Map(this->_vertexBufferL, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
@@ -2081,7 +2081,7 @@ HRESULT Direct3DDevice::Execute(
 			memcpy(map.pData, g_RightVerts, vertsLength);
 			context->Unmap(this->_vertexBufferR, 0);
 		}
-
+		*/
 		// 3D vertices
 		step = "VertexBuffer (3D)";
 		hr = context->Map(this->_vertexBuffer3D, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
@@ -2164,6 +2164,7 @@ HRESULT Direct3DDevice::Execute(
 		g_VSCBuffer.aspect_ratio = g_fAspectRatio;
 		g_VSCBuffer.restoreZ = 0.0f;
 		g_VSCBuffer.z_override = -1.0f;
+		g_VSCBuffer.sz_override = -1.0f;
 		resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 		resources->InitPSConstantBufferBrightness(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 
@@ -2521,7 +2522,10 @@ HRESULT Direct3DDevice::Execute(
 					// If we make the skybox a bit bigger to enable roll, it "swims" -- it's probably not going to work.
 					g_VSCBuffer.viewportScale[3] = g_fGlobalScale; // +0.2f;
 					// Send the skybox to infinity:
-					g_VSCBuffer.z_override = 0.01f;
+					//g_VSCBuffer.z_override = 0.01f;
+					//g_VSCBuffer.z_override = 200.0f;
+					g_VSCBuffer.sz_override = 0.01f;
+					g_VSCBuffer.z_override = 20.0f * 65535.0f;
 				}
 
 				// Add an extra parallax to HUD elements
@@ -2565,26 +2569,6 @@ HRESULT Direct3DDevice::Execute(
 				// Left image state settings
 				// ****************************************************************************				
 
-
-				// Select either the original vertex buffer or the left-image vertex buffer. Certain elements are
-				// rendered at infinity using the original VB and others are rendered at various depths but using
-				// the original VB and adding a specific parallax (like the text and HUD)
-				/*
-				if (SUCCEEDED(hr))
-				{
-					// Use the original vertices for the Sky, HUD, Text and Brackets:
-					if (bIsSkyBox || bIsHUD || bIsText || bIsBracket) // Should I add Floating GUI elements here as well?
-						resources->InitVertexBuffer(this->_vertexBuffer.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
-					else
-						resources->InitVertexBuffer(this->_vertexBufferL.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
-				}
-				*/
-
-				/*
-				if (bModifiedShaders)
-					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
-				*/
-
 				// Skip the draw call for debugging purposes depending on g_iNoDrawBeforeIndex and g_iNoDrawAfterIndex
 #ifdef DBG_VR
 				if (g_iDrawCounter < g_iNoDrawBeforeIndex)
@@ -2621,6 +2605,7 @@ HRESULT Direct3DDevice::Execute(
 				resources->InitViewport(&viewport);
 				// Set the left projection matrix
 				g_VSMatrixCB.projEye = g_fullMatrixLeft;
+				// The viewMatrix is set at the beginning of the frame
 				// TEMPORARY SWAP OF LEFT-RIGHT TO TEST ISSUES SEEN IN THE FIELD
 				//g_VSMatrixCB.projEye = g_fullMatrixRight;
 				resources->InitVSConstantBufferMatrix(resources->_VSMatrixBuffer.GetAddressOf(), &g_VSMatrixCB);
@@ -2700,6 +2685,7 @@ HRESULT Direct3DDevice::Execute(
 					// Restore the No-Z-Write state for bracket elements
 					QuickSetZWriteEnabled(bZWriteEnabled);
 					g_VSCBuffer.z_override = -1.0f;
+					g_VSCBuffer.sz_override = -1.0f;
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 				}
 
@@ -2710,6 +2696,7 @@ HRESULT Direct3DDevice::Execute(
 					g_VSCBuffer.restoreZ = 0.0f;
 					g_PSCBuffer.brightness = MAX_BRIGHTNESS;
 					g_VSCBuffer.z_override = -1.0f;
+					g_VSCBuffer.sz_override = -1.0f;
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 					resources->InitPSConstantBufferBrightness(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 				}
