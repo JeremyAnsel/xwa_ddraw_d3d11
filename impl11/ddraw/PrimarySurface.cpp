@@ -14,6 +14,113 @@
 
 #define DBG_MAX_PRESENT_LOGS 0
 
+#include <headers/openvr.h>
+const float PI = 3.141592f;
+const float RAD_TO_DEG = 180.0f / PI;
+const float g_fRollMultiplier = -1.0f;
+extern vr::IVRSystem *g_pHMD;
+/*
+ * Convert a rotation matrix to a normalized quaternion.
+ * From: http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/
+ */
+vr::HmdQuaternionf_t rotationToQuaternion(vr::HmdMatrix34_t m) {
+	float tr = m.m[0][0] + m.m[1][1] + m.m[2][2];
+	vr::HmdQuaternionf_t q;
+
+	if (tr > 0) {
+		float S = sqrt(tr + 1.0f) * 2.0f; // S=4*qw 
+		q.w = 0.25f * S;
+		q.x = (m.m[2][1] - m.m[1][2]) / S;
+		q.y = (m.m[0][2] - m.m[2][0]) / S;
+		q.z = (m.m[1][0] - m.m[0][1]) / S;
+	}
+	else if ((m.m[0][0] > m.m[1][1]) && (m.m[0][0] > m.m[2][2])) {
+		float S = sqrt(1.0f + m.m[0][0] - m.m[1][1] - m.m[2][2]) * 2.0f; // S=4*qx 
+		q.w = (m.m[2][1] - m.m[1][2]) / S;
+		q.x = 0.25f * S;
+		q.y = (m.m[0][1] + m.m[1][0]) / S;
+		q.z = (m.m[0][2] + m.m[2][0]) / S;
+	}
+	else if (m.m[1][1] > m.m[2][2]) {
+		float S = sqrt(1.0f + m.m[1][1] - m.m[0][0] - m.m[2][2]) * 2.0f; // S=4*qy
+		q.w = (m.m[0][2] - m.m[2][0]) / S;
+		q.x = (m.m[0][1] + m.m[1][0]) / S;
+		q.y = 0.25f * S;
+		q.z = (m.m[1][2] + m.m[2][1]) / S;
+	}
+	else {
+		float S = sqrt(1.0f + m.m[2][2] - m.m[0][0] - m.m[1][1]) * 2.0f; // S=4*qz
+		q.w = (m.m[1][0] - m.m[0][1]) / S;
+		q.x = (m.m[0][2] + m.m[2][0]) / S;
+		q.y = (m.m[1][2] + m.m[2][1]) / S;
+		q.z = 0.25f * S;
+	}
+	float Q = q.x*q.x + q.y*q.y + q.z*q.z + q.w*q.w;
+	q.x /= Q;
+	q.y /= Q;
+	q.z /= Q;
+	q.w /= Q;
+	return q;
+}
+
+/*
+   From: http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToEuler/index.htm
+   yaw: left = +90, right = -90
+   pitch: up = +90, down = -90
+   roll: left = +90, right = -90
+
+   if roll > 90, the axis will swap pitch and roll; but why would anyone do that?
+*/
+void quatToEuler(vr::HmdQuaternionf_t q, float *yaw, float *roll, float *pitch) {
+	float test = q.x*q.y + q.z*q.w;
+
+	if (test > 0.499f) { // singularity at north pole
+		*yaw = 2 * atan2(q.x, q.w);
+		*pitch = PI / 2.0f;
+		*roll = 0;
+		return;
+	}
+	if (test < -0.499f) { // singularity at south pole
+		*yaw = -2 * atan2(q.x, q.w);
+		*pitch = -PI / 2.0f;
+		*roll = 0;
+		return;
+	}
+	float sqx = q.x*q.x;
+	float sqy = q.y*q.y;
+	float sqz = q.z*q.z;
+	*yaw = atan2(2.0f * q.y*q.w - 2.0f * q.x*q.z, 1.0f - 2.0f * sqy - 2.0f * sqz);
+	*pitch = asin(2.0f * test);
+	*roll = atan2(2.0f * q.x*q.w - 2.0f * q.y*q.z, 1.0f - 2.0f * sqx - 2.0f * sqz);
+}
+
+
+void GetSteamVRPositionalData(float *yaw, float *pitch, float *roll)
+{
+	vr::TrackedDeviceIndex_t unDevice = vr::k_unTrackedDeviceIndex_Hmd;
+	if (!g_pHMD->IsTrackedDeviceConnected(unDevice)) {
+		//log_debug("[DBG] HMD is not connected");
+		return;
+	}
+
+	vr::VRControllerState_t state;
+	if (g_pHMD->GetControllerState(unDevice, &state, sizeof(state)))
+	{
+		vr::TrackedDevicePose_t trackedDevicePose;
+		vr::HmdMatrix34_t poseMatrix;
+		vr::HmdQuaternionf_t q;
+		vr::ETrackedDeviceClass trackedDeviceClass = vr::VRSystem()->GetTrackedDeviceClass(unDevice);
+
+		vr::VRSystem()->GetDeviceToAbsoluteTrackingPose(vr::TrackingUniverseSeated, 0, &trackedDevicePose, 1);
+		poseMatrix = trackedDevicePose.mDeviceToAbsoluteTracking; // This matrix contains all positional and rotational data.
+		q = rotationToQuaternion(trackedDevicePose.mDeviceToAbsoluteTracking);
+		quatToEuler(q, yaw, pitch, roll);
+	}
+	//else {
+	//	log_debug("[DBG] Could not get positional data");
+	//}
+}
+
 struct MainVertex
 {
 	float pos[2];
@@ -1266,7 +1373,13 @@ HRESULT PrimarySurface::Flip(
 			animTickX();
 			animTickY();
 			animTickZ();
+
+			float yaw = 0.0f, pitch = 0.0f, roll = 0.0f;
+			GetSteamVRPositionalData(&yaw, &pitch, &roll);
+			roll *= RAD_TO_DEG * g_fRollMultiplier;
+
 			g_viewMatrix.identity();
+			g_viewMatrix.rotateZ(roll);
 			g_viewMatrix[12] = g_HeadPos.x;
 			g_viewMatrix[13] = g_HeadPos.y;
 			g_viewMatrix[14] = g_HeadPos.z;
@@ -1315,6 +1428,7 @@ HRESULT PrimarySurface::Flip(
 			g_bRendering3D = true;
 			// Doing Present(1, 0) limits the framerate to 30fps, without it, it can go up to 60; but usually
 			// stays around 45 in my system
+			//log_debug("[DBG] PRESENT 3D");
 			if (FAILED(hr = this->_deviceResources->_swapChain->Present(0, 0)))
 			{
 				static bool messageShown = false;

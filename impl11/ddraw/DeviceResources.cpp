@@ -847,7 +847,7 @@ HRESULT DeviceResources::LoadResources()
 		return hr;
 
 	D3D11_BUFFER_DESC constantBufferDesc;
-	constantBufferDesc.ByteWidth = 32;
+	constantBufferDesc.ByteWidth = 64;
 	constantBufferDesc.Usage = D3D11_USAGE_DEFAULT;
 	constantBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	constantBufferDesc.CPUAccessFlags = 0;

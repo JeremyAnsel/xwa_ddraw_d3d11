@@ -281,7 +281,8 @@ int g_iPresentCounter = 0, g_iNonZBufferCounter = 0, g_iSkipNonZBufferDrawIdx = 
 // The following flag tells us when the main GUI elements (HUD, radars, etc) have been rendered
 // It's reset to false every time the backbuffer is swapped.
 //bool g_bGUIIsRendered = false;
-float g_fZBracketOverride = 0.1f; // 0 is Z-Far and 1 is ZNear in ZBuffer-Log coords. 0.05 is almost at ZFar
+//float g_fZBracketOverride = 0.1f; // 0 is Z-Far and 1 is ZNear in ZBuffer-Log coords. 0.05 is almost at ZFar
+float g_fZBracketOverride = 65530.0f; // 0 is Z-Far and 1 is ZNear in ZBuffer-Log coords. 0.05 is almost at ZFar
 //float g_fZOverride = 0.95f;
 //float g_fZFloatingOffset = 0.97f;
 float g_fZFloatingOffset = 0.0f;
@@ -381,7 +382,7 @@ float centered_sine(float x) {
 
 HeadPos g_HeadPosAnim = { 0 }, g_HeadPos = { 0 };
 bool g_bLeftKeyDown, g_bRightKeyDown, g_bUpKeyDown, g_bDownKeyDown, g_bUpKeyDownShift, g_bDownKeyDownShift;
-const float ANIM_INCR = 0.1f, MAX_LEAN_X = 0.15f, MAX_LEAN_Y = 0.15f, MAX_LEAN_Z = 0.3f;
+const float ANIM_INCR = 0.1f, MAX_LEAN_X = 0.15f, MAX_LEAN_Y = 0.15f, MAX_LEAN_Z = 0.6f;
 
 void animTickX() {
 	if (g_bRightKeyDown)
@@ -2025,6 +2026,9 @@ HRESULT Direct3DDevice::Execute(
 	g_VSCBuffer = { 0 };
 	g_VSCBuffer.aspect_ratio = g_fAspectRatio;
 	g_VSCBuffer.z_override = -1.0f;
+	g_VSCBuffer.sz_override = -1.0f;
+	g_VSCBuffer.mult_z_override = -1.0f;
+	g_VSCBuffer.z_flip = 0.0f;
 	g_PSCBuffer.brightness = MAX_BRIGHTNESS;
 
 	char* step = "";
@@ -2165,6 +2169,8 @@ HRESULT Direct3DDevice::Execute(
 		g_VSCBuffer.restoreZ = 0.0f;
 		g_VSCBuffer.z_override = -1.0f;
 		g_VSCBuffer.sz_override = -1.0f;
+		g_VSCBuffer.mult_z_override = -1.0f;
+		g_VSCBuffer.z_flip = 0.0f;
 		resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 		resources->InitPSConstantBufferBrightness(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 
@@ -2392,6 +2398,7 @@ HRESULT Direct3DDevice::Execute(
 				// ZWrite disabled. So, how can we tell if a bracket is being rendered or a shadow?
 				// Brackets are rendered with ZFunc D3DCMP_ALWAYS (8),
 				// Shadows are rendered with ZFunc D3DCMP_GREATEREQUAL (7)
+				// Cockpit glass & Engine Glow is rendered with ZFunc D3DCMP_GREATER (5)
 				bool bIsBracket = bIsNoZWrite && lastTextureSelected == NULL && 
 					this->_renderStates->GetZFunc() == D3DCMP_ALWAYS;
 				bool bIsFloatingGUI = lastTextureSelected != NULL && lastTextureSelected->is_Floating_GUI;
@@ -2405,11 +2412,17 @@ HRESULT Direct3DDevice::Execute(
 				//g_bStartedGUI |= bIsGUI || bIsText; // bIsBracket is true for brackets *and* for (hangar) shadows
 				// bIsScaleableGUIElem is true when we're about to render a HUD element that can be scaled down with Ctrl+Z
 				bool bIsScaleableGUIElem = g_bStartedGUI && !bIsHUD && !bIsBracket && !bIsTrianglePointer;
+				bool bIsTranspOrGlow = bIsNoZWrite && _renderStates->GetZFunc() == D3DCMP_GREATER;
 				// lastTextureSelected can be NULL. This happens when drawing the square
 				// brackets around the currently-selected object.
 				/*************************************************************************
 					State management ends here
 				 *************************************************************************/
+
+				//if (bIsNoZWrite && _renderStates->GetZFunc() == D3DCMP_GREATER) {
+				//	goto out;
+					//log_debug("[DBG] NoZWrite, ZFunc: %d", _renderStates->GetZFunc());
+				//}
 
 				 // Skip specific draw calls for debugging purposes.
 #ifdef DBG_VR
@@ -2520,13 +2533,21 @@ HRESULT Direct3DDevice::Execute(
 				if (bIsSkyBox) {
 					bModifiedShaders = true;
 					// If we make the skybox a bit bigger to enable roll, it "swims" -- it's probably not going to work.
-					g_VSCBuffer.viewportScale[3] = g_fGlobalScale; // +0.2f;
+					//g_VSCBuffer.viewportScale[3] = g_fGlobalScale + 0.2f;
 					// Send the skybox to infinity:
 					//g_VSCBuffer.z_override = 0.01f;
 					//g_VSCBuffer.z_override = 200.0f;
 					g_VSCBuffer.sz_override = 0.01f;
-					g_VSCBuffer.z_override = 20.0f * 65535.0f;
+					//g_VSCBuffer.z_override = 20.0f * 60000.0f;
+					g_VSCBuffer.mult_z_override = 2000.0f; // *60000.0f;
 				}
+
+				/*
+				if (bIsTranspOrGlow) {
+					bModifiedShaders = true;
+					g_VSCBuffer.z_flip = 1.0f;
+				}
+				*/
 
 				// Add an extra parallax to HUD elements
 				if (bIsHUD) {
@@ -2686,6 +2707,8 @@ HRESULT Direct3DDevice::Execute(
 					QuickSetZWriteEnabled(bZWriteEnabled);
 					g_VSCBuffer.z_override = -1.0f;
 					g_VSCBuffer.sz_override = -1.0f;
+					g_VSCBuffer.mult_z_override = -1.0f;
+					g_VSCBuffer.z_flip = 0.0f;
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 				}
 
@@ -2697,6 +2720,8 @@ HRESULT Direct3DDevice::Execute(
 					g_PSCBuffer.brightness = MAX_BRIGHTNESS;
 					g_VSCBuffer.z_override = -1.0f;
 					g_VSCBuffer.sz_override = -1.0f;
+					g_VSCBuffer.mult_z_override = -1.0f;
+					g_VSCBuffer.z_flip = 0.0f;
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 					resources->InitPSConstantBufferBrightness(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 				}

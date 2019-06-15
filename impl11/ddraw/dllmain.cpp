@@ -251,16 +251,19 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 #endif
 
 			case VK_UP:
-				IncreaseFloatingGUIParallax(0.0025f);
+				//IncreaseFloatingGUIParallax(0.0025f);
+				IncreaseFloatingGUIParallax(0.05f);
 				return 0;
 			case VK_DOWN:
-				IncreaseFloatingGUIParallax(-0.0025f);
+				IncreaseFloatingGUIParallax(-0.05f);
 				return 0;
 			case VK_LEFT:
-				IncreaseTextParallax(-0.0025f);
+				//IncreaseTextParallax(-0.0025f);
+				IncreaseTextParallax(-0.05f);
 				return 0;
 			case VK_RIGHT:
-				IncreaseTextParallax(0.0025f);
+				//IncreaseTextParallax(0.0025f);
+				IncreaseTextParallax(0.05f);
 				return 0;
 			}
 		}

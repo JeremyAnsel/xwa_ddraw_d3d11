@@ -71,8 +71,6 @@ public:
 
 	DWORD _maxExecuteBufferSize;
 	ComPtr<ID3D11Buffer> _vertexBuffer;
-	//ComPtr<ID3D11Buffer> _vertexBufferL;
-	//ComPtr<ID3D11Buffer> _vertexBufferR;
 	ComPtr<ID3D11Buffer> _vertexBuffer3D;
 	ComPtr<ID3D11Buffer> _indexBuffer;
 };
