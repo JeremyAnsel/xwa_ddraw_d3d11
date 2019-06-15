@@ -2500,6 +2500,7 @@ HRESULT Direct3DDevice::Execute(
 				if (bIsBracket) {
 					bModifiedShaders = true;
 					QuickSetZWriteEnabled(TRUE);
+					g_VSCBuffer.sz_override = 0.05;
 					g_VSCBuffer.z_override = g_fZBracketOverride;
 				}
 
@@ -2538,8 +2539,7 @@ HRESULT Direct3DDevice::Execute(
 					//g_VSCBuffer.z_override = 0.01f;
 					//g_VSCBuffer.z_override = 200.0f;
 					g_VSCBuffer.sz_override = 0.01f;
-					//g_VSCBuffer.z_override = 20.0f * 60000.0f;
-					g_VSCBuffer.mult_z_override = 2000.0f; // *60000.0f;
+					g_VSCBuffer.mult_z_override = 5000.0f;
 				}
 
 				/*

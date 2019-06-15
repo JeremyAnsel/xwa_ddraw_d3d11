@@ -32,18 +32,18 @@ struct PixelShaderInput
 
 static float GAME_SCALE_FACTOR = 60.0;
 static float GAME_SCALE_FACTOR_Z = 60.0;
-static float METRIC_SCALE_FACTOR = 20.0;
+static float METRIC_SCALE_FACTOR = 25.0;
 //float C = 1.0f, Z_FAR = 1.0f;
 //static float LOG_K = 1.0;
 static float g_fFocalDist = 0.5;
-static float C = 8;
-static float LOG_K = log(C * METRIC_SCALE_FACTOR * 65535);
+//static float C = 8;
+//static float LOG_K = log(C * METRIC_SCALE_FACTOR * 65535);
 
 float3 back_project_exp(float3 p)
 {
 	float3 Q;
 	float invz = 1.0 - p.z;
-	Q.z = (exp(invz * LOG_K) - 1.0) / p.z;
+	Q.z = (exp(invz) - 1.0) / p.z;
 	Q.xy = Q.z * p.xy / g_fFocalDist;
 	Q *= GAME_SCALE_FACTOR;
 	//Q.z *= GAME_SCALE_FACTOR_Z;
@@ -71,32 +71,30 @@ PixelShaderInput main(VertexShaderInput input)
 	if (z_override > -0.1)
 		temp.z = z_override;
 
-	// input.pos is in 2D; but normalized to -1..1, back-project into 3D:
-	//float3 P = back_project(temp.xyz);
-	// back-project: the rhw coordinate is already Z-linear
+	// The back-projection into 3D is now very simple:
 	float3 P = float3(temp.z * temp.xy, temp.z);
-	// and then project into 2D; but using the right projEje matrix:
+	// Adjust the coordinate system for SteamVR:
 	P.y = -P.y;
 	P.z = -P.z;
 	// Apply head position and project 3D --> 2D
 	output.pos = mul(viewMatrix, float4(P, 1));
 	output.pos = mul(projEyeMatrix, output.pos);
-	
-	//output.pos.z = (1 - log(C*output.pos.w + 1) / LOG_K) * output.pos.w;
-	//output.pos.z = log(output.pos.w + 1) / LOG_K;
-	//if (z_flip < 0.5)
-	//	output.pos.z = 1 - output.pos.z;
-	//output.pos.z *= output.pos.w;
-	output.pos.z = (1 - log(output.pos.w + 1) / LOG_K) * output.pos.w;
 
-	// We have normalized 2D again, continue processing as before:
+	// Compute the new sz:
+	////output.pos.z = (1 - log(C*output.pos.w + 1) / LOG_K) * output.pos.w;
+	//output.pos.z = (1 - log(output.pos.w + 1) / LOG_K) * output.pos.w;
+
+	// For some weird reason the following line also provides perspective-correct texturing;
+	// but it's using the old sz and w:
 	//output.pos.z = sz * w;
+
+	// Use the original sz; but compensate with w so that it stays perspective-correct:
+	output.pos.z = sz * output.pos.w;
 	if (sz_override > -0.1)
 		output.pos.z = sz_override;
 	//if (restoreZ > 0.5)
 	//	output.pos.z = sz;
 
-	//output.pos /= input.pos.w;
 	output.color = input.color.zyxw;
 	output.tex = input.tex;
 	return output;
