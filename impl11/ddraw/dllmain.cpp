@@ -13,7 +13,6 @@
 #include <vector>
 
 extern bool g_bFixSkyBox, g_bSkipGUI, g_bSkipText, g_bSkipSkyBox;
-
 extern bool g_bDo3DCapture, g_bStart3DCapture;
 #ifdef DBG_VR
 bool g_bCapture2DOffscreenBuffer = false;
@@ -31,7 +30,7 @@ void IncreaseSkyBoxIndex(int Delta);
 void IncreaseFocalDist(float Delta);
 #endif
 
-extern bool g_bDisableBarrelEffect, g_bEnableVR;
+extern bool g_bDisableBarrelEffect, g_bEnableVR, g_bResetHeadCenter;
 extern bool g_bLeftKeyDown, g_bRightKeyDown, g_bUpKeyDown, g_bDownKeyDown, g_bUpKeyDownShift, g_bDownKeyDownShift;
 HWND ThisWindow = 0;
 WNDPROC OldWindowProc = 0;
@@ -308,8 +307,10 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 				g_bDownKeyDownShift = false;
 				return 0;
 			case VK_OEM_PERIOD:
-				if (g_bUseSteamVR)
+				if (g_bUseSteamVR) {
 					g_pHMD->ResetSeatedZeroPose();
+					g_bResetHeadCenter = true;
+				}
 				break;
 			}
 		}

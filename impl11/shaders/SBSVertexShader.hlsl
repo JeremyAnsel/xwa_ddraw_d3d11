@@ -5,7 +5,7 @@
 cbuffer ConstantBuffer : register(b0)
 {
 	float4 vpScale;
-	float aspect_ratio, restoreZ, z_override, sz_override;
+	float aspect_ratio, cockpit_threshold, z_override, sz_override;
 	float mult_z_override, z_flip;
 };
 
@@ -54,6 +54,8 @@ PixelShaderInput main(VertexShaderInput input)
 {
 	PixelShaderInput output;
 	float sz = input.pos.z;
+	float pz = 1.0 - sz;
+	//float metric_scale = METRIC_SCALE_FACTOR;
 	float w = 1.0 / input.pos.w;
 
 	float3 temp = input.pos.xyz;
@@ -63,9 +65,9 @@ PixelShaderInput main(VertexShaderInput input)
 	//temp.xy *= 0.5 * vpScale.w * vpScale.z * float2(aspect_ratio, 1);
 	temp.xy *= vpScale.w * vpScale.z * float2(aspect_ratio, 1);
 
-	// Override the depth of this element if z_override is set
 	temp.z = METRIC_SCALE_FACTOR * w; // This value was determined empirically so that the X-Wing cockpit had a reasonably metric size
 	// temp.z = w; // This setting provides a really nice depth for distant objects.
+	// Override the depth of this element if z_override is set
 	if (mult_z_override > -0.1)
 		temp.z *= mult_z_override;
 	if (z_override > -0.1)
@@ -80,6 +82,29 @@ PixelShaderInput main(VertexShaderInput input)
 	output.pos = mul(viewMatrix, float4(P, 1));
 	output.pos = mul(projEyeMatrix, output.pos);
 
+	/*
+	// Stereoscopy boost -- probably not worth it, needs to distinguish between the skybox and the HUD is amplified
+	if (pz > cockpit_threshold) {
+		float w_orig = output.pos.w;
+		metric_scale = 1;
+		temp.xy *= vpScale.w * vpScale.z * float2(aspect_ratio, 1);
+		temp.z = metric_scale * w; // This value was determined empirically so that the X-Wing cockpit had a reasonably metric size
+		// temp.z = w; // This setting provides a really nice depth for distant objects.
+		if (mult_z_override > -0.1)
+			temp.z *= mult_z_override;
+		if (z_override > -0.1)
+			temp.z = z_override;
+		float3 P = float3(temp.z * temp.xy, temp.z);
+		// Adjust the coordinate system for SteamVR:
+		P.y = -P.y;
+		P.z = -P.z;
+		// Apply head position and project 3D --> 2D
+		output.pos = mul(viewMatrix, float4(P, 1));
+		output.pos = mul(projEyeMatrix, output.pos);
+		output.pos *= w_orig / output.pos.w;
+	}
+	*/
+
 	// Compute the new sz:
 	////output.pos.z = (1 - log(C*output.pos.w + 1) / LOG_K) * output.pos.w;
 	//output.pos.z = (1 - log(output.pos.w + 1) / LOG_K) * output.pos.w;
@@ -92,14 +117,13 @@ PixelShaderInput main(VertexShaderInput input)
 	output.pos.z = sz * output.pos.w;
 	if (sz_override > -0.1)
 		output.pos.z = sz_override;
-	//if (restoreZ > 0.5)
-	//	output.pos.z = sz;
 
 	output.color = input.color.zyxw;
 	output.tex = input.tex;
 	return output;
 }
 
+/*
 PixelShaderInput old_main_0_9_8(VertexShaderInput input)
 {
 	PixelShaderInput output;
@@ -133,17 +157,12 @@ PixelShaderInput old_main_0_9_8(VertexShaderInput input)
 		output.pos.z = z_override;
 	if (restoreZ > 0.5)
 		output.pos.z = sz;
-	/*
-	if (restoreZ < 0.5)
-		output.pos.z = input.pos.z;
-	else
-		output.pos.z = sz;	
-	*/
 	output.pos /= input.pos.w;
 	output.color = input.color.zyxw;
 	output.tex = input.tex;
 	return output;
 }
+*/
 
 /*
 PixelShaderInput main(VertexShaderInput input)

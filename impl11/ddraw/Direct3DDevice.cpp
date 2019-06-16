@@ -169,27 +169,28 @@ const float DEFAULT_TEXT_PARALLAX = 40.0f;
 const float DEFAULT_FLOATING_GUI_PARALLAX = 34.5f;
 const float DEFAULT_FLOATING_OBJ_PARALLAX = 3.0f;
 */
-const float DEFAULT_HUD_PARALLAX = 0.970f;
-const float DEFAULT_TEXT_PARALLAX = 0.993f;
-const float DEFAULT_FLOATING_GUI_PARALLAX = 0.990f;
-const float DEFAULT_FLOATING_OBJ_PARALLAX = 0.0015f;
+const float DEFAULT_HUD_PARALLAX = 1.7f;
+const float DEFAULT_TEXT_PARALLAX = 0.45f;
+const float DEFAULT_FLOATING_GUI_PARALLAX = 0.495f;
+const float DEFAULT_FLOATING_OBJ_PARALLAX = -0.025f;
 
-const float DEFAULT_TECH_LIB_PARALLAX = 0.05f;
+const float DEFAULT_TECH_LIB_PARALLAX = -2.0f;
 const float DEFAULT_GUI_ELEM_SCALE = 0.75f;
 const float DEFAULT_GUI_ELEM_PZ_THRESHOLD = 0.0008f;
-const float DEFAULT_ZOOM_OUT_SCALE = 0.9f;
+const float DEFAULT_ZOOM_OUT_SCALE = 1.0f;
 //const float DEFAULT_ASPECT_RATIO = 1.33f;
 const float DEFAULT_ASPECT_RATIO = 1.25f;
 //const float DEFAULT_CONCOURSE_SCALE = 0.4f;
 const float DEFAULT_CONCOURSE_SCALE = 12.0f;
 //const float DEFAULT_CONCOURSE_ASPECT_RATIO = 2.0f; // Default for non-SteamVR
 const float DEFAULT_CONCOURSE_ASPECT_RATIO = 1.33f; // Default for non-SteamVR
-const float DEFAULT_GLOBAL_SCALE = 1.75f;
+const float DEFAULT_GLOBAL_SCALE = 1.8f;
 //const float DEFAULT_GLOBAL_SCALE_STEAMVR = 1.4f;
 const float DEFAULT_LENS_K1 = 2.0f;
 const float DEFAULT_LENS_K2 = 0.22f;
 const float DEFAULT_LENS_K3 = 0.0f;
-const float DEFAULT_COCKPIT_PZ_THRESHOLD = 0.166f; // I used 0.13f for a long time until I jumped on a TIE-Interceptor
+//const float DEFAULT_COCKPIT_PZ_THRESHOLD = 0.166f; // I used 0.13f for a long time until I jumped on a TIE-Interceptor
+const float DEFAULT_COCKPIT_PZ_THRESHOLD = 10.0f; // De-activated
 const int DEFAULT_SKYBOX_INDEX = 2;
 const bool DEFAULT_INTERLEAVED_REPROJECTION = false;
 const bool DEFAULT_BARREL_EFFECT_STATE = true;
@@ -243,12 +244,14 @@ bool g_bSteamVRInitialized = false; // The system will set this flag after Steam
 bool g_bUseSteamVR = false; // The system will set this flag if the user requested SteamVR and SteamVR was initialized properly
 bool g_bInterleavedReprojection = DEFAULT_INTERLEAVED_REPROJECTION;
 bool g_bInverseTranspose = DEFAULT_INVERSE_TRANSPOSE; // Transpose the eye matrices before computing the inverse
+bool g_bResetHeadCenter = true; // Reset the head center on startup
 vr::HmdMatrix34_t g_EyeMatrixLeft, g_EyeMatrixRight;
 Matrix4 g_EyeMatrixLeftInv, g_EyeMatrixRightInv;
 Matrix4 g_projLeft, g_projRight;
 Matrix4 g_fullMatrixLeft, g_fullMatrixRight;
 Matrix4 g_viewMatrix;
-VertexShaderMatrixCB g_VSMatrixCB;
+float g_fRollMultiplier = -1.0f, g_fPosXMultiplier = 1.0f, g_fPosYMultiplier = 1.0f, g_fPosZMultiplier = -1.0f;
+Vector3 g_headCenter; // The head's center: this value should be re-calibrated whenever we set the headset
 void projectSteamVR(float X, float Y, float Z, vr::EVREye eye, float &x, float &y, float &z);
 
 /* Vertices that will be used for the VertexBuffer. */
@@ -320,6 +323,7 @@ bool g_bZoomOut = false;
 float g_fBrightness = DEFAULT_BRIGHTNESS;
 float g_fGUIElemsScale = DEFAULT_GLOBAL_SCALE; // Used to reduce the size of all the GUI elements
 
+VertexShaderMatrixCB g_VSMatrixCB;
 VertexShaderCBuffer g_VSCBuffer;
 PixelShaderCBuffer g_PSCBuffer;
 
@@ -760,6 +764,7 @@ void LoadVRParams() {
 			}
 			else if (_stricmp(param, COCKPIT_Z_THRESHOLD_VRPARAM) == 0) {
 				g_fCockpitPZThreshold = value;
+				log_debug("[DBG] Cockpit Threshold set to: %0.6f", g_fCockpitPZThreshold);
 			}
 			else if (_stricmp(param, ASPECT_RATIO_VRPARAM) == 0) {
 				g_fAspectRatio = value;
@@ -1122,6 +1127,7 @@ bool InitSteamVR()
 	log_debug("[DBG] Initializing SteamVR");
 	vr::EVRInitError eError = vr::VRInitError_None;
 	g_pHMD = vr::VR_Init(&eError, vr::VRApplication_Scene);
+	g_headCenter.set(0, 0, 0);
 
 	if (eError != vr::VRInitError_None)
 	{
@@ -2028,7 +2034,7 @@ HRESULT Direct3DDevice::Execute(
 	g_VSCBuffer.z_override = -1.0f;
 	g_VSCBuffer.sz_override = -1.0f;
 	g_VSCBuffer.mult_z_override = -1.0f;
-	g_VSCBuffer.z_flip = 0.0f;
+	g_VSCBuffer.cockpit_threshold = g_fGUIElemPZThreshold;
 	g_PSCBuffer.brightness = MAX_BRIGHTNESS;
 
 	char* step = "";
@@ -2166,11 +2172,10 @@ HRESULT Direct3DDevice::Execute(
 		g_VSCBuffer.viewportScale[2] = scale;
 		g_VSCBuffer.viewportScale[3] = g_fGlobalScale;
 		g_VSCBuffer.aspect_ratio = g_fAspectRatio;
-		g_VSCBuffer.restoreZ = 0.0f;
+		g_VSCBuffer.cockpit_threshold = g_fCockpitPZThreshold;
 		g_VSCBuffer.z_override = -1.0f;
 		g_VSCBuffer.sz_override = -1.0f;
 		g_VSCBuffer.mult_z_override = -1.0f;
-		g_VSCBuffer.z_flip = 0.0f;
 		resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 		resources->InitPSConstantBufferBrightness(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 
@@ -2500,24 +2505,17 @@ HRESULT Direct3DDevice::Execute(
 				if (bIsBracket) {
 					bModifiedShaders = true;
 					QuickSetZWriteEnabled(TRUE);
-					g_VSCBuffer.sz_override = 0.05;
+					g_VSCBuffer.sz_override = 0.05f;
 					g_VSCBuffer.z_override = g_fZBracketOverride;
 				}
 
-				//if (lastTextureSelected != NULL && lastTextureSelected->is_TargetingComp || bIsFloatingGUI || bIsText) {
-				/*
-				if (lastTextureSelected != NULL && lastTextureSelected->is_TargetingComp) {
-					context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
-					context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewR, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
-					goto out;
-				}
-				*/
-
+				/* // Looks like we no longer need to clear the depth buffers for the targeted object
 				if (!g_bPrevIsFloatingGUI3DObject && g_bIsFloating3DObject) {
 					// The targeted craft is about to be drawn! Clear both depth stencils?
 					context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
 					context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewR, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
 				}
+				*/
 
 				// Reduce the scale for GUI elements, except for the HUD
 				if (bIsScaleableGUIElem) {
@@ -2536,8 +2534,6 @@ HRESULT Direct3DDevice::Execute(
 					// If we make the skybox a bit bigger to enable roll, it "swims" -- it's probably not going to work.
 					//g_VSCBuffer.viewportScale[3] = g_fGlobalScale + 0.2f;
 					// Send the skybox to infinity:
-					//g_VSCBuffer.z_override = 0.01f;
-					//g_VSCBuffer.z_override = 200.0f;
 					g_VSCBuffer.sz_override = 0.01f;
 					g_VSCBuffer.mult_z_override = 5000.0f;
 				}
@@ -2571,7 +2567,7 @@ HRESULT Direct3DDevice::Execute(
 						g_VSCBuffer.z_override = g_fFloatingGUIParallax;
 					if (g_bIsFloating3DObject && !bIsBracket) {
 						g_VSCBuffer.z_override += g_fFloatingGUIObjParallax;
-						g_VSCBuffer.restoreZ = 1.0f;
+						//g_VSCBuffer.restoreZ = 1.0f;
 					}
 				}
 
@@ -2708,7 +2704,6 @@ HRESULT Direct3DDevice::Execute(
 					g_VSCBuffer.z_override = -1.0f;
 					g_VSCBuffer.sz_override = -1.0f;
 					g_VSCBuffer.mult_z_override = -1.0f;
-					g_VSCBuffer.z_flip = 0.0f;
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 				}
 
@@ -2716,12 +2711,11 @@ HRESULT Direct3DDevice::Execute(
 				// constant buffers); but only if we altered it previously.
 				if (bModifiedShaders) {
 					g_VSCBuffer.viewportScale[3] = g_fGlobalScale;
-					g_VSCBuffer.restoreZ = 0.0f;
+					//g_VSCBuffer.restoreZ = 0.0f;
 					g_PSCBuffer.brightness = MAX_BRIGHTNESS;
 					g_VSCBuffer.z_override = -1.0f;
 					g_VSCBuffer.sz_override = -1.0f;
 					g_VSCBuffer.mult_z_override = -1.0f;
-					g_VSCBuffer.z_flip = 0.0f;
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 					resources->InitPSConstantBufferBrightness(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 				}

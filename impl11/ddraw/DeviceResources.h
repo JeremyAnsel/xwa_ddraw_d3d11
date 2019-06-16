@@ -31,8 +31,8 @@ typedef struct BarrelPixelShaderCBStruct {
 /* 3D Constant Bufffers */
 typedef struct VertexShaderCBStruct {
 	float viewportScale[4];
-	float aspect_ratio, restoreZ, z_override, sz_override;
-	float mult_z_override, z_flip;
+	float aspect_ratio, cockpit_threshold, z_override, sz_override;
+	float mult_z_override;
 } VertexShaderCBuffer;
 
 typedef struct PixelShaderCBStruct {

@@ -17,7 +17,9 @@
 #include <headers/openvr.h>
 const float PI = 3.141592f;
 const float RAD_TO_DEG = 180.0f / PI;
-const float g_fRollMultiplier = -1.0f;
+extern float g_fRollMultiplier, g_fPosXMultiplier, g_fPosYMultiplier, g_fPosZMultiplier;
+extern Vector3 g_headCenter;
+extern bool g_bResetHeadCenter;
 extern vr::IVRSystem *g_pHMD;
 /*
  * Convert a rotation matrix to a normalized quaternion.
@@ -94,8 +96,16 @@ void quatToEuler(vr::HmdQuaternionf_t q, float *yaw, float *roll, float *pitch) 
 	*roll = atan2(2.0f * q.x*q.w - 2.0f * q.y*q.z, 1.0f - 2.0f * sqx - 2.0f * sqz);
 }
 
+Matrix3 HmdMatrix34toMatrix3(const vr::HmdMatrix34_t &mat) {
+	Matrix3 matrixObj(
+		mat.m[0][0], mat.m[1][0], mat.m[2][0],
+		mat.m[0][1], mat.m[1][1], mat.m[2][1],
+		mat.m[0][2], mat.m[1][2], mat.m[2][2]
+	);
+	return matrixObj;
+}
 
-void GetSteamVRPositionalData(float *yaw, float *pitch, float *roll)
+void GetSteamVRPositionalData(float *yaw, float *pitch, float *roll, float *x, float *y, float *z, Matrix3 *rotMatrix)
 {
 	vr::TrackedDeviceIndex_t unDevice = vr::k_unTrackedDeviceIndex_Hmd;
 	if (!g_pHMD->IsTrackedDeviceConnected(unDevice)) {
@@ -115,6 +125,11 @@ void GetSteamVRPositionalData(float *yaw, float *pitch, float *roll)
 		poseMatrix = trackedDevicePose.mDeviceToAbsoluteTracking; // This matrix contains all positional and rotational data.
 		q = rotationToQuaternion(trackedDevicePose.mDeviceToAbsoluteTracking);
 		quatToEuler(q, yaw, pitch, roll);
+
+		*x = poseMatrix.m[0][3];
+		*y = poseMatrix.m[1][3];
+		*z = poseMatrix.m[2][3];
+		*rotMatrix = HmdMatrix34toMatrix3(poseMatrix);
 	}
 	//else {
 	//	log_debug("[DBG] Could not get positional data");
@@ -1374,16 +1389,38 @@ HRESULT PrimarySurface::Flip(
 			animTickY();
 			animTickZ();
 
-			float yaw = 0.0f, pitch = 0.0f, roll = 0.0f;
-			GetSteamVRPositionalData(&yaw, &pitch, &roll);
-			roll *= RAD_TO_DEG * g_fRollMultiplier;
+			if (g_bUseSteamVR) {
+				float yaw = 0.0f, pitch = 0.0f, roll = 0.0f;
+				float x = 0.0f, y = 0.0f, z = 0.0f;
+				Matrix3 rotMatrix;
+				Vector3 pos;
+				Vector3 headPos;
+				GetSteamVRPositionalData(&yaw, &pitch, &roll, &x, &y, &z, &rotMatrix);
+				roll *= RAD_TO_DEG * g_fRollMultiplier;
+	
+				
+				pos.set(x, y, z);
+				if (g_bResetHeadCenter) {
+					g_headCenter = pos;
+					g_bResetHeadCenter = false;
+				}
+				headPos = g_headCenter - pos;
+				//rotMatrix.invert();
+				//headPos = rotMatrix * headPos;
+				headPos[0] *= g_fPosXMultiplier;
+				headPos[1] *= g_fPosYMultiplier;
+				headPos[2] *= g_fPosZMultiplier;
 
-			g_viewMatrix.identity();
-			g_viewMatrix.rotateZ(roll);
-			g_viewMatrix[12] = g_HeadPos.x;
-			g_viewMatrix[13] = g_HeadPos.y;
-			g_viewMatrix[14] = g_HeadPos.z;
-			g_VSMatrixCB.viewMat = g_viewMatrix;
+				g_viewMatrix.identity();
+				g_viewMatrix.rotateZ(roll);
+				//g_viewMatrix[12] = g_HeadPos.x;
+				//g_viewMatrix[13] = g_HeadPos.y;
+				//g_viewMatrix[14] = g_HeadPos.z;
+				g_viewMatrix[12] = headPos[0];
+				g_viewMatrix[13] = headPos[1];
+				g_viewMatrix[14] = headPos[2];
+				g_VSMatrixCB.viewMat = g_viewMatrix;
+			}
 
 //#ifdef DBG_VR
 			if (g_bStart3DCapture && !g_bDo3DCapture) {
@@ -1428,7 +1465,6 @@ HRESULT PrimarySurface::Flip(
 			g_bRendering3D = true;
 			// Doing Present(1, 0) limits the framerate to 30fps, without it, it can go up to 60; but usually
 			// stays around 45 in my system
-			//log_debug("[DBG] PRESENT 3D");
 			if (FAILED(hr = this->_deviceResources->_swapChain->Present(0, 0)))
 			{
 				static bool messageShown = false;
