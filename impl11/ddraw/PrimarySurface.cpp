@@ -18,6 +18,9 @@
 const float PI = 3.141592f;
 const float RAD_TO_DEG = 180.0f / PI;
 extern float g_fRollMultiplier, g_fPosXMultiplier, g_fPosYMultiplier, g_fPosZMultiplier;
+extern float g_fMinPositionX, g_fMaxPositionX;
+extern float g_fMinPositionY, g_fMaxPositionY;
+extern float g_fMinPositionZ, g_fMaxPositionZ;
 extern Vector3 g_headCenter;
 extern bool g_bResetHeadCenter;
 extern vr::IVRSystem *g_pHMD;
@@ -947,8 +950,8 @@ void PrimarySurface::resizeForSteamVR(int iteration, bool is_2D) {
 	float scale_y = screen_res_y / g_steamVRHeight;
 	float scale = (scale_x + scale_y);
 	if (!is_2D)
-		scale /= 2.0f;
-	float newWidth = g_steamVRWidth * scale;
+		scale *= 0.75f; // HACK: Use 0.5f when not using Trinus SteamVR 
+	float newWidth = g_steamVRWidth * scale * 0.5f; // HACK: This 0.5f is only to compensate when running under Trinus SteamVR
 	float newHeight = g_steamVRHeight * scale;
 
 #ifdef DBG_VR
@@ -1024,7 +1027,6 @@ void PrimarySurface::resizeForSteamVR(int iteration, bool is_2D) {
 #endif
 
 	// Restore previous rendertarget, etc
-	//resources->InitInputLayout(resources->_inputLayout);
 	context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
 		resources->_depthStencilViewL.Get());
 }
@@ -1036,7 +1038,9 @@ void WaitGetPoses() {
 	if (g_pVRCompositor == NULL) log_debug("[DBG] VRCompositor is NULL");
 	vr::EVRCompositorError error = g_pVRCompositor->WaitGetPoses(&g_rTrackedDevicePose,
 		0, NULL, 0);
-	if (error) log_debug("[DBG] WaitGetPoses error: %d", error);
+	// It's probably not a great idea to log if there was an error since this will cause a big
+	// performance hit.
+	//if (error) log_debug("[DBG] WaitGetPoses error: %d", error);
 }
 
 HRESULT PrimarySurface::Flip(
@@ -1046,20 +1050,6 @@ HRESULT PrimarySurface::Flip(
 {
 	static uint64_t frame, lastFrame = 0;
 	static float seconds;
-
-	/*
-	if (g_hDedicatedSteamVRThread == NULL) {
-		// Create the Compositor Texture Mutex
-		g_hCompositorTexMutex = CreateMutex(NULL, FALSE, NULL);
-		g_hWaitGetPosesSignal = CreateEvent(NULL, TRUE, FALSE, NULL);
-		g_hCanSubmit = CreateEvent(NULL, TRUE, FALSE, NULL);
-		// Create and start the dedicated SteamVR thread
-		g_bRunDedicatedSteamVRThread = true;
-		g_hDedicatedSteamVRThread = CreateThread(NULL, 0, DedicatedSteamVRThread, (void *)this, 0, NULL);
-		log_debug("[DBG] Created Dedicated thread");
-	}
-	//if (g_pSurface != NULL && g_pSurface != this) log_debug("[DBG] Warning g_pSurface changed!");
-	*/
 
 #if LOGGER
 	std::ostringstream str;
@@ -1397,14 +1387,15 @@ HRESULT PrimarySurface::Flip(
 				Vector3 headPos;
 				GetSteamVRPositionalData(&yaw, &pitch, &roll, &x, &y, &z, &rotMatrix);
 				roll *= RAD_TO_DEG * g_fRollMultiplier;
-	
-				
+
 				pos.set(x, y, z);
-				if (g_bResetHeadCenter) {
+				/*if (g_bResetHeadCenter) {
 					g_headCenter = pos;
 					g_bResetHeadCenter = false;
 				}
 				headPos = g_headCenter - pos;
+				*/
+				headPos = -pos;
 				//rotMatrix.invert();
 				//headPos = rotMatrix * headPos;
 				headPos[0] *= g_fPosXMultiplier;
@@ -1416,9 +1407,10 @@ HRESULT PrimarySurface::Flip(
 				//g_viewMatrix[12] = g_HeadPos.x;
 				//g_viewMatrix[13] = g_HeadPos.y;
 				//g_viewMatrix[14] = g_HeadPos.z;
-				g_viewMatrix[12] = headPos[0];
-				g_viewMatrix[13] = headPos[1];
-				g_viewMatrix[14] = headPos[2];
+
+				g_viewMatrix[12] = headPos[0] + g_HeadPos.x; // Adding g_HeadPos is only to allow the keys to move the cockpit.
+				g_viewMatrix[13] = headPos[1] + g_HeadPos.y; // g_HeadPos can be removed once positional tracking has been fixed.
+				g_viewMatrix[14] = headPos[2] + g_HeadPos.z;
 				g_VSMatrixCB.viewMat = g_viewMatrix;
 			}
 

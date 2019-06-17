@@ -198,6 +198,16 @@ const bool DEFAULT_BARREL_EFFECT_STATE_STEAMVR = false; // SteamVR provides its 
 const float DEFAULT_BRIGHTNESS = 0.95f;
 const bool DEFAULT_INVERSE_TRANSPOSE = false;
 const float MAX_BRIGHTNESS = 1.0f;
+const float DEFAULT_ROLL_MULTIPLIER =  -1.0f;
+const float DEFAULT_POS_X_MULTIPLIER =  1.0f;
+const float DEFAULT_POS_Y_MULTIPLIER =  1.0f;
+const float DEFAULT_POS_Z_MULTIPLIER = -1.0f;
+const float DEFAULT_MIN_POS_X = -0.5f;
+const float DEFAULT_MAX_POS_X =  0.5f;
+const float DEFAULT_MIN_POS_Y = -0.5f;
+const float DEFAULT_MAX_POS_Y =  0.5f;
+const float DEFAULT_MIN_POS_Z = -0.15f;
+const float DEFAULT_MAX_POS_Z =  0.75f;
 
 const char *FOCAL_DIST_VRPARAM = "focal_dist";
 const char *STEREOSCOPY_STRENGTH_VRPARAM = "IPD";
@@ -223,6 +233,20 @@ const char *VR_MODE_STEAMVR_SVAL = "SteamVR";
 const char *INTERLEAVED_REPROJ_VRPARAM = "SteamVR_Interleaved_Reprojection";
 const char *BARREL_EFFECT_STATE_VRPARAM = "apply_lens_correction";
 const char *INVERSE_TRANSPOSE_VRPARAM = "alternate_steamvr_eye_inverse";
+
+const char *ROLL_MULTIPLIER_VRPARAM = "roll_multiplier";
+const char *POS_X_MULTIPLIER_VRPARAM = "positional_x_multiplier";
+const char *POS_Y_MULTIPLIER_VRPARAM = "positional_y_multiplier";
+const char *POS_Z_MULTIPLIER_VRPARAM = "positional_z_multiplier";
+
+const char *MIN_POSITIONAL_X_VRPARAM = "min_positional_track_x";
+const char *MAX_POSITIONAL_X_VRPARAM = "max_positional_track_x";
+
+const char *MIN_POSITIONAL_Y_VRPARAM = "min_positional_track_y";
+const char *MAX_POSITIONAL_Y_VRPARAM = "max_positional_track_y";
+
+const char *MIN_POSITIONAL_Z_VRPARAM = "min_positional_track_z";
+const char *MAX_POSITIONAL_Z_VRPARAM = "max_positional_track_z";
 
 /*
 typedef enum {
@@ -250,7 +274,13 @@ Matrix4 g_EyeMatrixLeftInv, g_EyeMatrixRightInv;
 Matrix4 g_projLeft, g_projRight;
 Matrix4 g_fullMatrixLeft, g_fullMatrixRight;
 Matrix4 g_viewMatrix;
-float g_fRollMultiplier = -1.0f, g_fPosXMultiplier = 1.0f, g_fPosYMultiplier = 1.0f, g_fPosZMultiplier = -1.0f;
+float g_fRollMultiplier = DEFAULT_ROLL_MULTIPLIER;
+float g_fPosXMultiplier = DEFAULT_POS_X_MULTIPLIER;
+float g_fPosYMultiplier = DEFAULT_POS_Y_MULTIPLIER;
+float g_fPosZMultiplier = DEFAULT_POS_Z_MULTIPLIER;
+float g_fMinPositionX = DEFAULT_MIN_POS_X, g_fMaxPositionX = DEFAULT_MAX_POS_X;
+float g_fMinPositionY = DEFAULT_MIN_POS_Y, g_fMaxPositionY = DEFAULT_MAX_POS_Y;
+float g_fMinPositionZ = DEFAULT_MIN_POS_Z, g_fMaxPositionZ = DEFAULT_MAX_POS_Z;
 Vector3 g_headCenter; // The head's center: this value should be re-calibrated whenever we set the headset
 void projectSteamVR(float X, float Y, float Z, vr::EVREye eye, float &x, float &y, float &z);
 
@@ -617,6 +647,15 @@ void ResetVRParams() {
 		g_pVRCompositor->ForceInterleavedReprojectionOn(g_bInterleavedReprojection);
 
 	g_bDisableBarrelEffect = g_bUseSteamVR ? !DEFAULT_BARREL_EFFECT_STATE_STEAMVR : !DEFAULT_BARREL_EFFECT_STATE;
+
+	g_fRollMultiplier = DEFAULT_ROLL_MULTIPLIER;
+	g_fPosXMultiplier = DEFAULT_POS_X_MULTIPLIER;
+	g_fPosYMultiplier = DEFAULT_POS_Y_MULTIPLIER;
+	g_fPosZMultiplier = DEFAULT_POS_Z_MULTIPLIER;
+	g_fMinPositionX = DEFAULT_MIN_POS_X; g_fMaxPositionX = DEFAULT_MAX_POS_X;
+	g_fMinPositionY = DEFAULT_MIN_POS_Y; g_fMaxPositionY = DEFAULT_MAX_POS_Y;
+	g_fMinPositionZ = DEFAULT_MIN_POS_Z; g_fMaxPositionZ = DEFAULT_MAX_POS_Z;
+
 	// Load CRCs
 	ReloadCRCs();
 }
@@ -685,15 +724,20 @@ void SaveVRParams() {
 	fprintf(file, "%s = %0.6f\n", K3_VRPARAM, g_fLensK3);
 	fprintf(file, "%s = %d\n", BARREL_EFFECT_STATE_VRPARAM, !g_bDisableBarrelEffect);
 
-	fprintf(file, "\n; Depth for various GUI elements. Set these to 0 to put them at infinity (ZFar).\n");
+	fprintf(file, "\n; Depth for various GUI elements in meters from the head's origin.\n");
+	fprintf(file, "\n; Positive depth is away from you and into the world\n");
+	fprintf(file, "\n; Negative is towards you.\n");
 	fprintf(file, "%s = %0.3f\n", HUD_PARALLAX_VRPARAM, g_fHUDParallax);
 	fprintf(file, "%s = %0.3f\n", GUI_PARALLAX_VRPARAM, g_fFloatingGUIParallax);
 	fprintf(file, "%s = %0.3f\n", GUI_OBJ_PARALLAX_VRPARAM, g_fFloatingGUIObjParallax);
-	fprintf(file, "; %s is always added to %s\n", GUI_OBJ_PARALLAX_VRPARAM, GUI_PARALLAX_VRPARAM);
+	fprintf(file, "; %s is relative and it's always added to %s\n", GUI_OBJ_PARALLAX_VRPARAM, GUI_PARALLAX_VRPARAM);
 	fprintf(file, "; This has the effect of making the targeted object \"hover\" above the targeting computer\n");
 	fprintf(file, "%s = %0.3f\n", TEXT_PARALLAX_VRPARAM, g_fTextParallax);
-	fprintf(file, "; As a rule of thumb always make %s > %s so that\n", TEXT_PARALLAX_VRPARAM, GUI_PARALLAX_VRPARAM);
-	fprintf(file, "; the text hovers above the targeting computer\n");
+	fprintf(file, "; As a rule of thumb always make %s < %s so that\n", TEXT_PARALLAX_VRPARAM, GUI_PARALLAX_VRPARAM);
+	fprintf(file, "; the text hovers above the targeting computer\n\n");
+	fprintf(file, "; This is the parallax added to the controls in the tech library. It's negative to bring the\n");
+	fprintf(file, "; controls towards you. Objects in the tech library are obviously scaled by XWA, because there's\n");
+	fprintf(file, "; otherwise no way to visualize both a Star Destroyer and an A-Wing in the same space\n");
 	fprintf(file, "%s = %0.3f\n", TECH_LIB_PARALLAX_VRPARAM, g_fTechLibraryParallax);
 
 	fprintf(file, "\n");
@@ -707,8 +751,20 @@ void SaveVRParams() {
 	fprintf(file, "to see what works better for your specific case.\n");
 	fprintf(file, "%s = %d\n", INTERLEAVED_REPROJ_VRPARAM, g_bInterleavedReprojection);
 
-	fprintf(file, "\n");
-	fprintf(file, "%s = %d\n", INVERSE_TRANSPOSE_VRPARAM, g_bInverseTranspose);
+	//fprintf(file, "\n");
+	//fprintf(file, "%s = %d\n", INVERSE_TRANSPOSE_VRPARAM, g_bInverseTranspose);
+	fprintf(file, "\n; 6dof section\n");
+	fprintf(file, "%s = %0.3f\n", ROLL_MULTIPLIER_VRPARAM, g_fRollMultiplier);
+	fprintf(file, "%s = %0.3f\n", POS_X_MULTIPLIER_VRPARAM, g_fPosXMultiplier);
+	fprintf(file, "%s = %0.3f\n", POS_Y_MULTIPLIER_VRPARAM, g_fPosYMultiplier);
+	fprintf(file, "%s = %0.3f\n", POS_Z_MULTIPLIER_VRPARAM, g_fPosZMultiplier);
+	fprintf(file, "; The following parameters set the limits of the position in meters.\n");
+	fprintf(file, "%s = %0.3f\n",   MIN_POSITIONAL_X_VRPARAM, g_fMinPositionX);
+	fprintf(file, "%s = %0.3f\n\n", MAX_POSITIONAL_X_VRPARAM, g_fMaxPositionX);
+	fprintf(file, "%s = %0.3f\n",   MIN_POSITIONAL_Y_VRPARAM, g_fMinPositionY);
+	fprintf(file, "%s = %0.3f\n\n", MAX_POSITIONAL_Y_VRPARAM, g_fMaxPositionY);
+	fprintf(file, "%s = %0.3f\n",   MIN_POSITIONAL_Z_VRPARAM, g_fMinPositionZ);
+	fprintf(file, "%s = %0.3f\n\n", MAX_POSITIONAL_Z_VRPARAM, g_fMaxPositionZ);
 
 	fclose(file);
 	log_debug("[DBG] vrparams.cfg saved");
@@ -764,7 +820,6 @@ void LoadVRParams() {
 			}
 			else if (_stricmp(param, COCKPIT_Z_THRESHOLD_VRPARAM) == 0) {
 				g_fCockpitPZThreshold = value;
-				log_debug("[DBG] Cockpit Threshold set to: %0.6f", g_fCockpitPZThreshold);
 			}
 			else if (_stricmp(param, ASPECT_RATIO_VRPARAM) == 0) {
 				g_fAspectRatio = value;
@@ -835,10 +890,44 @@ void LoadVRParams() {
 				}
 			}
 			else if (_stricmp(param, INVERSE_TRANSPOSE_VRPARAM) == 0) {
-				log_debug("[DBG] Found %s in the params", INVERSE_TRANSPOSE_VRPARAM);
 				g_bInverseTranspose = (bool)value;
 				log_debug("[DBG] Inverse Transpose set to: %d", g_bInverseTranspose);
 			}
+
+			// 6dof parameters
+			else if (_stricmp(param, ROLL_MULTIPLIER_VRPARAM) == 0) {
+				g_fRollMultiplier = value;
+			}
+
+			else if (_stricmp(param, POS_X_MULTIPLIER_VRPARAM) == 0) {
+				g_fPosXMultiplier = value;
+			}
+			else if (_stricmp(param, POS_Y_MULTIPLIER_VRPARAM) == 0) {
+				g_fPosYMultiplier = value;
+			}
+			else if (_stricmp(param, POS_Z_MULTIPLIER_VRPARAM) == 0) {
+				g_fPosZMultiplier = value;
+			}
+
+			else if (_stricmp(param, MIN_POSITIONAL_X_VRPARAM) == 0) {
+				g_fMinPositionX = value;
+			}
+			else if (_stricmp(param, MAX_POSITIONAL_X_VRPARAM) == 0) {
+				g_fMaxPositionX = value;
+			}
+			else if (_stricmp(param, MIN_POSITIONAL_Y_VRPARAM) == 0) {
+				g_fMinPositionY = value;
+			}
+			else if (_stricmp(param, MAX_POSITIONAL_Y_VRPARAM) == 0) {
+				g_fMaxPositionY = value;
+			}
+			else if (_stricmp(param, MIN_POSITIONAL_Z_VRPARAM) == 0) {
+				g_fMinPositionZ = value;
+			}
+			else if (_stricmp(param, MAX_POSITIONAL_Z_VRPARAM) == 0) {
+				g_fMaxPositionZ = value;
+			}
+
 			param_read_count++;
 		}
 	} // while ... read file
@@ -1086,33 +1175,6 @@ void TestPimax() {
 
 	g_projLeft = HmdMatrix44toMatrix4(projLeft);
 	g_projRight = HmdMatrix44toMatrix4(projRight);
-
-	/*
-	vr::HmdMatrix34_t eyeInv;
-	log_debug("[DBG] Testing Pimax Matrices...");
-	eyeInv.m[0][0] = 0.984808f; eyeInv.m[0][1] = 0.000000f; eyeInv.m[0][2] = -0.173648f; eyeInv.m[0][3] = 0.033236f;
-	eyeInv.m[1][0] = 0.000000f; eyeInv.m[1][1] = 1.000000f; eyeInv.m[1][2] = 0.000000f; eyeInv.m[1][3] = 0.000000f;
-	eyeInv.m[2][0] = 0.173648f; eyeInv.m[2][1] = 0.000000f; eyeInv.m[2][2] = 0.984808f; eyeInv.m[2][3] = 0.000000f;
-	*/
-
-	/*
-	ShowHmdMatrix34(eyeLeft, "Original Pimax Eye matrix:");
-
-	Matrix4 matrixObj = HmdMatrix34toMatrix4(eyeLeft);
-	matrixObj.transpose();
-	
-	Matrix4 inv = matrixObj;
-	inv.invertGeneral();
-	//Matrix4 inv = HmdMatrix34toMatrix4(eyeInv);
-
-	ShowMatrix4(inv, "invertGeneral:");
-
-	Matrix4 test1 = inv * matrixObj;
-	ShowMatrix4(test1, "inv * matrixObj:");
-
-	Matrix4 test2 = matrixObj * inv;
-	ShowMatrix4(test2, "matrixObj * inv");
-	*/
 }
 
 bool InitSteamVR()

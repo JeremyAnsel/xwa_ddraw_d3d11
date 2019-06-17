@@ -62,7 +62,6 @@ PixelShaderInput main(VertexShaderInput input)
 	// Apply the scale in 2D coordinates before back-projecting. This is
 	// either g_fGlobalScale or g_fGUIElemScale (used to zoom-out the HUD
 	// so that it's readable)
-	//temp.xy *= 0.5 * vpScale.w * vpScale.z * float2(aspect_ratio, 1);
 	temp.xy *= vpScale.w * vpScale.z * float2(aspect_ratio, 1);
 
 	temp.z = METRIC_SCALE_FACTOR * w; // This value was determined empirically so that the X-Wing cockpit had a reasonably metric size
@@ -83,7 +82,7 @@ PixelShaderInput main(VertexShaderInput input)
 	output.pos = mul(projEyeMatrix, output.pos);
 
 	/*
-	// Stereoscopy boost -- probably not worth it, needs to distinguish between the skybox and the HUD is amplified
+	// Stereoscopy boost -- probably not worth it, needs to be able to distinguish the skybox and the HUD is amplified too
 	if (pz > cockpit_threshold) {
 		float w_orig = output.pos.w;
 		metric_scale = 1;
@@ -105,16 +104,14 @@ PixelShaderInput main(VertexShaderInput input)
 	}
 	*/
 
-	// Compute the new sz:
-	////output.pos.z = (1 - log(C*output.pos.w + 1) / LOG_K) * output.pos.w;
-	//output.pos.z = (1 - log(output.pos.w + 1) / LOG_K) * output.pos.w;
-
 	// For some weird reason the following line also provides perspective-correct texturing;
 	// but it's using the old sz and w:
 	//output.pos.z = sz * w;
 
-	// Use the original sz; but compensate with w so that it stays perspective-correct:
+	// Use the original sz; but compensate with the new w so that it stays perspective-correct:
 	output.pos.z = sz * output.pos.w;
+	// NOTE: The use of this w coming from the perspective matrix may have fixed the ghosting effect
+	//		 in the Pimax. Better not to use the original w coming from the game.
 	if (sz_override > -0.1)
 		output.pos.z = sz_override;
 
