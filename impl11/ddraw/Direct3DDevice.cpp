@@ -202,9 +202,9 @@ const float DEFAULT_ROLL_MULTIPLIER =  -1.0f;
 const float DEFAULT_POS_X_MULTIPLIER =  1.0f;
 const float DEFAULT_POS_Y_MULTIPLIER =  1.0f;
 const float DEFAULT_POS_Z_MULTIPLIER = -1.0f;
-const float DEFAULT_MIN_POS_X = -0.5f;
-const float DEFAULT_MAX_POS_X =  0.5f;
-const float DEFAULT_MIN_POS_Y = -0.5f;
+const float DEFAULT_MIN_POS_X = -0.25f;
+const float DEFAULT_MAX_POS_X =  0.25f;
+const float DEFAULT_MIN_POS_Y = -0.15f;
 const float DEFAULT_MAX_POS_Y =  0.5f;
 const float DEFAULT_MIN_POS_Z = -0.15f;
 const float DEFAULT_MAX_POS_Z =  0.75f;
@@ -220,11 +220,11 @@ const char *CONCOURSE_ASPECT_RATIO_VRPARAM = "concourse_aspect_ratio";
 const char *K1_VRPARAM = "k1";
 const char *K2_VRPARAM = "k2";
 const char *K3_VRPARAM = "k3";
-const char *HUD_PARALLAX_VRPARAM = "HUD_parallax";
-const char *GUI_PARALLAX_VRPARAM = "GUI_parallax";
-const char *GUI_OBJ_PARALLAX_VRPARAM = "GUI_target_parallax";
-const char *TEXT_PARALLAX_VRPARAM = "Text_parallax";
-const char *TECH_LIB_PARALLAX_VRPARAM = "Tech_Library_parallax";
+const char *HUD_PARALLAX_VRPARAM = "HUD_depth";
+const char *GUI_PARALLAX_VRPARAM = "GUI_depth";
+const char *GUI_OBJ_PARALLAX_VRPARAM = "GUI_target_relative_depth";
+const char *TEXT_PARALLAX_VRPARAM = "Text_depth";
+const char *TECH_LIB_PARALLAX_VRPARAM = "Tech_Library_relative_depth";
 const char *BRIGHTNESS_VRPARAM = "brightness";
 const char *VR_MODE_VRPARAM = "VR_Mode"; // Select "None", "DirectSBS" or "SteamVR"
 const char *VR_MODE_NONE_SVAL = "None";
@@ -233,18 +233,15 @@ const char *VR_MODE_STEAMVR_SVAL = "SteamVR";
 const char *INTERLEAVED_REPROJ_VRPARAM = "SteamVR_Interleaved_Reprojection";
 const char *BARREL_EFFECT_STATE_VRPARAM = "apply_lens_correction";
 const char *INVERSE_TRANSPOSE_VRPARAM = "alternate_steamvr_eye_inverse";
-
+// 6dof vrparams
 const char *ROLL_MULTIPLIER_VRPARAM = "roll_multiplier";
 const char *POS_X_MULTIPLIER_VRPARAM = "positional_x_multiplier";
 const char *POS_Y_MULTIPLIER_VRPARAM = "positional_y_multiplier";
 const char *POS_Z_MULTIPLIER_VRPARAM = "positional_z_multiplier";
-
 const char *MIN_POSITIONAL_X_VRPARAM = "min_positional_track_x";
 const char *MAX_POSITIONAL_X_VRPARAM = "max_positional_track_x";
-
 const char *MIN_POSITIONAL_Y_VRPARAM = "min_positional_track_y";
 const char *MAX_POSITIONAL_Y_VRPARAM = "max_positional_track_y";
-
 const char *MIN_POSITIONAL_Z_VRPARAM = "min_positional_track_z";
 const char *MAX_POSITIONAL_Z_VRPARAM = "max_positional_track_z";
 
@@ -285,7 +282,7 @@ Vector3 g_headCenter; // The head's center: this value should be re-calibrated w
 void projectSteamVR(float X, float Y, float Z, vr::EVREye eye, float &x, float &y, float &z);
 
 /* Vertices that will be used for the VertexBuffer. */
-D3DTLVERTEX *g_OrigVerts = NULL; // , *g_LeftVerts = NULL, *g_RightVerts = NULL;
+D3DTLVERTEX *g_OrigVerts = NULL;
 D3DTLVERTEX *g_3DVerts = NULL;
 int g_iNumVertices = 0;
 
@@ -314,11 +311,10 @@ int g_iPresentCounter = 0, g_iNonZBufferCounter = 0, g_iSkipNonZBufferDrawIdx = 
 // The following flag tells us when the main GUI elements (HUD, radars, etc) have been rendered
 // It's reset to false every time the backbuffer is swapped.
 //bool g_bGUIIsRendered = false;
-//float g_fZBracketOverride = 0.1f; // 0 is Z-Far and 1 is ZNear in ZBuffer-Log coords. 0.05 is almost at ZFar
-float g_fZBracketOverride = 65530.0f; // 0 is Z-Far and 1 is ZNear in ZBuffer-Log coords. 0.05 is almost at ZFar
+float g_fZBracketOverride = 65530.0f; // 65535 is probably the maximum Z value in XWA
 //float g_fZOverride = 0.95f;
 //float g_fZFloatingOffset = 0.97f;
-float g_fZFloatingOffset = 0.0f;
+//float g_fZFloatingOffset = 0.0f;
 
 // g_fZOverride is activated when it's greater than -0.9f, and it's used for bracket rendering so that 
 // objects cover the brackets. In this way, we avoid visual contention from the brackets.
@@ -363,16 +359,8 @@ float g_fBackupCockpitPZThreshold = g_fCockpitPZThreshold; // Backup of the cock
 const float IPD_SCALE_FACTOR = 100.0f; // Transform centimeters to meters (IPD = 6.5 becomes 0.065)
 const float GAME_SCALE_FACTOR = 60.0f; // Estimated empirically
 const float GAME_SCALE_FACTOR_Z = 60.0f; // Estimated empirically
-//const float GAME_SCALE_FACTOR = 2.0f; // Estimated empirically
-//const float GAME_SCALE_FACTOR_Z = 2.0f; // Estimated empirically
-
-										 //const float GAME_SCALE_FACTOR = 30.0f; // Estimated empirically
-//const float GAME_SCALE_FACTOR = 1.0f; // Estimated empirically
 
 // In reality, there should be a different factor per in-game resolution; but for now this should be enough
-//const float C = 1.0f, Z_FAR = 50.0f;
-//const float LOG_K = log(C*Z_FAR + 1.0f);
-
 const float C = 1.0f, Z_FAR = 1.0f;
 const float LOG_K = 1.0f;
 
@@ -392,8 +380,6 @@ int g_iHUDTexDumpCounter = 0;
 int g_iDumpGUICounter = 0, g_iHUDCounter = 0;
 #undef INDEX_BUF_SAVE
 
-//extern std::vector<uint32_t> Floating_GUI_CRCs; // Remove this later, it's only here for debugging purposes.
-//extern uint32_t *HUD_CRCs; // Remove this later, it's only here for debugging purposes.
 
 /* Reloads all the CRCs. */
 bool ReloadCRCs();
@@ -405,18 +391,10 @@ float centeredSigmoid(float x) {
 	return 1.0f / (1.0f + exp(-x)) - 0.5f;
 }
 
-/* Maps (-6, 6) to (-0.5, 0.5) using a sine function */
-/*
-const float PI = 3.141592f;
-const float HALF_PI = PI / 2.0f;
-float centered_sine(float x) {
-	return sin(HALF_PI * (x / 6.0f)) * 0.5f;
-}
-*/
-
 HeadPos g_HeadPosAnim = { 0 }, g_HeadPos = { 0 };
 bool g_bLeftKeyDown, g_bRightKeyDown, g_bUpKeyDown, g_bDownKeyDown, g_bUpKeyDownShift, g_bDownKeyDownShift;
-const float ANIM_INCR = 0.1f, MAX_LEAN_X = 0.15f, MAX_LEAN_Y = 0.15f, MAX_LEAN_Z = 0.6f;
+const float ANIM_INCR = 0.1f, MAX_LEAN_X = 0.75f, MAX_LEAN_Y = 0.75f, MAX_LEAN_Z = 1.0f;
+// The MAX_LEAN values will be clamped by the limits from vrparams.cfg
 
 void animTickX() {
 	if (g_bRightKeyDown)
@@ -725,8 +703,7 @@ void SaveVRParams() {
 	fprintf(file, "%s = %d\n", BARREL_EFFECT_STATE_VRPARAM, !g_bDisableBarrelEffect);
 
 	fprintf(file, "\n; Depth for various GUI elements in meters from the head's origin.\n");
-	fprintf(file, "\n; Positive depth is away from you and into the world\n");
-	fprintf(file, "\n; Negative is towards you.\n");
+	fprintf(file, "\n; Positive depth is forwards, negative is backwards (towards you).\n");
 	fprintf(file, "%s = %0.3f\n", HUD_PARALLAX_VRPARAM, g_fHUDParallax);
 	fprintf(file, "%s = %0.3f\n", GUI_PARALLAX_VRPARAM, g_fFloatingGUIParallax);
 	fprintf(file, "%s = %0.3f\n", GUI_OBJ_PARALLAX_VRPARAM, g_fFloatingGUIObjParallax);
@@ -735,9 +712,9 @@ void SaveVRParams() {
 	fprintf(file, "%s = %0.3f\n", TEXT_PARALLAX_VRPARAM, g_fTextParallax);
 	fprintf(file, "; As a rule of thumb always make %s < %s so that\n", TEXT_PARALLAX_VRPARAM, GUI_PARALLAX_VRPARAM);
 	fprintf(file, "; the text hovers above the targeting computer\n\n");
-	fprintf(file, "; This is the parallax added to the controls in the tech library. It's negative to bring the\n");
+	fprintf(file, "; This is the parallax added to the controls in the tech library. Make it negative to bring the\n");
 	fprintf(file, "; controls towards you. Objects in the tech library are obviously scaled by XWA, because there's\n");
-	fprintf(file, "; otherwise no way to visualize both a Star Destroyer and an A-Wing in the same space\n");
+	fprintf(file, "; otherwise no way to visualize both a Star Destroyer and an A-Wing in the same volume.\n");
 	fprintf(file, "%s = %0.3f\n", TECH_LIB_PARALLAX_VRPARAM, g_fTechLibraryParallax);
 
 	fprintf(file, "\n");
@@ -758,7 +735,10 @@ void SaveVRParams() {
 	fprintf(file, "%s = %0.3f\n", POS_X_MULTIPLIER_VRPARAM, g_fPosXMultiplier);
 	fprintf(file, "%s = %0.3f\n", POS_Y_MULTIPLIER_VRPARAM, g_fPosYMultiplier);
 	fprintf(file, "%s = %0.3f\n", POS_Z_MULTIPLIER_VRPARAM, g_fPosZMultiplier);
-	fprintf(file, "; The following parameters set the limits of the position in meters.\n");
+	fprintf(file, "; Limits of the position in meters.\n");
+	fprintf(file, "; x+ is to the right.\n");
+	fprintf(file, "; y+ is down.\n");
+	fprintf(file, "; z+ is forward.\n");
 	fprintf(file, "%s = %0.3f\n",   MIN_POSITIONAL_X_VRPARAM, g_fMinPositionX);
 	fprintf(file, "%s = %0.3f\n\n", MAX_POSITIONAL_X_VRPARAM, g_fMaxPositionX);
 	fprintf(file, "%s = %0.3f\n",   MIN_POSITIONAL_Y_VRPARAM, g_fMinPositionY);
@@ -1862,10 +1842,6 @@ HRESULT Direct3DDevice::GetStats(
 void DeleteStereoVertices() {
 	if (g_OrigVerts != NULL)
 		delete[] g_OrigVerts;
-	//if (g_LeftVerts != NULL)
-	//	delete[] g_LeftVerts;
-	//if (g_RightVerts != NULL)
-	//	delete[] g_RightVerts;
 	if (g_3DVerts != NULL)
 		delete[] g_3DVerts;
 }
@@ -1879,12 +1855,10 @@ void ResizeStereoVertices(int numVerts) {
 	DeleteStereoVertices();
 
 	g_OrigVerts = new D3DTLVERTEX[g_iNumVertices];
-	//g_LeftVerts = new D3DTLVERTEX[g_iNumVertices];
-	//g_RightVerts = new D3DTLVERTEX[g_iNumVertices];
 	g_3DVerts = new D3DTLVERTEX[g_iNumVertices];
 }
 
-//#ifdef DBG_VR
+#ifdef DBG_VR
 void DumpOrigVertices(FILE *file, int numVerts)
 {
 	char buf[256];
@@ -1902,12 +1876,12 @@ void DumpOrigVertices(FILE *file, int numVerts)
 		pz = g_OrigVerts[i].sz;
 		rhw = g_OrigVerts[i].rhw;
 
-		// What happens if I use 1/rhw instead of Z? What happens if I use sz/rhw instead of Z?
-		sprintf_s(buf, 256, "v %f %f %f; %f %f\n", px, py, pz, rhw, 1.0f/rhw);
+		// 1/rhw is the linear Z depth times a scale factor
+		sprintf_s(buf, 256, "%f %f %f %f %f\n", px, py, pz, rhw, 1.0f/rhw);
 		fprintf(file, buf);
 	}
 }
-//#endif
+#endif
 
 /* 
  * In SteamVR, the coordinate system is as follows:
@@ -1915,6 +1889,7 @@ void DumpOrigVertices(FILE *file, int numVerts)
  * +y is up
  * -z is forward
  * Distance is meters
+ * This function is not used anymore and the projection is done in the vertex shader
  */
 void projectSteamVR(float X, float Y, float Z, vr::EVREye eye, float &x, float &y, float &z) {
 	Vector4 PX; // PY;
@@ -1928,27 +1903,31 @@ void projectSteamVR(float X, float Y, float Z, vr::EVREye eye, float &x, float &
 	// Project
 	PX /= PX[3];
 	// Convert to 2D
-	x =  PX[0]; // / PX[2];
-	y = -PX[1]; // / PX[2];
+	x =  PX[0];
+	y = -PX[1];
 	z =  PX[2];
 }
 
+/* 
+ * This function was originally used to reconstruct 3D. Now, most of this logic is in the 
+ * SBSVertexShader. We actually don't need this function at all, and at some point it will
+ * be moved entirely to the vertex shader. At that point, we can get rid of g_3DVerts too and
+ * the logic associated with it.
+ */
 void PreprocessVerticesStereo(float width, float height, int numVerts)
 {
 	// Pre-process vertices for Stereo
 	float /* X, Y, Z, */ px, py, pz, /* qx, qy, qz, */ direct_pz;
-	bool is_cockpit;
+	//bool is_cockpit;
 	float scale_x = 1.0f / width;
 	float scale_y = 1.0f / height;
 	//float w;
 	//float scale = scale_x;
-	bool is_GUI = false;
+	//bool is_GUI = false;
 
 	// Back-project and do stereo
 	for (register int i = 0; i < numVerts; i++) {
-		//g_LeftVerts[i]  = g_OrigVerts[i];
-		//g_RightVerts[i] = g_OrigVerts[i];
-		g_3DVerts[i]    = g_OrigVerts[i];
+		g_3DVerts[i] = g_OrigVerts[i];
 		// Normalize the coords: move the screen's center to (0,0) and scale the (x,y) axes
 		// to -0.5..0.5
 		px = g_OrigVerts[i].sx * scale_x - 0.5f;
@@ -1959,14 +1938,15 @@ void PreprocessVerticesStereo(float width, float height, int numVerts)
 		pz = 1.0f - direct_pz;
 
 		// GUI elements seem to be in the range 0..0.0005, so 0.0006 sounds like a good threshold:
-		is_GUI = (pz <= g_fGUIElemPZThreshold);
-		is_cockpit = (pz <= g_fCockpitPZThreshold);
+		//is_GUI = (pz <= g_fGUIElemPZThreshold);
+		//is_cockpit = (pz <= g_fCockpitPZThreshold);
 
 		g_3DVerts[i].sx = px;
 		g_3DVerts[i].sy = py;
+	}
 
 		// Reproject back into 2D space
-		if (is_GUI) {
+		//if (is_GUI) {
 			// We need to restore the original ZBuffer value for the GUI elements or
 			// they will cause Z-Fighting with the 3D objects. Also the depth of the
 			// GUI elements is fixed by directly setting their parallax. So, nothing
@@ -1980,7 +1960,7 @@ void PreprocessVerticesStereo(float width, float height, int numVerts)
 			//g_3DVerts[i].sz = 0.0008f;
 			//g_3DVerts[i].sz = g_fFloatingGUIParallax;
 			//g_3DVerts[i].sz += 0.9f;
-		} 
+		//} 
 		/*
 		else { //if (is_cockpit) {
 			if (g_bUseSteamVR) {
@@ -2022,9 +2002,9 @@ void PreprocessVerticesStereo(float width, float height, int numVerts)
 		//}
 
 		*/
-	}
+	//} // Original end of the main for-loop
 
-//#ifdef DBG_VR
+#ifdef DBG_VR
 	// DBG: Hack: Dump the 3D scene. Triggered with Ctrl-Alt-C
 	if (g_bDo3DCapture)
 	{
@@ -2032,7 +2012,7 @@ void PreprocessVerticesStereo(float width, float height, int numVerts)
 			fopen_s(&g_HackFile, "./vertexbuf.obj", "wt");
 		DumpOrigVertices(g_HackFile, numVerts);
 	}
-//#endif
+#endif
 }
 
 /* Function to quickly enable/disable ZWrite. Currently only used for brackets */

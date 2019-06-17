@@ -951,7 +951,8 @@ void PrimarySurface::resizeForSteamVR(int iteration, bool is_2D) {
 	float scale = (scale_x + scale_y);
 	if (!is_2D)
 		scale *= 0.75f; // HACK: Use 0.5f when not using Trinus SteamVR 
-	float newWidth = g_steamVRWidth * scale * 0.5f; // HACK: This 0.5f is only to compensate when running under Trinus SteamVR
+	//float newWidth = g_steamVRWidth * scale * 0.5f; // HACK: This 0.5f is only to compensate when running under Trinus SteamVR
+	float newWidth = g_steamVRWidth * scale; // Use this when not running Trinus
 	float newHeight = g_steamVRHeight * scale;
 
 #ifdef DBG_VR
@@ -1385,32 +1386,40 @@ HRESULT PrimarySurface::Flip(
 				Matrix3 rotMatrix;
 				Vector3 pos;
 				Vector3 headPos;
+				Vector3 headPosFromKeyboard;
+				headPosFromKeyboard.set(g_HeadPos.x, g_HeadPos.y, g_HeadPos.z);
+
 				GetSteamVRPositionalData(&yaw, &pitch, &roll, &x, &y, &z, &rotMatrix);
 				roll *= RAD_TO_DEG * g_fRollMultiplier;
 
 				pos.set(x, y, z);
-				/*if (g_bResetHeadCenter) {
-					g_headCenter = pos;
-					g_bResetHeadCenter = false;
-				}
-				headPos = g_headCenter - pos;
-				*/
 				headPos = -pos;
-				//rotMatrix.invert();
-				//headPos = rotMatrix * headPos;
-				headPos[0] *= g_fPosXMultiplier;
-				headPos[1] *= g_fPosYMultiplier;
-				headPos[2] *= g_fPosZMultiplier;
+
+				// Adding headPosFromKeyboard is only to allow the keys to move the cockpit.
+				// g_HeadPos can be removed once positional tracking has been fixed.
+				headPos[0] = headPos[0] * g_fPosXMultiplier + headPosFromKeyboard[0];
+				headPos[1] = headPos[1] * g_fPosYMultiplier + headPosFromKeyboard[1];
+				headPos[2] = headPos[2] * g_fPosZMultiplier + headPosFromKeyboard[2];
+
+				// Limits clamping
+				if (headPos[0] < g_fMinPositionX) headPos[0] = g_fMinPositionX;
+				if (headPos[1] < g_fMinPositionY) headPos[1] = g_fMinPositionY;
+				if (headPos[2] < g_fMinPositionZ) headPos[2] = g_fMinPositionZ;
+
+				if (headPos[0] > g_fMaxPositionX) headPos[0] = g_fMaxPositionX;
+				if (headPos[1] > g_fMaxPositionY) headPos[1] = g_fMaxPositionY;
+				if (headPos[2] > g_fMaxPositionZ) headPos[2] = g_fMaxPositionZ;
+
+				// Transform the absolute head position into a relative position. This is
+				// needed because the game will apply the yaw/pitch on its own.
+				rotMatrix.invert();
+				headPos = rotMatrix * headPos;
 
 				g_viewMatrix.identity();
 				g_viewMatrix.rotateZ(roll);
-				//g_viewMatrix[12] = g_HeadPos.x;
-				//g_viewMatrix[13] = g_HeadPos.y;
-				//g_viewMatrix[14] = g_HeadPos.z;
-
-				g_viewMatrix[12] = headPos[0] + g_HeadPos.x; // Adding g_HeadPos is only to allow the keys to move the cockpit.
-				g_viewMatrix[13] = headPos[1] + g_HeadPos.y; // g_HeadPos can be removed once positional tracking has been fixed.
-				g_viewMatrix[14] = headPos[2] + g_HeadPos.z;
+				g_viewMatrix[12] = headPos[0]; 
+				g_viewMatrix[13] = headPos[1];
+				g_viewMatrix[14] = headPos[2];
 				g_VSMatrixCB.viewMat = g_viewMatrix;
 			}
 

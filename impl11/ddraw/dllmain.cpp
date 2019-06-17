@@ -12,9 +12,9 @@
 #include <stdio.h>
 #include <vector>
 
+#ifdef DBG_VR
 extern bool g_bFixSkyBox, g_bSkipGUI, g_bSkipText, g_bSkipSkyBox;
 extern bool g_bDo3DCapture, g_bStart3DCapture;
-#ifdef DBG_VR
 bool g_bCapture2DOffscreenBuffer = false;
 bool g_bDumpDebug = false;
 
@@ -85,17 +85,13 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 				return 0;
 
 			case VK_RIGHT:
-				//IncreaseFloatingGUIParallax( 0.0025f);
 				return 0;
 			case VK_LEFT:
-				//IncreaseFloatingGUIParallax(-0.0025f);
 				return 0;
 
-			case VK_UP: // Delta is in Z-Buffer coords (0 = ZFar .. 1 = ZNear)
-				//IncreaseHUDParallax( 0.0025f);
+			case VK_UP:
 				return 0;
 			case VK_DOWN:
-				//IncreaseHUDParallax(-0.0025f);
 				return 0;
 			}
 		}
@@ -104,12 +100,13 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 		if (AltKey && CtrlKey && !ShiftKey) {
 			switch (wParam) {
 
+#if DBG_VR
 			case 'C':
 				log_debug("[DBG] Capture 3D");
 				//g_bDo3DCapture = true;
 				g_bStart3DCapture = true;
 				return 0;
-#if DBG_VR
+
 			case 'D':
 				// Force a refresh of the display width
 				g_bDisplayWidth = true;
@@ -250,18 +247,15 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 #endif
 
 			case VK_UP:
-				//IncreaseFloatingGUIParallax(0.0025f);
 				IncreaseFloatingGUIParallax(0.05f);
 				return 0;
 			case VK_DOWN:
 				IncreaseFloatingGUIParallax(-0.05f);
 				return 0;
 			case VK_LEFT:
-				//IncreaseTextParallax(-0.0025f);
 				IncreaseTextParallax(-0.05f);
 				return 0;
 			case VK_RIGHT:
-				//IncreaseTextParallax(0.0025f);
 				IncreaseTextParallax(0.05f);
 				return 0;
 			}
