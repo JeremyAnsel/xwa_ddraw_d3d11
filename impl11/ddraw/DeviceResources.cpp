@@ -46,7 +46,7 @@ extern VertexShaderMatrixCB g_VSMatrixCB;
 
 // SteamVR
 #include <headers/openvr.h>
-extern bool g_bSteamVRInitialized, g_bUseSteamVR, g_bEnableVR, g_bSteamVRTexturesInitialized;
+extern bool g_bSteamVRInitialized, g_bUseSteamVR, g_bEnableVR;
 extern uint32_t g_steamVRWidth, g_steamVRHeight;
 DWORD g_FullScreenWidth = 0, g_FullScreenHeight = 0;
 bool InitSteamVR();
@@ -365,7 +365,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 				this->_swapChain->GetDesc(&sd);
 				g_FullScreenWidth = sd.BufferDesc.Width;
 				g_FullScreenHeight = sd.BufferDesc.Height;
-				//log_debug("[DBG] Fullscreen size: %d, %d", sd.BufferDesc.Width, sd.BufferDesc.Height);
+				log_debug("[DBG] Fullscreen size: %d, %d", g_FullScreenWidth, g_FullScreenHeight);
 			}
 		}
 
@@ -1565,12 +1565,12 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 	UINT left = (this->_backbufferWidth - w) / 2;
 	UINT top = (this->_backbufferHeight - h) / 2;
 
-	if (g_bEnableVR) {
+	if (g_bEnableVR) { // SteamVR and DirectSBS modes
 		InitVSConstantBuffer2D(this->_mainShadersConstantBuffer.GetAddressOf(), 0.0f, g_fConcourseAspectRatio, g_fConcourseScale, g_fBrightness, 1.0f); // Use 3D projection matrices
 		InitPSConstantBuffer2D(this->_mainShadersConstantBuffer.GetAddressOf(), 0.0f, g_fConcourseAspectRatio, g_fConcourseScale, g_fBrightness);
 	} 
 	else {
-		InitVSConstantBuffer2D(this->_mainShadersConstantBuffer.GetAddressOf(), 0, 1, 1, g_fBrightness, 1.0f); // Use 3D projection matrices? TODO: Check how the projection is handled in Direct SBS mode
+		InitVSConstantBuffer2D(this->_mainShadersConstantBuffer.GetAddressOf(), 0, 1, 1, g_fBrightness, 1.0f); // Use 3D projection matrices? TODO: Check how the projection is handled in this case
 		InitPSConstantBuffer2D(this->_mainShadersConstantBuffer.GetAddressOf(), 0, 1, 1, g_fBrightness);
 	}
 
@@ -1631,30 +1631,25 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 		viewport.MaxDepth = D3D11_MAX_DEPTH;
 		viewport.MinDepth = D3D11_MIN_DEPTH;
 		this->InitViewport(&viewport);
-		//g_MSCBuffer.parallax = g_fTechLibraryParallax * g_iDraw2DCounter;
-		this->InitVSConstantBuffer2D(this->_mainShadersConstantBuffer.GetAddressOf(),
-			g_fTechLibraryParallax * g_iDraw2DCounter, g_fConcourseAspectRatio, g_fConcourseScale, g_fBrightness, 1.0f); // Use 3D projection matrices
-		
-		//InitVSConstantBufferMatrix(...);
+		this->InitVSConstantBuffer2D(_mainShadersConstantBuffer.GetAddressOf(),
+			g_fTechLibraryParallax * g_iDraw2DCounter, g_fConcourseAspectRatio, g_fConcourseScale, g_fBrightness, 
+			1.0f); // Use 3D projection matrices
 
 		// The Concourse and 2D menu are drawn here... maybe the default starfield too?
 		// When SteamVR is not used, the RenderTargets are set in the OnSizeChanged() event above
-		if (g_bUseSteamVR) {
-			g_VSMatrixCB.projEye = g_fullMatrixLeft;
-			InitVSConstantBufferMatrix(_VSMatrixBuffer.GetAddressOf(), &g_VSMatrixCB);
+		g_VSMatrixCB.projEye = g_fullMatrixLeft;
+		InitVSConstantBufferMatrix(_VSMatrixBuffer.GetAddressOf(), &g_VSMatrixCB);
+		if (g_bUseSteamVR)
 			_d3dDeviceContext->OMSetRenderTargets(1, _renderTargetView.GetAddressOf(), _depthStencilViewL.Get());
-		} /*
-		else {
-			this->_d3dDeviceContext->OMSetRenderTargets(1, this->_renderTargetView.GetAddressOf(), this->_depthStencilViewL.Get());
-		} */
+		else
+			_d3dDeviceContext->OMSetRenderTargets(1, _renderTargetView.GetAddressOf(), _depthStencilViewL.Get());
 		this->_d3dDeviceContext->DrawIndexed(6, 0, 0);
 
 		// Right viewport
 		if (g_bUseSteamVR) {
 			viewport.TopLeftX = 0;
 			viewport.Width = screen_res_x;
-		}
-		else {
+		} else {
 			viewport.TopLeftX = screen_res_x / 2.0f;
 			viewport.Width = screen_res_x / 2.0f;
 		}
@@ -1663,18 +1658,16 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 		viewport.MaxDepth = D3D11_MAX_DEPTH;
 		viewport.MinDepth = D3D11_MIN_DEPTH;
 		this->InitViewport(&viewport);
-		//g_MSCBuffer.parallax = -g_fTechLibraryParallax * g_iDraw2DCounter;
 		this->InitVSConstantBuffer2D(this->_mainShadersConstantBuffer.GetAddressOf(),
-			g_fTechLibraryParallax * g_iDraw2DCounter, g_fConcourseAspectRatio, g_fConcourseScale, g_fBrightness, 1.0f); // Use 3D projection matrices
+			g_fTechLibraryParallax * g_iDraw2DCounter, g_fConcourseAspectRatio, g_fConcourseScale, g_fBrightness,
+			1.0f); // Use 3D projection matrices
 		// The Concourse and 2D menu are drawn here... maybe the default starfield too?
-		if (g_bUseSteamVR) {
-			g_VSMatrixCB.projEye = g_fullMatrixRight;
-			InitVSConstantBufferMatrix(_VSMatrixBuffer.GetAddressOf(), &g_VSMatrixCB);
+		g_VSMatrixCB.projEye = g_fullMatrixRight;
+		InitVSConstantBufferMatrix(_VSMatrixBuffer.GetAddressOf(), &g_VSMatrixCB);
+		if (g_bUseSteamVR)
 			_d3dDeviceContext->OMSetRenderTargets(1, _renderTargetViewR.GetAddressOf(), _depthStencilViewR.Get());
-		} /*
-		else {
-			this->_d3dDeviceContext->OMSetRenderTargets(1, this->_renderTargetView.GetAddressOf(), this->_depthStencilViewL.Get());
-		} */
+		else
+			_d3dDeviceContext->OMSetRenderTargets(1, _renderTargetView.GetAddressOf(), _depthStencilViewL.Get());
 		this->_d3dDeviceContext->DrawIndexed(6, 0, 0);
 	out:
 		// Increase the 2D DrawCounter -- this is used in the Tech Library to increase the parallax when the second 2D

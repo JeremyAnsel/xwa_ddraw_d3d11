@@ -28,24 +28,22 @@ struct PixelShaderInput
 	float2 tex : TEXCOORD;
 };
 
+/* This shader is used to render the concourse, menu and other 2D elements. */
 PixelShaderInput main(VertexShaderInput input)
 {
 	PixelShaderInput output;
 
-	/* This shader is used to render the concourse, menu and other 2D elements. */
+	// Use the following in SteamVR and DirectSBS modes
 	if (use_3D > 0.5) {
 		// Upgrade to 3D:
 		float4 P = float4(
 			scale * aspect_ratio * input.pos.x,
 			scale * input.pos.y,
-			-(30.0 + parallax),
+			-(30.0 + parallax), // The Concourse is placed 30m away: enough space for the Tech Library
 			1);
 		// Project to 2D
 		output.pos = mul(projEyeMatrix, P);
-		// Normalize -- normalizing by w messes the perspective-correct texturing; but this is 
-		// precisely what we do in the main SBSVertexShader...
-		//output.pos /= output.pos.w;
-	} else {
+	} else { // Use this for the original 2D version of the game:
 		output.pos = float4((input.pos.x + parallax) * scale * aspect_ratio, input.pos.y * scale, 0.5f, 1.0f);
 	}
 	output.tex = input.tex;

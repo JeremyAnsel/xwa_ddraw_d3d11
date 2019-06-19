@@ -54,6 +54,9 @@ void IncreaseSkipNonZBufferDrawIdx(int Delta);
 void IncreaseLensK1(float Delta);
 void IncreaseLensK2(float Delta);
 
+bool InitDirectSBS();
+bool ShutDownDirectSBS();
+
 // SteamVR
 #include <headers/openvr.h>
 extern bool g_bSteamVREnabled, g_bSteamVRInitialized, g_bUseSteamVR;
@@ -381,6 +384,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 			// Do not attempt initalization again, no matter what happened
 			g_bSteamVRInitialized = true;
 		}
+		else if (g_bEnableVR && !g_bUseSteamVR) {
+			log_debug("[DBG] Initializing DirectSBS mode");
+			InitDirectSBS();
+		}
 		break;
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
@@ -388,6 +395,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	case DLL_PROCESS_DETACH:
 		if (g_bUseSteamVR)
 			ShutDownSteamVR();
+		else if (g_bEnableVR)
+			ShutDownDirectSBS();
 		break;
 	}
 

@@ -152,6 +152,7 @@ Left: -1.346154, Right: 1.742203, Top: -1.269841, Bottom: 1.269841
 #include <wincodec.h>
 #include <vector>
 
+#include "FreePIE.h"
 #include <headers/openvr.h>
 #include "Matrices.h"
 
@@ -163,7 +164,6 @@ const float DEFAULT_FOCAL_DIST = 0.5f;
 //const float DEFAULT_FOCAL_DIST_STEAMVR = 0.6f;
 const float DEFAULT_IPD = 6.5f; // Ignored in SteamVR mode.
 /*
-
 const float DEFAULT_HUD_PARALLAX = 12.5f;
 const float DEFAULT_TEXT_PARALLAX = 40.0f;
 const float DEFAULT_FLOATING_GUI_PARALLAX = 34.5f;
@@ -388,6 +388,7 @@ int g_iDumpGUICounter = 0, g_iHUDCounter = 0;
 bool ReloadCRCs();
 bool isInVector(uint32_t crc, std::vector<uint32_t> &vector);
 void DeleteStereoVertices();
+bool InitDirectSBS();
 
 /* Maps (-6, 6) to (-0.5, 0.5) using a sigmoid function */
 float centeredSigmoid(float x) {
@@ -638,6 +639,9 @@ void ResetVRParams() {
 	g_fMinPositionY = DEFAULT_MIN_POS_Y; g_fMaxPositionY = DEFAULT_MAX_POS_Y;
 	g_fMinPositionZ = DEFAULT_MIN_POS_Z; g_fMaxPositionZ = DEFAULT_MAX_POS_Z;
 
+	// Recompute the eye and projection matrices
+	if (!g_bUseSteamVR)
+		InitDirectSBS();
 	// Load CRCs
 	ReloadCRCs();
 }
@@ -1079,21 +1083,6 @@ Matrix4 HmdMatrix34toMatrix4(const vr::HmdMatrix34_t &mat) {
 	return matrixObj;
 }
 
-/*
-
-Chee:
-eyeLeft:
-0.984808, 0.000000, 0.173648, -0.033236
-0.000000, 1.000000, 0.000000, 0.000000
--0.173648, 0.000000, 0.984808, 0.000000
-
-Fullbody:
-eyeLeft:
-1.000000, 0.000000, 0.000000, -0.033050
-0.000000, 1.000000, 0.000000, 0.000000
-0.000000, 0.000000, 1.000000, 0.015000
-
-*/
 void ProcessSteamVREyeMatrices(vr::EVREye eye) {
 	if (g_pHMD == NULL) {
 		log_debug("[DBG] Cannot process SteamVR matrices because g_pHMD == NULL");
@@ -1176,7 +1165,7 @@ bool InitSteamVR()
 	char *strDriver = NULL;
 	char *strDisplay = NULL;
 	FILE *file = NULL;
-	Matrix4 RollTest;
+	//Matrix4 RollTest;
 	bool result = true;
 
 	int file_error = fopen_s(&file, "./steamvr_mat.txt", "wt");
@@ -1229,18 +1218,8 @@ bool InitSteamVR()
 	ProcessSteamVREyeMatrices(vr::EVREye::Eye_Left);
 	ProcessSteamVREyeMatrices(vr::EVREye::Eye_Right);
 
-	// Should I use Z_FAR here?
-	//vr::HmdMatrix44_t projLeft  = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Left, 0.001f, 25000.0f);
-	//vr::HmdMatrix44_t projRight = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Right, 0.001f, 25000.0f);
-
 	vr::HmdMatrix44_t projLeft = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Left, 0.001f, 100.0f);
 	vr::HmdMatrix44_t projRight = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Right, 0.001f, 100.0f);
-
-	//vr::HmdMatrix44_t projLeft  = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Left, DEFAULT_FOCAL_DIST, 50.0f);
-	//vr::HmdMatrix44_t projRight = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Right, DEFAULT_FOCAL_DIST, 50.0f);
-
-	//vr::HmdMatrix44_t projLeft = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Left, DEFAULT_FOCAL_DIST, Z_FAR);
-	//vr::HmdMatrix44_t projRight = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Right, DEFAULT_FOCAL_DIST, Z_FAR);
 
 	g_projLeft  = HmdMatrix44toMatrix4(projLeft);
 	g_projRight = HmdMatrix44toMatrix4(projRight);
@@ -1248,21 +1227,15 @@ bool InitSteamVR()
 	// Override all of the above with the Pimax matrices
 	//TestPimax();
 
-	//RollTest.rotateZ(45.0f);
 	g_fullMatrixLeft  = g_projLeft  * g_EyeMatrixLeftInv;
 	g_fullMatrixRight = g_projRight * g_EyeMatrixRightInv;
 
-	//ShowHmdMatrix44(projLeft, "progLeft Z_FAR: 1");
-	//ShowMatrix4(g_projLeft, "g_progLeft Z_FAR: 1");
 	ShowMatrix4(g_EyeMatrixLeftInv, "g_EyeMatrixLeftInv");
 	ShowMatrix4(g_projLeft, "g_projLeft");
 
 	ShowMatrix4(g_EyeMatrixRightInv, "g_EyeMatrixRightInv");
 	ShowMatrix4(g_projRight, "g_projRight");
 	
-	//ShowMatrix4(g_fullMatrixLeft, "g_fullMatrixLeft");
-	//ShowMatrix4(g_fullMatrixRight, "g_fullMatrixRight");
-
 	// Dump information about the view matrices
 	if (file_error == 0) {
 		Matrix4 eye, test;
@@ -1350,6 +1323,60 @@ void ShutDownSteamVR() {
 	g_pVRCompositor = NULL;
 	g_pVRScreenshots = NULL;
 	log_debug("[DBG] SteamVR shut down");
+}
+
+bool InitDirectSBS()
+{
+	InitFreePIE();
+	g_headCenter.set(0, 0, 0);
+
+	g_EyeMatrixLeftInv.set
+	(
+		1.0f, 0.0f, 0.0f, g_fHalfIPD,
+		0.0f, 1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f
+	);
+	// Matrices are stored in column-major format, so we have to transpose them to
+	// match the format above:
+	g_EyeMatrixLeftInv.transpose();
+
+	g_EyeMatrixRightInv.set
+	(
+		1.0f, 0.0f, 0.0f, -g_fHalfIPD,
+		0.0f, 1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f
+	);
+	// Matrices are stored in column-major format, so we have to transpose them to
+	// match the format above:
+	g_EyeMatrixRightInv.transpose();
+
+	g_projLeft.set
+	(
+		1.0f, 0.0f,  0.0f,  0.0f,
+		0.0f, 1.0f,  0.0f,  0.0f,
+		0.0f, 0.0f, -1.0f, -0.01f, // focal_dist?
+		0.0f, 0.0f, -1.0f,  0.0f
+	);
+	g_projLeft.transpose();
+	g_projRight = g_projLeft;
+
+	g_fullMatrixLeft = g_projLeft * g_EyeMatrixLeftInv;
+	g_fullMatrixRight = g_projRight * g_EyeMatrixRightInv;
+
+	ShowMatrix4(g_EyeMatrixLeftInv, "g_EyeMatrixLeftInv");
+	ShowMatrix4(g_projLeft, "g_projLeft");
+
+	ShowMatrix4(g_EyeMatrixRightInv, "g_EyeMatrixRightInv");
+	ShowMatrix4(g_projRight, "g_projRight");
+	log_debug("[DBG] DirectSBS mode initialized");
+	return true;
+}
+
+bool ShutDownDirectSBS() {
+	ShutdownFreePIE();
+	return true;
 }
 
 /*
@@ -1801,14 +1828,9 @@ HRESULT Direct3DDevice::CreateExecuteBuffer(
 
 		if (FAILED(device->CreateBuffer(&vertexBufferDesc, nullptr, &this->_vertexBuffer)))
 			return DDERR_INVALIDOBJECT;
-		//if (FAILED(device->CreateBuffer(&vertexBufferDesc, nullptr, &this->_vertexBufferL)))
-		//	return DDERR_INVALIDOBJECT;
-		//if (FAILED(device->CreateBuffer(&vertexBufferDesc, nullptr, &this->_vertexBufferR)))
-		//	return DDERR_INVALIDOBJECT;
-		if (g_bUseSteamVR) {
-			if (FAILED(device->CreateBuffer(&vertexBufferDesc, nullptr, &this->_vertexBuffer3D)))
-				return DDERR_INVALIDOBJECT;
-		}
+		// This buffer is used in both the SteamVR and DirectSBS modes:
+		if (FAILED(device->CreateBuffer(&vertexBufferDesc, nullptr, &this->_vertexBuffer3D)))
+			return DDERR_INVALIDOBJECT;
 
 		D3D11_BUFFER_DESC indexBufferDesc;
 		indexBufferDesc.ByteWidth = lpDesc->dwBufferSize;

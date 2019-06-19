@@ -56,6 +56,10 @@ std::vector<uint32_t> GUI_CRCs = {
 	0x75082e5e, // (128x128) Right Tractor Beam Display (master branch)
 };
 
+// UNCONFIRMED:
+// 0x5b27f370 --> Targeting computer texture, 128x64 -- I don't recall this being the texture's dimensions...
+// 0xc5894992 --> Second targeting computer, 128x128
+
 bool isInVector(uint32_t crc, std::vector<uint32_t> &vector) {
 	for (uint32_t x : vector)
 		if (x == crc)

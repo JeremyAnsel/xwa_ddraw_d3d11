@@ -10,6 +10,7 @@
 #include "PrimarySurface.h"
 #include "BackbufferSurface.h"
 #include "FrontbufferSurface.h"
+#include "FreePIE.h"
 #include "Matrices.h"
 
 #define DBG_MAX_PRESENT_LOGS 0
@@ -199,9 +200,8 @@ extern bool g_bCapture2DOffscreenBuffer;
 #include <headers/openvr.h>
 extern vr::IVRSystem *g_pHMD;
 extern vr::IVRCompositor *g_pVRCompositor;
-extern bool g_bSteamVREnabled, g_bUseSteamVR, g_bRunDedicatedSteamVRThread, g_bSteamVRTexturesInitialized;
+extern bool g_bSteamVREnabled, g_bUseSteamVR;
 extern uint32_t g_steamVRWidth, g_steamVRHeight;
-extern HANDLE g_hDedicatedSteamVRThread, g_hCompositorTexMutex, g_hWaitGetPosesSignal, g_hCanSubmit;
 extern vr::TrackedDevicePose_t g_rTrackedDevicePose;
 void *g_pSurface = NULL;
 void WaitGetPoses();
@@ -1212,15 +1212,6 @@ HRESULT PrimarySurface::Flip(
 							this->_deviceResources->_offscreenBufferPost, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
 					}
 					else {
-						/*
-						if (g_bUseSteamVR) {
-							// Try to copy the images to the stagingBuffers so that they can be submitted to SteamVR
-							this->_deviceResources->_d3dDeviceContext->CopyResource(this->_deviceResources->_stagingBufferLeft,
-								this->_deviceResources->_offscreenBuffer);
-							this->_deviceResources->_d3dDeviceContext->CopyResource(this->_deviceResources->_stagingBufferRight,
-								this->_deviceResources->_offscreenBufferR);							
-						}
-						*/
 						// In SteamVR mode this will display the left image:
 						if (g_bUseSteamVR) {
 							resizeForSteamVR(0, true);
@@ -1426,6 +1417,16 @@ HRESULT PrimarySurface::Flip(
 				g_viewMatrix[13] = headPos[1];
 				g_viewMatrix[14] = headPos[2];
 				g_VSMatrixCB.viewMat = g_viewMatrix;
+			}
+			else if (g_bEnableVR) { // DirectSBS mode, read the roll and position from FreePIE
+				//float pitch, yaw, roll, pitchSign = -1.0f;
+				if (ReadFreePIE()) {
+					//yaw = (g_FreePIEData.yaw + 180.0f) * g_fYawMultiplier;
+					//pitch = g_FreePIEData.pitch * g_fPitchMultiplier;
+					g_viewMatrix.identity();
+					g_viewMatrix.rotateZ(g_fRollMultiplier * g_FreePIEData.roll);
+					g_VSMatrixCB.viewMat = g_viewMatrix;
+				}
 			}
 
 //#ifdef DBG_VR
