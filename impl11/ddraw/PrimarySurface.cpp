@@ -950,7 +950,8 @@ void PrimarySurface::resizeForSteamVR(int iteration, bool is_2D) {
 	float scale_y = screen_res_y / g_steamVRHeight;
 	float scale = (scale_x + scale_y);
 	if (!is_2D)
-		scale *= 0.75f; // HACK: Use 0.5f when not using Trinus SteamVR 
+		scale *= 0.5f;
+		//scale *= 0.75f; // HACK: Use 0.5f when not using Trinus SteamVR 
 	//float newWidth = g_steamVRWidth * scale * 0.5f; // HACK: This 0.5f is only to compensate when running under Trinus SteamVR
 	float newWidth = g_steamVRWidth * scale; // Use this when not running Trinus
 	float newHeight = g_steamVRHeight * scale;
@@ -1033,10 +1034,10 @@ void PrimarySurface::resizeForSteamVR(int iteration, bool is_2D) {
 }
 
 /* Convenience function to call WaitGetPoses() */
-void WaitGetPoses() {
+inline void WaitGetPoses() {
 	// We need to call WaitGetPoses so that SteamVR gets the focus, otherwise we'll just get
 	// error 101 when doing VRCompositor->Submit()
-	if (g_pVRCompositor == NULL) log_debug("[DBG] VRCompositor is NULL");
+	//if (g_pVRCompositor == NULL) log_debug("[DBG] VRCompositor is NULL");
 	vr::EVRCompositorError error = g_pVRCompositor->WaitGetPoses(&g_rTrackedDevicePose,
 		0, NULL, 0);
 	// It's probably not a great idea to log if there was an error since this will cause a big
@@ -1411,8 +1412,12 @@ HRESULT PrimarySurface::Flip(
 				if (headPos[2] > g_fMaxPositionZ) headPos[2] = g_fMaxPositionZ;
 
 				// Transform the absolute head position into a relative position. This is
-				// needed because the game will apply the yaw/pitch on its own.
+				// needed because the game will apply the yaw/pitch on its own. So, we need
+				// to undo the yaw/pitch transformation by computing the inverse of the
+				// rotation matrix. Fortunately, rotation matrices can be inverted with a
+				// simple transpose.
 				rotMatrix.invert();
+				//rotMatrix.transpose();
 				headPos = rotMatrix * headPos;
 
 				g_viewMatrix.identity();

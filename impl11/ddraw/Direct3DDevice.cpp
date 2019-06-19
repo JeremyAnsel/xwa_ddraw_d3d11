@@ -178,6 +178,7 @@ const float DEFAULT_TECH_LIB_PARALLAX = -2.0f;
 const float DEFAULT_GUI_ELEM_SCALE = 0.75f;
 const float DEFAULT_GUI_ELEM_PZ_THRESHOLD = 0.0008f;
 const float DEFAULT_ZOOM_OUT_SCALE = 1.0f;
+const bool DEFAULT_ZOOM_OUT_INITIAL_STATE = false;
 //const float DEFAULT_ASPECT_RATIO = 1.33f;
 const float DEFAULT_ASPECT_RATIO = 1.25f;
 //const float DEFAULT_CONCOURSE_SCALE = 0.4f;
@@ -213,6 +214,7 @@ const char *FOCAL_DIST_VRPARAM = "focal_dist";
 const char *STEREOSCOPY_STRENGTH_VRPARAM = "IPD";
 const char *SIZE_3D_WINDOW_VRPARAM = "3d_window_size";
 const char *SIZE_3D_WINDOW_ZOOM_OUT_VRPARAM = "3d_window_zoom_out_size";
+const char *WINDOW_ZOOM_OUT_INITIAL_STATE_VRPARAM = "zoomed_out_on_startup";
 const char *CONCOURSE_WINDOW_SCALE_VRPARAM = "concourse_window_scale";
 const char *COCKPIT_Z_THRESHOLD_VRPARAM = "cockpit_z_threshold";
 const char *ASPECT_RATIO_VRPARAM = "3d_aspect_ratio";
@@ -345,7 +347,8 @@ float g_fFloatingGUIParallax = DEFAULT_FLOATING_GUI_PARALLAX; // Floating GUI el
 float g_fFloatingGUIObjParallax = DEFAULT_FLOATING_OBJ_PARALLAX; // The targeted object must be rendered above the Floating GUI
 float g_fTechLibraryParallax = DEFAULT_TECH_LIB_PARALLAX;
 float g_fAspectRatio = DEFAULT_ASPECT_RATIO;
-bool g_bZoomOut = false;
+bool g_bZoomOut = DEFAULT_ZOOM_OUT_INITIAL_STATE;
+bool g_bZoomOutInitialState = DEFAULT_ZOOM_OUT_INITIAL_STATE;
 float g_fBrightness = DEFAULT_BRIGHTNESS;
 float g_fGUIElemsScale = DEFAULT_GLOBAL_SCALE; // Used to reduce the size of all the GUI elements
 
@@ -593,6 +596,7 @@ void ResetVRParams() {
 	//g_fGlobalScale = g_bSteamVREnabled ? DEFAULT_GLOBAL_SCALE_STEAMVR : DEFAULT_GLOBAL_SCALE;
 	g_fGlobalScale = DEFAULT_GLOBAL_SCALE;
 	g_fGlobalScaleZoomOut = DEFAULT_ZOOM_OUT_SCALE;
+	g_bZoomOut = g_bZoomOutInitialState;
 	g_fGUIElemsScale = g_bZoomOut ? g_fGlobalScaleZoomOut : g_fGlobalScale;
 	g_fConcourseScale = DEFAULT_CONCOURSE_SCALE;
 	g_fCockpitPZThreshold = DEFAULT_COCKPIT_PZ_THRESHOLD;
@@ -656,7 +660,7 @@ void SaveVRParams() {
 	fprintf(file, "; VR parameters. Write one parameter per line.\n");
 	fprintf(file, "; Always make a backup copy of this file before modifying it.\n");
 	fprintf(file, "; If you want to restore it to its default settings, simply delete the\n");
-	fprintf(file, "; file and restart the game.Then press Ctrl + Alt + S to save a\n");
+	fprintf(file, "; file and restart the game. Then press Ctrl + Alt + S to save a\n");
 	fprintf(file, "; new config file with the default parameters.\n");
 	fprintf(file, "; To reload this file during game (at any point) just press Ctrl+Alt+L.\n");
 	fprintf(file, "; You can also press Ctrl+Alt+R to reset the viewing params to default values.\n\n");
@@ -680,6 +684,8 @@ void SaveVRParams() {
 	fprintf(file, "%s = %0.1f\n", STEREOSCOPY_STRENGTH_VRPARAM, g_fIPD * IPD_SCALE_FACTOR);
 	fprintf(file, "%s = %0.3f\n", SIZE_3D_WINDOW_VRPARAM, g_fGlobalScale);
 	fprintf(file, "%s = %0.3f\n", SIZE_3D_WINDOW_ZOOM_OUT_VRPARAM, g_fGlobalScaleZoomOut);
+	fprintf(file, "; Set the following to 1 to start the HUD in zoomed-out mode:\n");
+	fprintf(file, "%s = %d\n", WINDOW_ZOOM_OUT_INITIAL_STATE_VRPARAM, g_bZoomOutInitialState);
 	fprintf(file, "%s = %0.3f\n", CONCOURSE_WINDOW_SCALE_VRPARAM, g_fConcourseScale);
 	/*
 	fprintf(file, "; The following is a hack to increase the stereoscopy on objects. Unfortunately it\n");
@@ -697,20 +703,22 @@ void SaveVRParams() {
 	fprintf(file, "%s = %0.3f\n", CONCOURSE_ASPECT_RATIO_VRPARAM, g_fConcourseAspectRatio);
 
 	fprintf(file, "\n; Lens correction parameters. k2 has the biggest effect and k1 fine-tunes the effect.\n");
+	fprintf(file, "; Positive values = convex warping; negative = concave warping.\n");
 	fprintf(file, "%s = %0.6f\n", K1_VRPARAM, g_fLensK1);
 	fprintf(file, "%s = %0.6f\n", K2_VRPARAM, g_fLensK2);
 	fprintf(file, "%s = %0.6f\n", K3_VRPARAM, g_fLensK3);
 	fprintf(file, "%s = %d\n", BARREL_EFFECT_STATE_VRPARAM, !g_bDisableBarrelEffect);
 
 	fprintf(file, "\n; Depth for various GUI elements in meters from the head's origin.\n");
-	fprintf(file, "\n; Positive depth is forwards, negative is backwards (towards you).\n");
+	fprintf(file, "; Positive depth is forwards, negative is backwards (towards you).\n");
+	fprintf(file, "; As a reference, the background starfield is 65km meters away.\n");
 	fprintf(file, "%s = %0.3f\n", HUD_PARALLAX_VRPARAM, g_fHUDParallax);
 	fprintf(file, "%s = %0.3f\n", GUI_PARALLAX_VRPARAM, g_fFloatingGUIParallax);
 	fprintf(file, "%s = %0.3f\n", GUI_OBJ_PARALLAX_VRPARAM, g_fFloatingGUIObjParallax);
 	fprintf(file, "; %s is relative and it's always added to %s\n", GUI_OBJ_PARALLAX_VRPARAM, GUI_PARALLAX_VRPARAM);
 	fprintf(file, "; This has the effect of making the targeted object \"hover\" above the targeting computer\n");
 	fprintf(file, "%s = %0.3f\n", TEXT_PARALLAX_VRPARAM, g_fTextParallax);
-	fprintf(file, "; As a rule of thumb always make %s < %s so that\n", TEXT_PARALLAX_VRPARAM, GUI_PARALLAX_VRPARAM);
+	fprintf(file, "; As a rule of thumb always make %s <= %s so that\n", TEXT_PARALLAX_VRPARAM, GUI_PARALLAX_VRPARAM);
 	fprintf(file, "; the text hovers above the targeting computer\n\n");
 	fprintf(file, "; This is the parallax added to the controls in the tech library. Make it negative to bring the\n");
 	fprintf(file, "; controls towards you. Objects in the tech library are obviously scaled by XWA, because there's\n");
@@ -723,19 +731,20 @@ void SaveVRParams() {
 	fprintf(file, "; A value of 1 is normal brightness, 0 will render everything black.\n");
 	fprintf(file, "%s = %0.3f\n", BRIGHTNESS_VRPARAM, g_fBrightness);
 
-	fprintf(file, "Interleaved Reprojection is a SteamVR setting that locks the framerate at 45fps.\n");
-	fprintf(file, "In some cases, it may help provide a smoother experience. Try toggling it\n");
-	fprintf(file, "to see what works better for your specific case.\n");
+	fprintf(file, "\n; Interleaved Reprojection is a SteamVR setting that locks the framerate at 45fps.\n");
+	fprintf(file, "; In some cases, it may help provide a smoother experience. Try toggling it\n");
+	fprintf(file, "; to see what works better for your specific case.\n");
 	fprintf(file, "%s = %d\n", INTERLEAVED_REPROJ_VRPARAM, g_bInterleavedReprojection);
 
 	//fprintf(file, "\n");
 	//fprintf(file, "%s = %d\n", INVERSE_TRANSPOSE_VRPARAM, g_bInverseTranspose);
-	fprintf(file, "\n; 6dof section\n");
+	fprintf(file, "\n; 6dof section. Set any of these multipliers to 0 to de-activate individual axes.\n");
+	fprintf(file, "; The settings for pitch and yaw are in cockpitlook.cfg\n");
 	fprintf(file, "%s = %0.3f\n", ROLL_MULTIPLIER_VRPARAM, g_fRollMultiplier);
 	fprintf(file, "%s = %0.3f\n", POS_X_MULTIPLIER_VRPARAM, g_fPosXMultiplier);
 	fprintf(file, "%s = %0.3f\n", POS_Y_MULTIPLIER_VRPARAM, g_fPosYMultiplier);
 	fprintf(file, "%s = %0.3f\n", POS_Z_MULTIPLIER_VRPARAM, g_fPosZMultiplier);
-	fprintf(file, "; Limits of the position in meters.\n");
+	fprintf(file, "\n; Limits of the position in meters.\n");
 	fprintf(file, "; x+ is to the right.\n");
 	fprintf(file, "; y+ is down.\n");
 	fprintf(file, "; z+ is forward.\n");
@@ -793,6 +802,10 @@ void LoadVRParams() {
 			else if (_stricmp(param, SIZE_3D_WINDOW_ZOOM_OUT_VRPARAM) == 0) {
 				// Size of the window while playing the game; but zoomed out to see all the GUI
 				g_fGlobalScaleZoomOut = value;
+			}
+			else if (_stricmp(param, WINDOW_ZOOM_OUT_INITIAL_STATE_VRPARAM) == 0) {
+				g_bZoomOutInitialState = (bool)value;
+				g_bZoomOut = (bool)value;
 			}
 			else if (_stricmp(param, CONCOURSE_WINDOW_SCALE_VRPARAM) == 0) {
 				// Concourse and 2D menus scale
@@ -911,6 +924,7 @@ void LoadVRParams() {
 			param_read_count++;
 		}
 	} // while ... read file
+	// Apply the initial Zoom Out state:
 	g_fGUIElemsScale = g_bZoomOut ? g_fGlobalScaleZoomOut : g_fGlobalScale;
 	fclose(file);
 
@@ -1917,7 +1931,7 @@ void projectSteamVR(float X, float Y, float Z, vr::EVREye eye, float &x, float &
 void PreprocessVerticesStereo(float width, float height, int numVerts)
 {
 	// Pre-process vertices for Stereo
-	float /* X, Y, Z, */ px, py, pz, /* qx, qy, qz, */ direct_pz;
+	float px, py; /* X, Y, Z, pz, qx, qy, qz, direct_pz */
 	//bool is_cockpit;
 	float scale_x = 1.0f / width;
 	float scale_y = 1.0f / height;
@@ -1934,8 +1948,8 @@ void PreprocessVerticesStereo(float width, float height, int numVerts)
 		py = g_OrigVerts[i].sy * scale_y - 0.5f;
 		// Also invert the Z axis so that z = 0 is the screen plane and z = 1 is ZFar, the original
 		// values have ZFar = 0, and ZNear = 1
-		direct_pz = g_OrigVerts[i].sz;
-		pz = 1.0f - direct_pz;
+		//direct_pz = g_OrigVerts[i].sz;
+		//pz = 1.0f - direct_pz;
 
 		// GUI elements seem to be in the range 0..0.0005, so 0.0006 sounds like a good threshold:
 		//is_GUI = (pz <= g_fGUIElemPZThreshold);
