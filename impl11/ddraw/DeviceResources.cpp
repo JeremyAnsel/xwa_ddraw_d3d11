@@ -277,10 +277,14 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 	this->_depthStencilR.Release();
 	this->_renderTargetView.Release();
 	this->_renderTargetViewPost.Release();
+	this->_renderTargetViewTargetComp.Release();
 	this->_offscreenAsInputShaderResourceView.Release();
+	this->_offscreenTargetCompAsInputShaderResourceView.Release();
 	this->_offscreenBuffer.Release();
 	this->_offscreenBufferAsInput.Release();
 	this->_offscreenBufferPost.Release();
+	this->_offscreenBufferTargetComp.Release();
+	this->_offscreenBufferTargetCompAsInput.Release();
 	if (g_bUseSteamVR) {
 		this->_offscreenBufferR.Release();
 		this->_offscreenBufferAsInputR.Release();
@@ -445,6 +449,15 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			goto out;
 		}
 
+		step = "OffscreenBufferTargetComp";
+		// offscreenBufferTargetComp should be just like offscreenBuffer because it will be used as a renderTarget
+		hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBufferTargetComp);
+		if (FAILED(hr)) {
+			log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
+			log_err_desc(step, hWnd, hr, desc);
+			goto out;
+		}
+
 		if (g_bUseSteamVR) {
 			step = "OffscreenBufferPostR";
 			hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBufferPostR);
@@ -469,6 +482,14 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		desc.SampleDesc.Quality = 0;
 		desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 		hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBufferAsInput);
+		if (FAILED(hr)) {
+			log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
+			log_err_desc(step, hWnd, hr, desc);
+			goto out;
+		}
+
+		// _offscreenBufferTargetCompAsInput should have the same properties as _offscreenBufferAsInput
+		hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBufferTargetCompAsInput);
 		if (FAILED(hr)) {
 			log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
 			log_err_desc(step, hWnd, hr, desc);
@@ -502,6 +523,16 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			goto out;
 		}
 
+		// Create the shader resource view for offscreenBufferTargetCompAsInput
+		step = "offscreenTargetCompAsInputShaderResourceView";
+		hr = this->_d3dDevice->CreateShaderResourceView(this->_offscreenBufferTargetCompAsInput,
+			&shaderResourceViewDesc, &this->_offscreenTargetCompAsInputShaderResourceView);
+		if (FAILED(hr)) {
+			log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
+			log_shaderres_view(step, hWnd, hr, shaderResourceViewDesc);
+			goto out;
+		}
+
 		if (g_bUseSteamVR) {
 			// Create the shader resource view for offscreenBufferAsInputR
 			step = "offscreenAsInputShaderResourceViewR";
@@ -517,14 +548,18 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 
 	if (SUCCEEDED(hr))
 	{
-		step = "RenderTargetView";
 		CD3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc(this->_useMultisampling ? D3D11_RTV_DIMENSION_TEXTURE2DMS : D3D11_RTV_DIMENSION_TEXTURE2D);
 
+		step = "RenderTargetView";
 		hr = this->_d3dDevice->CreateRenderTargetView(this->_offscreenBuffer, &renderTargetViewDesc, &this->_renderTargetView);
 		if (FAILED(hr)) goto out;
 
 		step = "RenderTargetViewPost";
 		hr = this->_d3dDevice->CreateRenderTargetView(this->_offscreenBufferPost, &renderTargetViewDesc, &this->_renderTargetViewPost);
+		if (FAILED(hr)) goto out;
+
+		step = "RenderTargetViewTargetComp";
+		hr = this->_d3dDevice->CreateRenderTargetView(this->_offscreenBufferTargetComp, &renderTargetViewDesc, &this->_renderTargetViewTargetComp);
 		if (FAILED(hr)) goto out;
 
 		if (g_bUseSteamVR) {

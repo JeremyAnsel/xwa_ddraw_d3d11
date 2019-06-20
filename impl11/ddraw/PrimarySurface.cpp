@@ -1388,7 +1388,8 @@ HRESULT PrimarySurface::Flip(
 				headPos = -pos;
 
 				// Adding headPosFromKeyboard is only to allow the keys to move the cockpit.
-				// g_HeadPos can be removed once positional tracking has been fixed.
+				// g_HeadPos can be removed once positional tracking has been fixed... or 
+				// maybe we can leave it there to test things
 				headPos[0] = headPos[0] * g_fPosXMultiplier + headPosFromKeyboard[0];
 				headPos[1] = headPos[1] * g_fPosYMultiplier + headPosFromKeyboard[1];
 				headPos[2] = headPos[2] * g_fPosZMultiplier + headPosFromKeyboard[2];
@@ -1418,15 +1419,40 @@ HRESULT PrimarySurface::Flip(
 				g_viewMatrix[14] = headPos[2];
 				g_VSMatrixCB.viewMat = g_viewMatrix;
 			}
-			else if (g_bEnableVR) { // DirectSBS mode, read the roll and position from FreePIE
+			else if (g_bEnableVR) { // DirectSBS mode, read the roll and position (?) from FreePIE
 				//float pitch, yaw, roll, pitchSign = -1.0f;
+				float roll;
+				Vector3 headPos(0,0,0);
+				Vector3 headPosFromKeyboard(g_HeadPos.x, g_HeadPos.y, g_HeadPos.z);
+				
+
 				if (ReadFreePIE()) {
+					Vector3 pos(g_FreePIEData.x, g_FreePIEData.y, g_FreePIEData.z);
 					//yaw = (g_FreePIEData.yaw + 180.0f) * g_fYawMultiplier;
 					//pitch = g_FreePIEData.pitch * g_fPitchMultiplier;
-					g_viewMatrix.identity();
-					g_viewMatrix.rotateZ(g_fRollMultiplier * g_FreePIEData.roll);
-					g_VSMatrixCB.viewMat = g_viewMatrix;
+					roll = g_fRollMultiplier * g_FreePIEData.roll;
+					headPos = -pos;
 				}
+
+				headPos[0] = headPos[0] * g_fPosXMultiplier + headPosFromKeyboard[0];
+				headPos[1] = headPos[1] * g_fPosYMultiplier + headPosFromKeyboard[1];
+				headPos[2] = headPos[2] * g_fPosZMultiplier + headPosFromKeyboard[2];
+
+				// Limits clamping
+				if (headPos[0] < g_fMinPositionX) headPos[0] = g_fMinPositionX;
+				if (headPos[1] < g_fMinPositionY) headPos[1] = g_fMinPositionY;
+				if (headPos[2] < g_fMinPositionZ) headPos[2] = g_fMinPositionZ;
+
+				if (headPos[0] > g_fMaxPositionX) headPos[0] = g_fMaxPositionX;
+				if (headPos[1] > g_fMaxPositionY) headPos[1] = g_fMaxPositionY;
+				if (headPos[2] > g_fMaxPositionZ) headPos[2] = g_fMaxPositionZ;
+
+				g_viewMatrix.identity();
+				g_viewMatrix.rotateZ(roll);
+				g_viewMatrix[12] = headPos[0];
+				g_viewMatrix[13] = headPos[1];
+				g_viewMatrix[14] = headPos[2];
+				g_VSMatrixCB.viewMat = g_viewMatrix;
 			}
 
 //#ifdef DBG_VR

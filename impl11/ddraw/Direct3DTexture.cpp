@@ -11,6 +11,7 @@
 
 #include <ScreenGrab.h>
 #include <wincodec.h>
+#include <WICTextureLoader.h>
 #include <vector>
 
 std::vector<uint32_t> HUD_CRCs = {
@@ -56,9 +57,14 @@ std::vector<uint32_t> GUI_CRCs = {
 	0x75082e5e, // (128x128) Right Tractor Beam Display (master branch)
 };
 
+// CONFIRMED:
+// 0x5b27f370 --> Targeting computer texture, 128x64 -- The full res version is 256x128 
 // UNCONFIRMED:
-// 0x5b27f370 --> Targeting computer texture, 128x64 -- I don't recall this being the texture's dimensions...
 // 0xc5894992 --> Second targeting computer, 128x128
+const uint32_t COCKPIT_TARGETING_COMP_CRC_LO_RES = 0x5b27f370;
+
+bool g_bNewCockpitTexturesLoaded = false;
+ComPtr<ID3D11ShaderResourceView> g_NewCockpitTargetCompOverlay = NULL;
 
 bool isInVector(uint32_t crc, std::vector<uint32_t> &vector) {
 	for (uint32_t x : vector)
@@ -105,6 +111,24 @@ bool ReloadCRCs() {
 	result &= Reload_CRC_vector(GUI_CRCs, "./GUI_CRCs.txt");
 	result &= Reload_CRC_vector(Floating_GUI_CRCs, "./Floating_GUI_CRCs.txt");
 	return result;
+}
+
+bool LoadNewCockpitTextures(ID3D11Device *device) {
+	HRESULT res = S_OK;
+	if (g_NewCockpitTargetCompOverlay == NULL) {
+		//log_debug("[DBG] [NewTex] Loading new Cockpit Targeting Computer");
+		res = DirectX::CreateWICTextureFromFile(device, L"./NewTextures/x-wing-targeting-comp-full-res.png", NULL, &g_NewCockpitTargetCompOverlay);
+		g_bNewCockpitTexturesLoaded = (res == S_OK);
+	}
+	return g_bNewCockpitTexturesLoaded;
+}
+
+void UnloadNewCockpitTextures() {
+	if (!g_bNewCockpitTexturesLoaded)
+		return;
+	//log_debug("[DBG] [NewTex] Releasing textures");
+	if (g_NewCockpitTargetCompOverlay != NULL)
+		g_NewCockpitTargetCompOverlay.Release();
 }
 
 #ifdef DBG_VR
@@ -185,6 +209,7 @@ Direct3DTexture::Direct3DTexture(DeviceResources* deviceResources, TextureSurfac
 	this->is_Floating_GUI = false;
 	this->is_GUI = false;
 	this->is_TargetingComp = false;
+	this->is_CockpitTargetingComp = false;
 }
 
 int Direct3DTexture::GetWidth() {
@@ -493,6 +518,18 @@ HRESULT Direct3DTexture::Load(
 			}
 			else if (isInVector(this->crc, GUI_CRCs)) {
 				this->is_GUI = true;
+			}
+		}
+	}
+	else if (surface->_mipmapCount > 1) {
+		if (surface->_width == 128) {
+			unsigned int size = surface->_width * surface->_height * (useBuffers ? 4 : bpp);
+
+			// Compute the CRC
+			this->crc = crc32c(0, (const unsigned char *)textureData[0].pSysMem, size);
+			if (this->crc == COCKPIT_TARGETING_COMP_CRC_LO_RES) {
+				//log_debug("[DBG] FOUND TARGETING COMPUTER TEXTURE");
+				this->is_CockpitTargetingComp = true;
 			}
 		}
 	}

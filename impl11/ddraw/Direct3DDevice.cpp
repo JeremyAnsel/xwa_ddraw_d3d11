@@ -341,10 +341,10 @@ float g_fGlobalScale = DEFAULT_GLOBAL_SCALE;
 float g_fGlobalScaleZoomOut = DEFAULT_ZOOM_OUT_SCALE;
 float g_fConcourseScale = DEFAULT_CONCOURSE_SCALE;
 float g_fConcourseAspectRatio = DEFAULT_CONCOURSE_ASPECT_RATIO;
-float g_fHUDParallax = DEFAULT_HUD_PARALLAX;   // The aiming HUD is rendered at this depth
-float g_fTextParallax = DEFAULT_TEXT_PARALLAX; // All text gets rendered at this parallax
-float g_fFloatingGUIParallax = DEFAULT_FLOATING_GUI_PARALLAX; // Floating GUI elements are rendered at this depth
-float g_fFloatingGUIObjParallax = DEFAULT_FLOATING_OBJ_PARALLAX; // The targeted object must be rendered above the Floating GUI
+float g_fHUDDepth = DEFAULT_HUD_PARALLAX;   // The aiming HUD is rendered at this depth
+float g_fTextDepth = DEFAULT_TEXT_PARALLAX; // All text gets rendered at this parallax
+float g_fFloatingGUIDepth = DEFAULT_FLOATING_GUI_PARALLAX; // Floating GUI elements are rendered at this depth
+float g_fFloatingGUIObjDepth = DEFAULT_FLOATING_OBJ_PARALLAX; // The targeted object must be rendered above the Floating GUI
 float g_fTechLibraryParallax = DEFAULT_TECH_LIB_PARALLAX;
 float g_fAspectRatio = DEFAULT_ASPECT_RATIO;
 bool g_bZoomOut = DEFAULT_ZOOM_OUT_INITIAL_STATE;
@@ -372,6 +372,11 @@ float g_fHalfIPD = g_fIPD / 2.0f;
 float g_fFocalDist = DEFAULT_FOCAL_DIST;
 
 /*
+ * New Cockpit Textures
+ */
+extern ComPtr<ID3D11ShaderResourceView> g_NewCockpitTargetCompOverlay;
+
+/*
  * Control/Debug variables
  */
 bool g_bDisableZBuffer = false;
@@ -389,6 +394,8 @@ bool ReloadCRCs();
 bool isInVector(uint32_t crc, std::vector<uint32_t> &vector);
 void DeleteStereoVertices();
 bool InitDirectSBS();
+bool LoadNewCockpitTextures(ID3D11Device *device);
+void UnloadNewCockpitTextures();
 
 /* Maps (-6, 6) to (-0.5, 0.5) using a sigmoid function */
 float centeredSigmoid(float x) {
@@ -508,18 +515,18 @@ void IncreaseZoomOutScale(float Delta) {
 }
 
 void IncreaseHUDParallax(float Delta) {
-	g_fHUDParallax += Delta;
-	log_debug("[DBG] HUD parallax: %f", g_fHUDParallax);
+	g_fHUDDepth += Delta;
+	log_debug("[DBG] HUD parallax: %f", g_fHUDDepth);
 }
 
 void IncreaseFloatingGUIParallax(float Delta) {
-	g_fFloatingGUIParallax += Delta;
-	log_debug("[DBG] GUI parallax: %f", g_fFloatingGUIParallax);
+	g_fFloatingGUIDepth += Delta;
+	log_debug("[DBG] GUI parallax: %f", g_fFloatingGUIDepth);
 }
 
 void IncreaseTextParallax(float Delta) {
-	g_fTextParallax += Delta;
-	log_debug("[DBG] Text parallax: %f", g_fTextParallax);
+	g_fTextDepth += Delta;
+	log_debug("[DBG] Text parallax: %f", g_fTextDepth);
 }
 
 void IncreaseCockpitThreshold(float Delta) {
@@ -617,11 +624,11 @@ void ResetVRParams() {
 
 	g_iNoDrawBeforeIndex = 0; g_iNoDrawAfterIndex = -1;
 	g_iNoExecBeforeIndex = 0; g_iNoExecAfterIndex = -1;
-	g_fHUDParallax = DEFAULT_HUD_PARALLAX;
-	g_fTextParallax = DEFAULT_TEXT_PARALLAX;
-	g_fFloatingGUIParallax = DEFAULT_FLOATING_GUI_PARALLAX;
+	g_fHUDDepth = DEFAULT_HUD_PARALLAX;
+	g_fTextDepth = DEFAULT_TEXT_PARALLAX;
+	g_fFloatingGUIDepth = DEFAULT_FLOATING_GUI_PARALLAX;
 	g_fTechLibraryParallax = DEFAULT_TECH_LIB_PARALLAX;
-	g_fFloatingGUIObjParallax = DEFAULT_FLOATING_OBJ_PARALLAX;
+	g_fFloatingGUIObjDepth = DEFAULT_FLOATING_OBJ_PARALLAX;
 
 	g_fBrightness = DEFAULT_BRIGHTNESS;
 
@@ -716,12 +723,12 @@ void SaveVRParams() {
 	fprintf(file, "\n; Depth for various GUI elements in meters from the head's origin.\n");
 	fprintf(file, "; Positive depth is forwards, negative is backwards (towards you).\n");
 	fprintf(file, "; As a reference, the background starfield is 65km meters away.\n");
-	fprintf(file, "%s = %0.3f\n", HUD_PARALLAX_VRPARAM, g_fHUDParallax);
-	fprintf(file, "%s = %0.3f\n", GUI_PARALLAX_VRPARAM, g_fFloatingGUIParallax);
-	fprintf(file, "%s = %0.3f\n", GUI_OBJ_PARALLAX_VRPARAM, g_fFloatingGUIObjParallax);
+	fprintf(file, "%s = %0.3f\n", HUD_PARALLAX_VRPARAM, g_fHUDDepth);
+	fprintf(file, "%s = %0.3f\n", GUI_PARALLAX_VRPARAM, g_fFloatingGUIDepth);
+	fprintf(file, "%s = %0.3f\n", GUI_OBJ_PARALLAX_VRPARAM, g_fFloatingGUIObjDepth);
 	fprintf(file, "; %s is relative and it's always added to %s\n", GUI_OBJ_PARALLAX_VRPARAM, GUI_PARALLAX_VRPARAM);
 	fprintf(file, "; This has the effect of making the targeted object \"hover\" above the targeting computer\n");
-	fprintf(file, "%s = %0.3f\n", TEXT_PARALLAX_VRPARAM, g_fTextParallax);
+	fprintf(file, "%s = %0.3f\n", TEXT_PARALLAX_VRPARAM, g_fTextDepth);
 	fprintf(file, "; As a rule of thumb always make %s <= %s so that\n", TEXT_PARALLAX_VRPARAM, GUI_PARALLAX_VRPARAM);
 	fprintf(file, "; the text hovers above the targeting computer\n\n");
 	fprintf(file, "; This is the parallax added to the controls in the tech library. Make it negative to bring the\n");
@@ -839,19 +846,19 @@ void LoadVRParams() {
 				g_bDisableBarrelEffect = !((bool)value);
 			}
 			else if (_stricmp(param, HUD_PARALLAX_VRPARAM) == 0) {
-				g_fHUDParallax = value;
+				g_fHUDDepth = value;
 				//log_debug("[DBG] HUD Parallax read: %f", value);
 			}
 			else if (_stricmp(param, GUI_PARALLAX_VRPARAM) == 0) {
 				// "Floating" GUI elements: targetting computer and the like
-				g_fFloatingGUIParallax = value;
+				g_fFloatingGUIDepth = value;
 			}
 			else if (_stricmp(param, GUI_OBJ_PARALLAX_VRPARAM) == 0) {
 				// "Floating" GUI targeted elements
-				g_fFloatingGUIObjParallax = value;
+				g_fFloatingGUIObjDepth = value;
 			}
 			else if (_stricmp(param, TEXT_PARALLAX_VRPARAM) == 0) {
-				g_fTextParallax = value;
+				g_fTextDepth = value;
 			}
 			else if (_stricmp(param, TECH_LIB_PARALLAX_VRPARAM) == 0) {
 				g_fTechLibraryParallax = value;
@@ -1354,10 +1361,10 @@ bool InitDirectSBS()
 
 	g_projLeft.set
 	(
-		1.0f, 0.0f,  0.0f,  0.0f,
-		0.0f, 1.0f,  0.0f,  0.0f,
-		0.0f, 0.0f, -1.0f, -0.01f, // focal_dist?
-		0.0f, 0.0f, -1.0f,  0.0f
+		0.847458f, 0.0f,       0.0f,  0.0f,
+		0.0f,      0.746269f,  0.0f,  0.0f,
+		0.0f,      0.0f,      -1.0f, -0.01f, // Use the focal_dist here?
+		0.0f,      0.0f,      -1.0f,  0.0f
 	);
 	g_projLeft.transpose();
 	g_projRight = g_projLeft;
@@ -1365,11 +1372,10 @@ bool InitDirectSBS()
 	g_fullMatrixLeft = g_projLeft * g_EyeMatrixLeftInv;
 	g_fullMatrixRight = g_projRight * g_EyeMatrixRightInv;
 
-	ShowMatrix4(g_EyeMatrixLeftInv, "g_EyeMatrixLeftInv");
-	ShowMatrix4(g_projLeft, "g_projLeft");
-
-	ShowMatrix4(g_EyeMatrixRightInv, "g_EyeMatrixRightInv");
-	ShowMatrix4(g_projRight, "g_projRight");
+	//ShowMatrix4(g_EyeMatrixLeftInv, "g_EyeMatrixLeftInv");
+	//ShowMatrix4(g_projLeft, "g_projLeft");
+	//ShowMatrix4(g_EyeMatrixRightInv, "g_EyeMatrixRightInv");
+	//ShowMatrix4(g_projRight, "g_projRight");
 	log_debug("[DBG] DirectSBS mode initialized");
 	return true;
 }
@@ -1642,10 +1648,19 @@ Direct3DDevice::Direct3DDevice(DeviceResources* deviceResources)
 	this->_renderStates = new RenderStates(this->_deviceResources);
 
 	this->_maxExecuteBufferSize = 0;
+
+	if (this->_deviceResources->_d3dDevice != NULL) {
+		log_debug("[DBG] Loading new resources");
+		LoadNewCockpitTextures(this->_deviceResources->_d3dDevice);
+	}
+	else {
+		log_debug("[DBG] Could not load new textures: d3dDevice is NULL");
+	}
 }
 
 Direct3DDevice::~Direct3DDevice()
 {
+	UnloadNewCockpitTextures();
 	DeleteStereoVertices();
 	g_iNumVertices = 0;
 	delete this->_renderStates;
@@ -2113,6 +2128,7 @@ HRESULT Direct3DDevice::Execute(
 	g_VSCBuffer.sz_override = -1.0f;
 	g_VSCBuffer.mult_z_override = -1.0f;
 	g_VSCBuffer.cockpit_threshold = g_fGUIElemPZThreshold;
+	g_VSCBuffer.bPreventTransform = 0.0f;
 	g_PSCBuffer.brightness = MAX_BRIGHTNESS;
 
 	char* step = "";
@@ -2595,6 +2611,13 @@ HRESULT Direct3DDevice::Execute(
 				}
 				*/
 
+				if (!g_bPrevIsFloatingGUI3DObject && g_bIsFloating3DObject) {
+					// The targeted craft is about to be drawn!
+					// Let's clear the render target view for the targeting computer
+					float bgColor[4] = { 1.0f, 1.0f, 1.0f, 0.0f };
+					context->ClearRenderTargetView(resources->_renderTargetViewTargetComp, bgColor);
+				}
+
 				// Reduce the scale for GUI elements, except for the HUD
 				if (bIsScaleableGUIElem) {
 					bModifiedShaders = true;
@@ -2613,20 +2636,33 @@ HRESULT Direct3DDevice::Execute(
 					//g_VSCBuffer.viewportScale[3] = g_fGlobalScale + 0.2f;
 					// Send the skybox to infinity:
 					g_VSCBuffer.sz_override = 0.01f;
-					g_VSCBuffer.mult_z_override = 5000.0f;
+					g_VSCBuffer.mult_z_override = 5000.0f; // Infinity is probably at 65535, we can probably multiply by something bigger here.
 				}
 
 				/*
 				if (bIsTranspOrGlow) {
 					bModifiedShaders = true;
-					g_VSCBuffer.z_flip = 1.0f;
 				}
 				*/
+
+				// Replace the targeting computer texture with our own at run-time:
+				// Fun fact: we can also replace the HUD textures at run-time too!
+				if (lastTextureSelected != NULL && lastTextureSelected->is_CockpitTargetingComp) {
+					// Replace the targeting computer texture with our own
+					/*
+					if (g_NewCockpitTargetCompOverlay != NULL)
+						context->PSSetShaderResources(0, 1, g_NewCockpitTargetCompOverlay.GetAddressOf());
+					*/
+					context->ResolveSubresource(resources->_offscreenBufferTargetCompAsInput, 0, resources->_offscreenBufferTargetComp,
+						0, DXGI_FORMAT_B8G8R8A8_UNORM);
+					context->PSSetShaderResources(0, 1, resources->_offscreenTargetCompAsInputShaderResourceView.GetAddressOf());
+				}
 
 				// Add an extra parallax to HUD elements
 				if (bIsHUD) {
 					bModifiedShaders = true;
-					g_VSCBuffer.z_override = g_fHUDParallax;
+					g_VSCBuffer.z_override = g_fHUDDepth;
+					g_VSCBuffer.bPreventTransform = 1.0f;
 				}
 
 				// Let's render the triangle pointer closer to the center so that we can see it all the time,
@@ -2635,34 +2671,29 @@ HRESULT Direct3DDevice::Execute(
 				if (bIsTrianglePointer) {
 					bModifiedShaders = true;
 					g_VSCBuffer.viewportScale[3] = g_fGUIElemScale;
-					g_VSCBuffer.z_override = g_fTextParallax;
+					g_VSCBuffer.z_override = g_fTextDepth;
 				}
 
 				// Add extra parallax to Floating GUI elements, left image
 				if (bIsFloatingGUI || g_bIsFloating3DObject || bIsScaleableGUIElem) {
 					bModifiedShaders = true;
 					if (!bIsBracket)
-						g_VSCBuffer.z_override = g_fFloatingGUIParallax;
+						g_VSCBuffer.z_override = g_fFloatingGUIDepth;
 					if (g_bIsFloating3DObject && !bIsBracket) {
-						g_VSCBuffer.z_override += g_fFloatingGUIObjParallax;
-						//g_VSCBuffer.restoreZ = 1.0f;
+						g_VSCBuffer.z_override += g_fFloatingGUIObjDepth;
 					}
 				}
 
 				// Add an extra parallax to Text elements, left image
 				if (bIsText) { // This is now a common setting
 					bModifiedShaders = true;
-					g_VSCBuffer.z_override = g_fTextParallax;
+					g_VSCBuffer.z_override = g_fTextDepth;
 				}
 
 				if (bModifiedShaders) {
 					resources->InitPSConstantBufferBrightness(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 				}
-
-				// ****************************************************************************
-				// Left image state settings
-				// ****************************************************************************				
 
 				// Skip the draw call for debugging purposes depending on g_iNoDrawBeforeIndex and g_iNoDrawAfterIndex
 #ifdef DBG_VR
@@ -2679,12 +2710,20 @@ HRESULT Direct3DDevice::Execute(
 				// with just using one, though... but why would we use just one? To make AO 
 				// computation faster? On the other hand, having always 2 z-buffers makes the code
 				// easier.
-				if (g_bUseSteamVR)
-					context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
+
+				if (g_bIsFloating3DObject) {
+					// Set the targeting computer renderTargetView
+					context->OMSetRenderTargets(1, resources->_renderTargetViewTargetComp.GetAddressOf(),
 						resources->_depthStencilViewL.Get());
-				else
-					context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
-						resources->_depthStencilViewL.Get());
+				}
+				else {
+					if (g_bUseSteamVR)
+						context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
+							resources->_depthStencilViewL.Get());
+					else
+						context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
+							resources->_depthStencilViewL.Get());
+				}
 				// VIEWPORT-LEFT
 				if (g_bUseSteamVR) {
 					viewport.Width = (float)resources->_backbufferWidth;
@@ -2701,34 +2740,14 @@ HRESULT Direct3DDevice::Execute(
 				// Set the left projection matrix
 				g_VSMatrixCB.projEye = g_fullMatrixLeft;
 				// The viewMatrix is set at the beginning of the frame
-				// TEMPORARY SWAP OF LEFT-RIGHT TO TEST ISSUES SEEN IN THE FIELD
-				//g_VSMatrixCB.projEye = g_fullMatrixRight;
 				resources->InitVSConstantBufferMatrix(resources->_VSMatrixBuffer.GetAddressOf(), &g_VSMatrixCB);
 				// Draw the Left Image
 				context->DrawIndexed(3 * instruction->wCount, currentIndexLocation, 0);
 
-				// ****************************************************************************
-				// Right image state settings
-				// ****************************************************************************
-
-				// Select either the original vertex buffer or the right-image vertex buffer. Certain elements are
-				// rendered at infinity using the original VB and others are rendered at various depths but using
-				// the original VB and adding a specific parallax (like the text and HUD)
-				/*
-				if (SUCCEEDED(hr))
-				{
-					// Use the original vertices for the Sky, HUD, Text and Brackets:
-					if (bIsSkyBox || bIsHUD || bIsText || bIsBracket) // Should I add Floating GUI elements here as well?
-						resources->InitVertexBuffer(this->_vertexBuffer.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
-					else
-						resources->InitVertexBuffer(this->_vertexBufferR.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
-				}
-				*/
-
-				/*
-				if (bModifiedShaders)
-					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
-				*/
+				// HACK: Disable rendering to the right image because the floating object is now rendered to a separate render
+				// target view.
+				if (g_bIsFloating3DObject)
+					goto out;
 
 				// ****************************************************************************
 				// Render the right image
@@ -2789,11 +2808,11 @@ HRESULT Direct3DDevice::Execute(
 				// constant buffers); but only if we altered it previously.
 				if (bModifiedShaders) {
 					g_VSCBuffer.viewportScale[3] = g_fGlobalScale;
-					//g_VSCBuffer.restoreZ = 0.0f;
 					g_PSCBuffer.brightness = MAX_BRIGHTNESS;
 					g_VSCBuffer.z_override = -1.0f;
 					g_VSCBuffer.sz_override = -1.0f;
 					g_VSCBuffer.mult_z_override = -1.0f;
+					g_VSCBuffer.bPreventTransform = 0.0f;
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 					resources->InitPSConstantBufferBrightness(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 				}

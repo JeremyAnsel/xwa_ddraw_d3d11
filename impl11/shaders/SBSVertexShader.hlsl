@@ -6,7 +6,7 @@ cbuffer ConstantBuffer : register(b0)
 {
 	float4 vpScale;
 	float aspect_ratio, cockpit_threshold, z_override, sz_override;
-	float mult_z_override, z_flip;
+	float mult_z_override, bPreventTransform;
 };
 
 cbuffer ConstantBuffer : register(b1)
@@ -30,15 +30,16 @@ struct PixelShaderInput
 	float2 tex : TEXCOORD;
 };
 
-static float GAME_SCALE_FACTOR = 60.0;
-static float GAME_SCALE_FACTOR_Z = 60.0;
+//static float GAME_SCALE_FACTOR = 60.0;
+//static float GAME_SCALE_FACTOR_Z = 60.0;
 static float METRIC_SCALE_FACTOR = 25.0;
 //float C = 1.0f, Z_FAR = 1.0f;
 //static float LOG_K = 1.0;
-static float g_fFocalDist = 0.5;
+//static float g_fFocalDist = 0.5;
 //static float C = 8;
 //static float LOG_K = log(C * METRIC_SCALE_FACTOR * 65535);
 
+/*
 float3 back_project_exp(float3 p)
 {
 	float3 Q;
@@ -49,6 +50,7 @@ float3 back_project_exp(float3 p)
 	//Q.z *= GAME_SCALE_FACTOR_Z;
 	return Q;
 }
+*/
 
 PixelShaderInput main(VertexShaderInput input)
 {
@@ -78,7 +80,16 @@ PixelShaderInput main(VertexShaderInput input)
 	P.y = -P.y;
 	P.z = -P.z;
 	// Apply head position and project 3D --> 2D
-	output.pos = mul(viewMatrix, float4(P, 1));
+	if (bPreventTransform < 0.5f) // The HUD should not be transformed so that it's possible to aim properly
+		output.pos = mul(viewMatrix, float4(P, 1));
+	else {
+		// This case is specifically to keep the aiming HUD centered so that it can still be used
+		// to aim the lasers. Here, we ignore all translations except over the Z-axis
+		float4x4 compViewMatrix = viewMatrix;
+		compViewMatrix._m03_m13_m23 = 0;
+		output.pos = mul(compViewMatrix, float4(P, 1));
+		//output.pos = float4(P, 1);
+	}
 	output.pos = mul(projEyeMatrix, output.pos);
 
 	/*
@@ -119,91 +130,6 @@ PixelShaderInput main(VertexShaderInput input)
 	output.tex = input.tex;
 	return output;
 }
-
-/*
-PixelShaderInput old_main_0_9_8(VertexShaderInput input)
-{
-	PixelShaderInput output;
-	float sz = input.pos.z;
-
-	float3 temp = input.pos.xyz;
-	// Apply the scale in 2D coordinates before back-projecting. This is
-	// either g_fGlobalScale or g_fGUIElemScale (used to zoom-out the HUD
-	// so that it's readable)
-	temp.xy *= 0.5 * vpScale.w * vpScale.z * float2(aspect_ratio, 1);
-	//temp.xy *= vpScale.w * vpScale.z * float2(aspect_ratio, 1);
-
-	// Override the depth of this element if z_override is set
-	if (z_override > -0.1)
-		temp.z = z_override;
-
-	// input.pos is in 2D; but normalized to -1..1, back-project into 3D:
-	float3 P = back_project_exp(temp.xyz);
-	// and then project into 2D; but using the right projEje matrix:
-	P.y = -P.y;
-	P.z = -P.z;
-	// Project 3D --> 2D
-	output.pos = mul(projEyeMatrix, float4(P, 1));
-	// Normalize:
-	output.pos /= output.pos.w;
-	output.pos.w = 1.0f;
-
-	// We have normalized 2D again, continue processing as before:
-	output.pos.z = sz;
-	if (z_override > -0.1)
-		output.pos.z = z_override;
-	if (restoreZ > 0.5)
-		output.pos.z = sz;
-	output.pos /= input.pos.w;
-	output.color = input.color.zyxw;
-	output.tex = input.tex;
-	return output;
-}
-*/
-
-/*
-PixelShaderInput main(VertexShaderInput input)
-{
-	PixelShaderInput output;
-	float sz = input.pos.z;
-
-	// Override the depth of this element if z_override is set
-	if (z_override > -0.1)
-		input.pos.z = z_override;
-
-	// Apply the scale in 2D coordinates before back-projecting. This is
-	// either g_fGlobalScale or g_fGUIElemScale (used to zoom-out the HUD
-	// so that it's readable
-	input.pos.xy *= vpScale.w;
-
-	// input.pos is in 2D; but normalized to -1..1, back-project into 3D:
-	float3 P = back_project(input.pos.xyz);
-	// and then project into 2D; but using the right projEje matrix:
-	P.y = -P.y;
-	P.z = -P.z;
-	// Project 3D --> 2D
-	output.pos = mul(projEyeMatrix, float4(P, 1));
-	// Normalize:
-	output.pos /= output.pos.w;
-
-	// We have normalized 2D again, continue processing as before:
-	output.pos.xy = output.pos.xy * vpScale.z;
-	if (restoreZ < 0.5)
-		output.pos.z = input.pos.z;
-	else
-		output.pos.z = sz;
-	
-	output.pos.w = 1.0f;
-	
-	// Halve the size of the screen
-	output.pos.xy *= 0.5 * float2(aspect_ratio, 1);
-	output.pos /= input.pos.w;
-
-	output.color = input.color.zyxw;
-	output.tex = input.tex;
-	return output;
-}
-*/
 
 /*
 PixelShaderInput main_old(VertexShaderInput input) // This was the original DirectSBS shader

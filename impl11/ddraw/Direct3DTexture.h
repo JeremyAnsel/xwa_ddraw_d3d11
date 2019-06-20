@@ -29,6 +29,10 @@ public:
 	// This flag is set to true if this is the main targeting computer (center, low)
 	bool is_TargetingComp;
 
+	// Textures in the cockpit that can be replaced with new textures
+	// This texture is the static targeting computer that can be replaced with the actual targeting data
+	bool is_CockpitTargetingComp;
+
 	Direct3DTexture(DeviceResources* deviceResources, TextureSurface* surface);
 
 	int GetWidth();
