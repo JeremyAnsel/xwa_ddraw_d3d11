@@ -32,6 +32,7 @@ void IncreaseFocalDist(float Delta);
 
 extern bool g_bDisableBarrelEffect, g_bEnableVR, g_bResetHeadCenter;
 extern bool g_bLeftKeyDown, g_bRightKeyDown, g_bUpKeyDown, g_bDownKeyDown, g_bUpKeyDownShift, g_bDownKeyDownShift;
+extern bool g_bDirectSBSInitialized, g_bSteamVRInitialized;
 HWND ThisWindow = 0;
 WNDPROC OldWindowProc = 0;
 
@@ -154,7 +155,13 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 				return 0;
 
 			case 'V':
-				g_bEnableVR = !g_bEnableVR;
+				// We can't just switch to VR mode if the game was started with no VR support
+				if (!g_bEnableVR) {
+					if (g_bSteamVRInitialized || g_bDirectSBSInitialized)
+						g_bEnableVR = true;
+				} else { // VR mode can always be disabled
+					g_bEnableVR = !g_bEnableVR;
+				}
 				return 0;
 
 			case 'S':
@@ -387,6 +394,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 		else if (g_bEnableVR && !g_bUseSteamVR) {
 			log_debug("[DBG] Initializing DirectSBS mode");
 			InitDirectSBS();
+			g_bDirectSBSInitialized = true;
 		}
 		break;
 	case DLL_THREAD_ATTACH:

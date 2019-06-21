@@ -63,6 +63,7 @@ std::vector<uint32_t> GUI_CRCs = {
 // 0xc5894992 --> Second targeting computer, 128x128
 const uint32_t COCKPIT_TARGETING_COMP_CRC_LO_RES = 0x5b27f370;
 
+extern bool g_bDynamicCockpit;
 bool g_bNewCockpitTexturesLoaded = false;
 ComPtr<ID3D11ShaderResourceView> g_NewCockpitTargetCompOverlay = NULL;
 
@@ -115,10 +116,17 @@ bool ReloadCRCs() {
 
 bool LoadNewCockpitTextures(ID3D11Device *device) {
 	HRESULT res = S_OK;
+	if (!g_bDynamicCockpit) {
+		log_debug("[DBG] Dynamic Cockpit is disabled. Will not load new textures");
+		return false;
+	}
+	log_debug("[DBG} Loading new cockpit textures");
 	if (g_NewCockpitTargetCompOverlay == NULL) {
 		//log_debug("[DBG] [NewTex] Loading new Cockpit Targeting Computer");
 		res = DirectX::CreateWICTextureFromFile(device, L"./NewTextures/x-wing-targeting-comp-full-res.png", NULL, &g_NewCockpitTargetCompOverlay);
 		g_bNewCockpitTexturesLoaded = (res == S_OK);
+		if (!g_bNewCockpitTexturesLoaded)
+			g_NewCockpitTargetCompOverlay = NULL;
 	}
 	return g_bNewCockpitTexturesLoaded;
 }
@@ -127,8 +135,10 @@ void UnloadNewCockpitTextures() {
 	if (!g_bNewCockpitTexturesLoaded)
 		return;
 	//log_debug("[DBG] [NewTex] Releasing textures");
-	if (g_NewCockpitTargetCompOverlay != NULL)
+	if (g_NewCockpitTargetCompOverlay != NULL) {
 		g_NewCockpitTargetCompOverlay.Release();
+		g_NewCockpitTargetCompOverlay = NULL;
+	}
 }
 
 #ifdef DBG_VR

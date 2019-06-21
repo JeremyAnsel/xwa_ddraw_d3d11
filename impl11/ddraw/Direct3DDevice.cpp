@@ -199,6 +199,10 @@ const bool DEFAULT_BARREL_EFFECT_STATE_STEAMVR = false; // SteamVR provides its 
 const float DEFAULT_BRIGHTNESS = 0.95f;
 const bool DEFAULT_INVERSE_TRANSPOSE = false;
 const float MAX_BRIGHTNESS = 1.0f;
+const bool DEFAULT_FLOATING_AIMING_HUD = true;
+const bool DEFAULT_NATURAL_CONCOURSE_ANIM = true;
+const bool DEFAULT_DYNAMIC_TARGET_COMP = false;
+// 6dof
 const float DEFAULT_ROLL_MULTIPLIER =  -1.0f;
 const float DEFAULT_POS_X_MULTIPLIER =  1.0f;
 const float DEFAULT_POS_Y_MULTIPLIER =  1.0f;
@@ -235,6 +239,9 @@ const char *VR_MODE_STEAMVR_SVAL = "SteamVR";
 const char *INTERLEAVED_REPROJ_VRPARAM = "SteamVR_Interleaved_Reprojection";
 const char *BARREL_EFFECT_STATE_VRPARAM = "apply_lens_correction";
 const char *INVERSE_TRANSPOSE_VRPARAM = "alternate_steamvr_eye_inverse";
+const char *FLOATING_AIMING_HUD_VRPARAM = "floating_aiming_HUD";
+const char *NATURAL_CONCOURSE_ANIM_VRPARAM = "concourse_animations_at_25fps";
+const char *DYNAMIC_COCKPIT_TARGET_COMP_VRPARAM = "dynamic_cockpit_enabled";
 // 6dof vrparams
 const char *ROLL_MULTIPLIER_VRPARAM = "roll_multiplier";
 const char *POS_X_MULTIPLIER_VRPARAM = "positional_x_multiplier";
@@ -273,6 +280,8 @@ Matrix4 g_EyeMatrixLeftInv, g_EyeMatrixRightInv;
 Matrix4 g_projLeft, g_projRight, g_projHead;
 Matrix4 g_fullMatrixLeft, g_fullMatrixRight, g_fullMatrixHead;
 Matrix4 g_viewMatrix;
+bool g_bNaturalConcourseAnimations = DEFAULT_NATURAL_CONCOURSE_ANIM;
+bool g_bDynamicCockpit = DEFAULT_DYNAMIC_TARGET_COMP;
 float g_fRollMultiplier = DEFAULT_ROLL_MULTIPLIER;
 float g_fPosXMultiplier = DEFAULT_POS_X_MULTIPLIER;
 float g_fPosYMultiplier = DEFAULT_POS_Y_MULTIPLIER;
@@ -341,7 +350,8 @@ float g_fGlobalScale = DEFAULT_GLOBAL_SCALE;
 float g_fGlobalScaleZoomOut = DEFAULT_ZOOM_OUT_SCALE;
 float g_fConcourseScale = DEFAULT_CONCOURSE_SCALE;
 float g_fConcourseAspectRatio = DEFAULT_CONCOURSE_ASPECT_RATIO;
-float g_fHUDDepth = DEFAULT_HUD_PARALLAX;   // The aiming HUD is rendered at this depth
+float g_fHUDDepth = DEFAULT_HUD_PARALLAX; // The aiming HUD is rendered at this depth
+bool g_bFloatingAimingHUD = DEFAULT_FLOATING_AIMING_HUD; // The aiming HUD can be fixed to the cockpit glass or floating
 float g_fTextDepth = DEFAULT_TEXT_PARALLAX; // All text gets rendered at this parallax
 float g_fFloatingGUIDepth = DEFAULT_FLOATING_GUI_PARALLAX; // Floating GUI elements are rendered at this depth
 float g_fFloatingGUIObjDepth = DEFAULT_FLOATING_OBJ_PARALLAX; // The targeted object must be rendered above the Floating GUI
@@ -351,6 +361,7 @@ bool g_bZoomOut = DEFAULT_ZOOM_OUT_INITIAL_STATE;
 bool g_bZoomOutInitialState = DEFAULT_ZOOM_OUT_INITIAL_STATE;
 float g_fBrightness = DEFAULT_BRIGHTNESS;
 float g_fGUIElemsScale = DEFAULT_GLOBAL_SCALE; // Used to reduce the size of all the GUI elements
+bool g_bDirectSBSInitialized = false;
 
 VertexShaderMatrixCB g_VSMatrixCB;
 VertexShaderCBuffer g_VSCBuffer;
@@ -625,10 +636,12 @@ void ResetVRParams() {
 	g_iNoDrawBeforeIndex = 0; g_iNoDrawAfterIndex = -1;
 	g_iNoExecBeforeIndex = 0; g_iNoExecAfterIndex = -1;
 	g_fHUDDepth = DEFAULT_HUD_PARALLAX;
+	g_bFloatingAimingHUD = DEFAULT_FLOATING_AIMING_HUD;
 	g_fTextDepth = DEFAULT_TEXT_PARALLAX;
 	g_fFloatingGUIDepth = DEFAULT_FLOATING_GUI_PARALLAX;
 	g_fTechLibraryParallax = DEFAULT_TECH_LIB_PARALLAX;
 	g_fFloatingGUIObjDepth = DEFAULT_FLOATING_OBJ_PARALLAX;
+	g_bNaturalConcourseAnimations = DEFAULT_NATURAL_CONCOURSE_ANIM;
 
 	g_fBrightness = DEFAULT_BRIGHTNESS;
 
@@ -674,6 +687,7 @@ void SaveVRParams() {
 	fprintf(file, "; file and restart the game. Then press Ctrl + Alt + S to save a\n");
 	fprintf(file, "; new config file with the default parameters.\n");
 	fprintf(file, "; To reload this file during game (at any point) just press Ctrl+Alt+L.\n");
+	fprintf(file, "; Most parameters can be re-applied when reloading.\n");
 	fprintf(file, "; You can also press Ctrl+Alt+R to reset the viewing params to default values.\n\n");
 
 	fprintf(file, "; VR Mode. Select from None, DirectSBS and SteamVR.\n");
@@ -698,6 +712,9 @@ void SaveVRParams() {
 	fprintf(file, "; Set the following to 1 to start the HUD in zoomed-out mode:\n");
 	fprintf(file, "%s = %d\n", WINDOW_ZOOM_OUT_INITIAL_STATE_VRPARAM, g_bZoomOutInitialState);
 	fprintf(file, "%s = %0.3f\n", CONCOURSE_WINDOW_SCALE_VRPARAM, g_fConcourseScale);
+	fprintf(file, "; The concourse animations can be played as fast as possible, or at its original\n");
+	fprintf(file, "; 25fps setting:\n");
+	fprintf(file, "%s = %d\n", NATURAL_CONCOURSE_ANIM_VRPARAM, g_bNaturalConcourseAnimations);
 	/*
 	fprintf(file, "; The following is a hack to increase the stereoscopy on objects. Unfortunately it\n");
 	fprintf(file, "; also causes some minor artifacts: this is basically the threshold between the\n");
@@ -724,6 +741,12 @@ void SaveVRParams() {
 	fprintf(file, "; Positive depth is forwards, negative is backwards (towards you).\n");
 	fprintf(file, "; As a reference, the background starfield is 65km meters away.\n");
 	fprintf(file, "%s = %0.3f\n", HUD_PARALLAX_VRPARAM, g_fHUDDepth);
+	fprintf(file, "; If 6dof is enabled, the aiming HUD can be fixed to the cockpit or it can float\n");
+	fprintf(file, "; and follow you. When it's fixed, it's probably more realistic; but it will be\n");
+	fprintf(file, "; harder to aim when you lean. You can move it back to 65000m away to fix this\n");
+	fprintf(file, "; When the aiming HUD is floating, it will follow you around no matter how much you\n");
+	fprintf(file, "; lean, making it easier to aim properly (but it's probably less realistic).\n");
+	fprintf(file, "%s = %d\n", FLOATING_AIMING_HUD_VRPARAM, g_bFloatingAimingHUD);
 	fprintf(file, "%s = %0.3f\n", GUI_PARALLAX_VRPARAM, g_fFloatingGUIDepth);
 	fprintf(file, "%s = %0.3f\n", GUI_OBJ_PARALLAX_VRPARAM, g_fFloatingGUIObjDepth);
 	fprintf(file, "; %s is relative and it's always added to %s\n", GUI_OBJ_PARALLAX_VRPARAM, GUI_PARALLAX_VRPARAM);
@@ -847,7 +870,9 @@ void LoadVRParams() {
 			}
 			else if (_stricmp(param, HUD_PARALLAX_VRPARAM) == 0) {
 				g_fHUDDepth = value;
-				//log_debug("[DBG] HUD Parallax read: %f", value);
+			}
+			else if (_stricmp(param, FLOATING_AIMING_HUD_VRPARAM) == 0) {
+				g_bFloatingAimingHUD = (bool)value;
 			}
 			else if (_stricmp(param, GUI_PARALLAX_VRPARAM) == 0) {
 				// "Floating" GUI elements: targetting computer and the like
@@ -897,12 +922,17 @@ void LoadVRParams() {
 				g_bInverseTranspose = (bool)value;
 				log_debug("[DBG] Inverse Transpose set to: %d", g_bInverseTranspose);
 			}
+			else if (_stricmp(param, NATURAL_CONCOURSE_ANIM_VRPARAM) == 0) {
+				g_bNaturalConcourseAnimations = (bool)value;
+			}
+			else if (_stricmp(param, DYNAMIC_COCKPIT_TARGET_COMP_VRPARAM) == 0) {
+				g_bDynamicCockpit = (bool)value;
+			}
 
 			// 6dof parameters
 			else if (_stricmp(param, ROLL_MULTIPLIER_VRPARAM) == 0) {
 				g_fRollMultiplier = value;
 			}
-
 			else if (_stricmp(param, POS_X_MULTIPLIER_VRPARAM) == 0) {
 				g_fPosXMultiplier = value;
 			}
@@ -1320,12 +1350,20 @@ bool InitSteamVR()
 	}
 
 out:
-	if (strDriver != NULL)
+	g_bSteamVRInitialized = result;
+
+	if (strDriver != NULL) {
 		delete[] strDriver;
-	if (strDisplay != NULL)
+		strDriver = NULL;
+	}
+	if (strDisplay != NULL) {
 		delete[] strDisplay;
-	if (file != NULL)
+		strDisplay = NULL;
+	}
+	if (file != NULL) {
 		fclose(file);
+		file = NULL;
+	}
 	return result;
 }
 
@@ -1398,6 +1436,7 @@ bool InitDirectSBS()
 	//ShowMatrix4(g_EyeMatrixRightInv, "g_EyeMatrixRightInv");
 	//ShowMatrix4(g_projRight, "g_projRight");
 	log_debug("[DBG] DirectSBS mode initialized");
+	g_bDirectSBSInitialized = true;
 	return true;
 }
 
@@ -1671,7 +1710,7 @@ Direct3DDevice::Direct3DDevice(DeviceResources* deviceResources)
 	this->_maxExecuteBufferSize = 0;
 
 	if (this->_deviceResources->_d3dDevice != NULL) {
-		log_debug("[DBG] Loading new resources");
+		log_debug("[DBG] Loading new resources, device: 0x%x", _deviceResources->_d3dDevice);
 		LoadNewCockpitTextures(this->_deviceResources->_d3dDevice);
 	}
 	else {
@@ -2636,7 +2675,7 @@ HRESULT Direct3DDevice::Execute(
 				}
 				*/
 
-				if (!g_bPrevIsFloatingGUI3DObject && g_bIsFloating3DObject) {
+				if (g_bDynamicCockpit && !g_bPrevIsFloatingGUI3DObject && g_bIsFloating3DObject) {
 					// The targeted craft is about to be drawn!
 					// Let's clear the render target view for the targeting computer
 					float bgColor[4] = { 0.1f, 0.1f, 0.3f, 0.0f };
@@ -2674,12 +2713,13 @@ HRESULT Direct3DDevice::Execute(
 
 				// Replace the targeting computer texture with our own at run-time:
 				// Fun fact: we can also replace the HUD textures at run-time too!
-				if (lastTextureSelected != NULL && lastTextureSelected->is_CockpitTargetingComp) {
+				if (g_bDynamicCockpit && lastTextureSelected != NULL && lastTextureSelected->is_CockpitTargetingComp) {
 					// Replace the targeting computer texture with our own
 					/*
 					if (g_NewCockpitTargetCompOverlay != NULL)
 						context->PSSetShaderResources(0, 1, g_NewCockpitTargetCompOverlay.GetAddressOf());
 					*/
+					// Resolve the last offscreenBufferTargetComp and use it as input to the PixelShader
 					context->ResolveSubresource(resources->_offscreenBufferTargetCompAsInput, 0, resources->_offscreenBufferTargetComp,
 						0, DXGI_FORMAT_B8G8R8A8_UNORM);
 					context->PSSetShaderResources(0, 1, resources->_offscreenTargetCompAsInputShaderResourceView.GetAddressOf());
@@ -2689,7 +2729,8 @@ HRESULT Direct3DDevice::Execute(
 				if (bIsHUD) {
 					bModifiedShaders = true;
 					g_VSCBuffer.z_override = g_fHUDDepth;
-					g_VSCBuffer.bPreventTransform = 1.0f;
+					if (g_bFloatingAimingHUD)
+						g_VSCBuffer.bPreventTransform = 1.0f;
 				}
 
 				// Let's render the triangle pointer closer to the center so that we can see it all the time,
@@ -2738,7 +2779,7 @@ HRESULT Direct3DDevice::Execute(
 				// computation faster? On the other hand, having always 2 z-buffers makes the code
 				// easier.
 
-				if (g_bIsFloating3DObject) {
+				if (g_bDynamicCockpit && g_bIsFloating3DObject) {
 					// Set the targeting computer renderTargetView
 					context->OMSetRenderTargets(1, resources->_renderTargetViewTargetComp.GetAddressOf(),
 						resources->_depthStencilViewL.Get());
@@ -2760,7 +2801,7 @@ HRESULT Direct3DDevice::Execute(
 					viewport.Width = (float)resources->_backbufferWidth / 2.0f;
 				}
 				// Targeting computer hack:
-				if (g_bIsFloating3DObject) {
+				if (g_bDynamicCockpit && g_bIsFloating3DObject) {
 					viewport.Width = (float)resources->_backbufferWidth;
 				}
 				viewport.Height = (float)resources->_backbufferHeight;
@@ -2770,7 +2811,7 @@ HRESULT Direct3DDevice::Execute(
 				viewport.MaxDepth = D3D11_MAX_DEPTH;
 				resources->InitViewport(&viewport);
 				// Set the left projection matrix
-				if (g_bIsFloating3DObject) {
+				if (g_bDynamicCockpit && g_bIsFloating3DObject) {
 					g_VSMatrixCB.projEye = g_fullMatrixHead;
 					g_VSMatrixCB.viewMat.identity();
 				} 
@@ -2783,7 +2824,7 @@ HRESULT Direct3DDevice::Execute(
 
 				// HACK: Disable rendering to the right image because the floating object is now rendered to a separate render
 				// target view.
-				if (g_bIsFloating3DObject)
+				if (g_bDynamicCockpit && g_bIsFloating3DObject)
 					goto out;
 
 				// ****************************************************************************

@@ -15,6 +15,8 @@
 
 #define DBG_MAX_PRESENT_LOGS 0
 
+extern bool g_bNaturalConcourseAnimations;
+
 #include <headers/openvr.h>
 const float PI = 3.141592f;
 const float RAD_TO_DEG = 180.0f / PI;
@@ -1200,7 +1202,8 @@ HRESULT PrimarySurface::Flip(
 
 				hr = DD_OK;
 
-				for (UINT i = 0; i < 1 /* interval */; i++)
+				interval = g_bNaturalConcourseAnimations ? interval : 1;
+				for (UINT i = 0; i < interval; i++)
 				{
 					// In the original code the offscreenBuffer is simply resolved into the backBuffer.
 					// this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0, this->_deviceResources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
