@@ -1205,6 +1205,15 @@ bool InitSteamVR()
 	//Matrix4 RollTest;
 	bool result = true;
 
+	Matrix4 g_targetCompView
+	(
+		3.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 6.0f, 0.0f, 2.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f
+	);
+	g_targetCompView.transpose();
+
 	int file_error = fopen_s(&file, "./steamvr_mat.txt", "wt");
 	log_debug("[DBG] Initializing SteamVR");
 	vr::EVRInitError eError = vr::VRInitError_None;
@@ -1214,8 +1223,8 @@ bool InitSteamVR()
 	// Generic matrix used for the dynamic targeting computer -- maybe I should use the left projection matrix instead?
 	g_projHead.set
 	(
-		0.847458f, 0.0f, 0.0f, 0.0f,
-		0.0f, 0.746269f, 0.0f, 0.0f,
+		1.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f,
 		0.0f, 0.0f, -1.0f, -0.01f, // Use the focal_dist here?
 		0.0f, 0.0f, -1.0f, 0.0f
 	);
@@ -1276,7 +1285,7 @@ bool InitSteamVR()
 
 	g_fullMatrixLeft  = g_projLeft  * g_EyeMatrixLeftInv;
 	g_fullMatrixRight = g_projRight * g_EyeMatrixRightInv;
-	g_fullMatrixHead  = g_projHead;
+	g_fullMatrixHead = g_projHead * g_targetCompView; // The center matrix does not have eye parallax
 
 	ShowMatrix4(g_EyeMatrixLeftInv, "g_EyeMatrixLeftInv");
 	ShowMatrix4(g_projLeft, "g_projLeft");
