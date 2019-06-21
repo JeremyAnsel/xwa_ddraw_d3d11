@@ -270,8 +270,8 @@ bool g_bInverseTranspose = DEFAULT_INVERSE_TRANSPOSE; // Transpose the eye matri
 bool g_bResetHeadCenter = true; // Reset the head center on startup
 vr::HmdMatrix34_t g_EyeMatrixLeft, g_EyeMatrixRight;
 Matrix4 g_EyeMatrixLeftInv, g_EyeMatrixRightInv;
-Matrix4 g_projLeft, g_projRight;
-Matrix4 g_fullMatrixLeft, g_fullMatrixRight;
+Matrix4 g_projLeft, g_projRight, g_projHead;
+Matrix4 g_fullMatrixLeft, g_fullMatrixRight, g_fullMatrixHead;
 Matrix4 g_viewMatrix;
 float g_fRollMultiplier = DEFAULT_ROLL_MULTIPLIER;
 float g_fPosXMultiplier = DEFAULT_POS_X_MULTIPLIER;
@@ -1181,6 +1181,16 @@ bool InitSteamVR()
 	g_pHMD = vr::VR_Init(&eError, vr::VRApplication_Scene);
 	g_headCenter.set(0, 0, 0);
 
+	// Generic matrix used for the dynamic targeting computer -- maybe I should use the left projection matrix instead?
+	g_projHead.set
+	(
+		0.847458f, 0.0f, 0.0f, 0.0f,
+		0.0f, 0.746269f, 0.0f, 0.0f,
+		0.0f, 0.0f, -1.0f, -0.01f, // Use the focal_dist here?
+		0.0f, 0.0f, -1.0f, 0.0f
+	);
+	g_projHead.transpose();
+
 	if (eError != vr::VRInitError_None)
 	{
 		g_pHMD = NULL;
@@ -1236,6 +1246,7 @@ bool InitSteamVR()
 
 	g_fullMatrixLeft  = g_projLeft  * g_EyeMatrixLeftInv;
 	g_fullMatrixRight = g_projRight * g_EyeMatrixRightInv;
+	g_fullMatrixHead  = g_projHead;
 
 	ShowMatrix4(g_EyeMatrixLeftInv, "g_EyeMatrixLeftInv");
 	ShowMatrix4(g_projLeft, "g_projLeft");
@@ -1369,8 +1380,18 @@ bool InitDirectSBS()
 	g_projLeft.transpose();
 	g_projRight = g_projLeft;
 
-	g_fullMatrixLeft = g_projLeft * g_EyeMatrixLeftInv;
+	g_fullMatrixLeft  = g_projLeft  * g_EyeMatrixLeftInv;
 	g_fullMatrixRight = g_projRight * g_EyeMatrixRightInv;
+
+	Matrix4 g_targetCompView
+	(
+		3.0f, 0.0f, 0.0f,  0.0f,
+		0.0f, 6.0f, 0.0f,  2.0f,
+		0.0f, 0.0f, 1.0f,  0.0f,
+		0.0f, 0.0f, 0.0f,  1.0f
+	);
+	g_targetCompView.transpose();
+	g_fullMatrixHead  = g_projLeft * g_targetCompView; // The center matrix does not have eye parallax
 
 	//ShowMatrix4(g_EyeMatrixLeftInv, "g_EyeMatrixLeftInv");
 	//ShowMatrix4(g_projLeft, "g_projLeft");
@@ -1891,10 +1912,14 @@ HRESULT Direct3DDevice::GetStats(
 }
 
 void DeleteStereoVertices() {
-	if (g_OrigVerts != NULL)
+	if (g_OrigVerts != NULL) {
 		delete[] g_OrigVerts;
-	if (g_3DVerts != NULL)
+		g_OrigVerts = NULL;
+	}
+	if (g_3DVerts != NULL) {
 		delete[] g_3DVerts;
+		g_3DVerts = NULL;
+	}
 }
 
 void ResizeStereoVertices(int numVerts) {
@@ -2614,8 +2639,10 @@ HRESULT Direct3DDevice::Execute(
 				if (!g_bPrevIsFloatingGUI3DObject && g_bIsFloating3DObject) {
 					// The targeted craft is about to be drawn!
 					// Let's clear the render target view for the targeting computer
-					float bgColor[4] = { 1.0f, 1.0f, 1.0f, 0.0f };
+					float bgColor[4] = { 0.1f, 0.1f, 0.3f, 0.0f };
 					context->ClearRenderTargetView(resources->_renderTargetViewTargetComp, bgColor);
+					context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
+					context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewR, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
 				}
 
 				// Reduce the scale for GUI elements, except for the HUD
@@ -2724,12 +2751,17 @@ HRESULT Direct3DDevice::Execute(
 						context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
 							resources->_depthStencilViewL.Get());
 				}
+				
 				// VIEWPORT-LEFT
 				if (g_bUseSteamVR) {
 					viewport.Width = (float)resources->_backbufferWidth;
 				}
 				else {
 					viewport.Width = (float)resources->_backbufferWidth / 2.0f;
+				}
+				// Targeting computer hack:
+				if (g_bIsFloating3DObject) {
+					viewport.Width = (float)resources->_backbufferWidth;
 				}
 				viewport.Height = (float)resources->_backbufferHeight;
 				viewport.TopLeftX = 0.0f;
@@ -2738,7 +2770,12 @@ HRESULT Direct3DDevice::Execute(
 				viewport.MaxDepth = D3D11_MAX_DEPTH;
 				resources->InitViewport(&viewport);
 				// Set the left projection matrix
-				g_VSMatrixCB.projEye = g_fullMatrixLeft;
+				if (g_bIsFloating3DObject) {
+					g_VSMatrixCB.projEye = g_fullMatrixHead;
+					g_VSMatrixCB.viewMat.identity();
+				} 
+				else
+					g_VSMatrixCB.projEye = g_fullMatrixLeft;
 				// The viewMatrix is set at the beginning of the frame
 				resources->InitVSConstantBufferMatrix(resources->_VSMatrixBuffer.GetAddressOf(), &g_VSMatrixCB);
 				// Draw the Left Image

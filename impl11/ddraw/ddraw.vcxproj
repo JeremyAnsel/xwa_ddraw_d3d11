@@ -64,8 +64,8 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ModuleDefinitionFile>ddraw.def</ModuleDefinitionFile>
       <UACUIAccess>true</UACUIAccess>
-      <AdditionalLibraryDirectories>C:\Zip\XWA-DX11\DirectXTK-master\Bin\Desktop_2017_Win10\Win32\Release;C:\Zip\XWA-DX11\openvr-master\lib\win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies);openvr_api.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Zip\XWA-DX11\DirectXTK-master\Bin\Desktop_2017_Win10\Win32\Debug;C:\Zip\XWA-DX11\openvr-master\lib\win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies);DirectXTK.lib;Windowscodecs.lib;openvr_api.lib</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>copy /Y $(TargetPath) "c:\Program Files (x86)\GOG Galaxy\Games\Star Wars - X-Wing Alliance"
