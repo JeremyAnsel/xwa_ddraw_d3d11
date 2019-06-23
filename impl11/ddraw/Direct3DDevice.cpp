@@ -203,6 +203,7 @@ const bool DEFAULT_FLOATING_AIMING_HUD = true;
 const bool DEFAULT_NATURAL_CONCOURSE_ANIM = true;
 const bool DEFAULT_DYNAMIC_TARGET_COMP = false;
 // 6dof
+const int DEFAULT_FREEPIE_SLOT = 0;
 const float DEFAULT_ROLL_MULTIPLIER =  -1.0f;
 const float DEFAULT_POS_X_MULTIPLIER =  1.0f;
 const float DEFAULT_POS_Y_MULTIPLIER =  1.0f;
@@ -243,6 +244,7 @@ const char *FLOATING_AIMING_HUD_VRPARAM = "floating_aiming_HUD";
 const char *NATURAL_CONCOURSE_ANIM_VRPARAM = "concourse_animations_at_25fps";
 const char *DYNAMIC_COCKPIT_TARGET_COMP_VRPARAM = "dynamic_cockpit_enabled";
 // 6dof vrparams
+const char *FREEPIE_SLOT_VRPARAM = "freepie_slot";
 const char *ROLL_MULTIPLIER_VRPARAM = "roll_multiplier";
 const char *POS_X_MULTIPLIER_VRPARAM = "positional_x_multiplier";
 const char *POS_Y_MULTIPLIER_VRPARAM = "positional_y_multiplier";
@@ -294,8 +296,8 @@ void projectSteamVR(float X, float Y, float Z, vr::EVREye eye, float &x, float &
 
 /* Vertices that will be used for the VertexBuffer. */
 D3DTLVERTEX *g_OrigVerts = NULL;
-D3DTLVERTEX *g_3DVerts = NULL;
-int g_iNumVertices = 0;
+//D3DTLVERTEX *g_3DVerts = NULL;
+//int g_iNumVertices = 0;
 
 // Counter for calls to DrawIndexed() (This helps us know where were are in the rendering process)
 // Gets reset everytime the backbuffer is presented and is increased only after BOTH the left and
@@ -361,6 +363,7 @@ bool g_bZoomOut = DEFAULT_ZOOM_OUT_INITIAL_STATE;
 bool g_bZoomOutInitialState = DEFAULT_ZOOM_OUT_INITIAL_STATE;
 float g_fBrightness = DEFAULT_BRIGHTNESS;
 float g_fGUIElemsScale = DEFAULT_GLOBAL_SCALE; // Used to reduce the size of all the GUI elements
+int g_iFreePIESlot = DEFAULT_FREEPIE_SLOT;
 bool g_bDirectSBSInitialized = false;
 
 VertexShaderMatrixCB g_VSMatrixCB;
@@ -651,6 +654,7 @@ void ResetVRParams() {
 
 	g_bDisableBarrelEffect = g_bUseSteamVR ? !DEFAULT_BARREL_EFFECT_STATE_STEAMVR : !DEFAULT_BARREL_EFFECT_STATE;
 
+	g_iFreePIESlot = DEFAULT_FREEPIE_SLOT;
 	g_fRollMultiplier = DEFAULT_ROLL_MULTIPLIER;
 	g_fPosXMultiplier = DEFAULT_POS_X_MULTIPLIER;
 	g_fPosYMultiplier = DEFAULT_POS_Y_MULTIPLIER;
@@ -788,6 +792,9 @@ void SaveVRParams() {
 	fprintf(file, "%s = %0.3f\n\n", MAX_POSITIONAL_Y_VRPARAM, g_fMaxPositionY);
 	fprintf(file, "%s = %0.3f\n",   MIN_POSITIONAL_Z_VRPARAM, g_fMinPositionZ);
 	fprintf(file, "%s = %0.3f\n\n", MAX_POSITIONAL_Z_VRPARAM, g_fMaxPositionZ);
+
+	fprintf(file, "; The following setting only applies when using FreePIE for 6dof:\n");
+	fprintf(file, "%s = %d\n", FREEPIE_SLOT_VRPARAM, g_iFreePIESlot);
 
 	fclose(file);
 	log_debug("[DBG] vrparams.cfg saved");
@@ -930,6 +937,9 @@ void LoadVRParams() {
 			}
 
 			// 6dof parameters
+			else if (_stricmp(param, FREEPIE_SLOT_VRPARAM) == 0) {
+				g_iFreePIESlot = (int )value;
+			}
 			else if (_stricmp(param, ROLL_MULTIPLIER_VRPARAM) == 0) {
 				g_fRollMultiplier = value;
 			}
@@ -978,6 +988,7 @@ next:
  * Back-projects a 2D coordinate + Logarithmic ZBuffer coordinate into 3D space.
  * The 2D coordinate must be in normalized space (-0.5..0.5) with the center of the image at (0,0).
  */
+/*
 static inline void
 back_project(float px, float py, float pz, float direct_pz, float &X, float &Y, float &Z)
 {
@@ -994,11 +1005,13 @@ back_project(float px, float py, float pz, float direct_pz, float &X, float &Y, 
 	Y *= GAME_SCALE_FACTOR;
 	Z *= GAME_SCALE_FACTOR_Z;
 }
+*/
 
 /*
  * Projects a 3D coordinate back into 2D normailzed space (center of the image is at
  * the origin).
  */
+/*
 static inline void
 project(float X, float Y, float Z, float &px, float &py, float &pz) 
 {
@@ -1009,6 +1022,7 @@ project(float X, float Y, float Z, float &px, float &py, float &pz)
 	px = X * g_fFocalDist / Z;
 	py = Y * g_fFocalDist / Z;
 }
+*/
 
 ////////////////////////////////////////////////////////////////
 // SteamVR functions
@@ -1382,12 +1396,14 @@ void ShutDownSteamVR() {
 	return;
 	//log_debug("[DBG] Not shutting down SteamVR, just returning...");
 	//return;
+	/*
 	log_debug("[DBG] Shutting down SteamVR...");
 	vr::VR_Shutdown();
 	g_pHMD = NULL;
 	g_pVRCompositor = NULL;
 	g_pVRScreenshots = NULL;
 	log_debug("[DBG] SteamVR shut down");
+	*/
 }
 
 bool InitDirectSBS()
@@ -1730,8 +1746,8 @@ Direct3DDevice::Direct3DDevice(DeviceResources* deviceResources)
 Direct3DDevice::~Direct3DDevice()
 {
 	UnloadNewCockpitTextures();
-	DeleteStereoVertices();
-	g_iNumVertices = 0;
+	//DeleteStereoVertices();
+	//g_iNumVertices = 0;
 	delete this->_renderStates;
 }
 
@@ -1959,6 +1975,7 @@ HRESULT Direct3DDevice::GetStats(
 	return DDERR_UNSUPPORTED;
 }
 
+/*
 void DeleteStereoVertices() {
 	if (g_OrigVerts != NULL) {
 		delete[] g_OrigVerts;
@@ -1969,7 +1986,9 @@ void DeleteStereoVertices() {
 		g_3DVerts = NULL;
 	}
 }
+*/
 
+/*
 void ResizeStereoVertices(int numVerts) {
 	// Only resize if we need more space, otherwise ignore.
 	if (numVerts <= g_iNumVertices)
@@ -1981,6 +2000,7 @@ void ResizeStereoVertices(int numVerts) {
 	g_OrigVerts = new D3DTLVERTEX[g_iNumVertices];
 	g_3DVerts = new D3DTLVERTEX[g_iNumVertices];
 }
+*/
 
 #ifdef DBG_VR
 void DumpOrigVertices(FILE *file, int numVerts)
@@ -2038,10 +2058,11 @@ void projectSteamVR(float X, float Y, float Z, vr::EVREye eye, float &x, float &
  * be moved entirely to the vertex shader. At that point, we can get rid of g_3DVerts too and
  * the logic associated with it.
  */
+/*
 void PreprocessVerticesStereo(float width, float height, int numVerts)
 {
 	// Pre-process vertices for Stereo
-	float px, py; /* X, Y, Z, pz, qx, qy, qz, direct_pz */
+	float px, py;
 	//bool is_cockpit;
 	float scale_x = 1.0f / width;
 	float scale_y = 1.0f / height;
@@ -2068,7 +2089,7 @@ void PreprocessVerticesStereo(float width, float height, int numVerts)
 		g_3DVerts[i].sx = px;
 		g_3DVerts[i].sy = py;
 	}
-
+	*/
 		// Reproject back into 2D space
 		//if (is_GUI) {
 			// We need to restore the original ZBuffer value for the GUI elements or
@@ -2137,7 +2158,7 @@ void PreprocessVerticesStereo(float width, float height, int numVerts)
 		DumpOrigVertices(g_HackFile, numVerts);
 	}
 #endif
-}
+//}
 
 /* Function to quickly enable/disable ZWrite. Currently only used for brackets */
 HRESULT Direct3DDevice::QuickSetZWriteEnabled(BOOL Enabled) {
@@ -2220,45 +2241,29 @@ HRESULT Direct3DDevice::Execute(
 	int numVerts = executeBuffer->_executeData.dwVertexCount;
 	size_t vertsLength = sizeof(D3DTLVERTEX) * numVerts;
 	// Resize the aux buffers that store the left and right vertices
-	ResizeStereoVertices(numVerts);
+	//ResizeStereoVertices(numVerts);
 	// Save the original vertices
-	memcpy(g_OrigVerts, executeBuffer->_buffer, sizeof(D3DTLVERTEX) * numVerts);
+	//memcpy(g_OrigVerts, executeBuffer->_buffer, sizeof(D3DTLVERTEX) * numVerts);
+	g_OrigVerts = (D3DTLVERTEX *)executeBuffer->_buffer;
 	// Generate vertex positions for the left and right images
 	float displayWidth = (float)resources->_displayWidth;
 	float displayHeight = (float)resources->_displayHeight;
-	if (g_bEnableVR) PreprocessVerticesStereo(displayWidth, displayHeight, numVerts);
+	//if (g_bEnableVR) PreprocessVerticesStereo(displayWidth, displayHeight, numVerts);
 
 	// Copy the vertex data to the vertexbuffers
 	// Original data, no parallax
-	step = "VertexBuffer (Monoscopic)";
+	step = "VertexBuffer";
 	hr = context->Map(this->_vertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
 	if (SUCCEEDED(hr))
 	{
 		memcpy(map.pData, g_OrigVerts, vertsLength);
 		context->Unmap(this->_vertexBuffer, 0);
 	}
+	resources->InitVertexBuffer(this->_vertexBuffer.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
 
 	// Copy the vertex data to the left and right VertexBuffers
+	/*
 	if (g_bEnableVR) {
-		/*
-		// Left vertices
-		step = "VertexBuffer (Left)";
-		hr = context->Map(this->_vertexBufferL, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
-		if (SUCCEEDED(hr))
-		{
-			memcpy(map.pData, g_LeftVerts, vertsLength);
-			context->Unmap(this->_vertexBufferL, 0);
-		}
-
-		// Right vertices
-		step = "VertexBuffer (Right)";
-		hr = context->Map(this->_vertexBufferR, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
-		if (SUCCEEDED(hr))
-		{
-			memcpy(map.pData, g_RightVerts, vertsLength);
-			context->Unmap(this->_vertexBufferR, 0);
-		}
-		*/
 		// 3D vertices
 		step = "VertexBuffer (3D)";
 		hr = context->Map(this->_vertexBuffer3D, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
@@ -2271,6 +2276,7 @@ HRESULT Direct3DDevice::Execute(
 		// Send the 3D vertices, let the shader do the projection
 		resources->InitVertexBuffer(this->_vertexBuffer3D.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
 	}
+	*/
 
 	// Constant Buffer step (and aspect ratio)
 	if (SUCCEEDED(hr))
@@ -2334,8 +2340,13 @@ HRESULT Direct3DDevice::Execute(
 			scale *= g_config.Concourse3DScale;
 		}
 
-		g_VSCBuffer.viewportScale[0] =  2.0f / (float)resources->_displayWidth;
-		g_VSCBuffer.viewportScale[1] = -2.0f / (float)resources->_displayHeight;
+		if (g_bEnableVR) {
+			g_VSCBuffer.viewportScale[0] = 1.0f / displayWidth;
+			g_VSCBuffer.viewportScale[1] = 1.0f / displayHeight;
+		} else {
+			g_VSCBuffer.viewportScale[0] =  2.0f / displayWidth;
+			g_VSCBuffer.viewportScale[1] = -2.0f / displayHeight;
+		}
 		g_VSCBuffer.viewportScale[2] = scale;
 		g_VSCBuffer.viewportScale[3] = g_fGlobalScale;
 		g_VSCBuffer.aspect_ratio = g_fAspectRatio;
@@ -2639,7 +2650,7 @@ HRESULT Direct3DDevice::Execute(
 					// For non-VR mode, send the original 2D vertices
 					//g_VSMatrixCB.projEye.identity();
 					//resources->InitVSConstantBufferMatrix(resources->_VSMatrixBuffer.GetAddressOf(), &g_VSMatrixCB);
-					resources->InitVertexBuffer(this->_vertexBuffer.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
+					//resources->InitVertexBuffer(this->_vertexBuffer.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
 
 					context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
 						resources->_depthStencilViewL.Get());

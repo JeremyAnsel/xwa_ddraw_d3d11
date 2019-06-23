@@ -27,6 +27,8 @@ extern float g_fMinPositionZ, g_fMaxPositionZ;
 extern Vector3 g_headCenter;
 extern bool g_bResetHeadCenter;
 extern vr::IVRSystem *g_pHMD;
+extern int g_iFreePIESlot;
+
 /*
  * Convert a rotation matrix to a normalized quaternion.
  * From: http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/
@@ -1381,8 +1383,7 @@ HRESULT PrimarySurface::Flip(
 				Matrix3 rotMatrix;
 				Vector3 pos;
 				Vector3 headPos;
-				Vector3 headPosFromKeyboard;
-				headPosFromKeyboard.set(g_HeadPos.x, g_HeadPos.y, g_HeadPos.z);
+				Vector3 headPosFromKeyboard(g_HeadPos.x, g_HeadPos.y, g_HeadPos.z);
 
 				GetSteamVRPositionalData(&yaw, &pitch, &roll, &x, &y, &z, &rotMatrix);
 				roll *= RAD_TO_DEG * g_fRollMultiplier;
@@ -1425,12 +1426,11 @@ HRESULT PrimarySurface::Flip(
 			else if (g_bEnableVR) { // DirectSBS mode, read the roll and position (?) from FreePIE
 				//float pitch, yaw, roll, pitchSign = -1.0f;
 				float roll;
-				Vector3 headPos(0,0,0);
-				Vector3 headPosFromKeyboard(g_HeadPos.x, g_HeadPos.y, g_HeadPos.z);
+				Vector4 headPos(0,0,0,1);
+				Vector3 headPosFromKeyboard(-g_HeadPos.x, g_HeadPos.y, -g_HeadPos.z);
 				
-
-				if (ReadFreePIE()) {
-					Vector3 pos(g_FreePIEData.x, g_FreePIEData.y, g_FreePIEData.z);
+				if (ReadFreePIE(g_iFreePIESlot)) {
+					Vector4 pos(g_FreePIEData.x, g_FreePIEData.y, g_FreePIEData.z, 1.0f);
 					//yaw = (g_FreePIEData.yaw + 180.0f) * g_fYawMultiplier;
 					//pitch = g_FreePIEData.pitch * g_fPitchMultiplier;
 					roll = g_fRollMultiplier * g_FreePIEData.roll;
@@ -1444,11 +1444,19 @@ HRESULT PrimarySurface::Flip(
 				// Limits clamping
 				if (headPos[0] < g_fMinPositionX) headPos[0] = g_fMinPositionX;
 				if (headPos[1] < g_fMinPositionY) headPos[1] = g_fMinPositionY;
-				if (headPos[2] < g_fMinPositionZ) headPos[2] = g_fMinPositionZ;
+				if (-headPos[2] < g_fMinPositionZ) headPos[2] = -g_fMinPositionZ;
 
 				if (headPos[0] > g_fMaxPositionX) headPos[0] = g_fMaxPositionX;
 				if (headPos[1] > g_fMaxPositionY) headPos[1] = g_fMaxPositionY;
-				if (headPos[2] > g_fMaxPositionZ) headPos[2] = g_fMaxPositionZ;
+				if (-headPos[2] > g_fMaxPositionZ) headPos[2] = -g_fMaxPositionZ;
+
+				Matrix4 rotMatrixYaw, rotMatrixPitch;
+				rotMatrixYaw.identity(); rotMatrixYaw.rotateY(-g_FreePIEData.yaw);
+				rotMatrixPitch.identity(); rotMatrixPitch.rotateX(g_FreePIEData.pitch);
+				rotMatrixYaw = rotMatrixPitch * rotMatrixYaw;
+				// Can we avoid computing the matrix inverse?
+				rotMatrixYaw.invert();
+				headPos = rotMatrixYaw * headPos;
 
 				g_viewMatrix.identity();
 				g_viewMatrix.rotateZ(roll);

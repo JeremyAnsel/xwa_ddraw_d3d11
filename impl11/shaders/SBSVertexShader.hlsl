@@ -30,37 +30,19 @@ struct PixelShaderInput
 	float2 tex : TEXCOORD;
 };
 
-//static float GAME_SCALE_FACTOR = 60.0;
-//static float GAME_SCALE_FACTOR_Z = 60.0;
 static float METRIC_SCALE_FACTOR = 25.0;
-//float C = 1.0f, Z_FAR = 1.0f;
-//static float LOG_K = 1.0;
-//static float g_fFocalDist = 0.5;
-//static float C = 8;
-//static float LOG_K = log(C * METRIC_SCALE_FACTOR * 65535);
-
-/*
-float3 back_project_exp(float3 p)
-{
-	float3 Q;
-	float invz = 1.0 - p.z;
-	Q.z = (exp(invz) - 1.0) / p.z;
-	Q.xy = Q.z * p.xy / g_fFocalDist;
-	Q *= GAME_SCALE_FACTOR;
-	//Q.z *= GAME_SCALE_FACTOR_Z;
-	return Q;
-}
-*/
 
 PixelShaderInput main(VertexShaderInput input)
 {
 	PixelShaderInput output;
 	float sz = input.pos.z;
 	float pz = 1.0 - sz;
-	//float metric_scale = METRIC_SCALE_FACTOR;
 	float w = 1.0 / input.pos.w;
 
 	float3 temp = input.pos.xyz;
+	// Normalize into the -0.5..0.5 range
+	temp.xy *= vpScale.xy;
+	temp.xy -= 0.5;
 	// Apply the scale in 2D coordinates before back-projecting. This is
 	// either g_fGlobalScale or g_fGUIElemScale (used to zoom-out the HUD
 	// so that it's readable)
