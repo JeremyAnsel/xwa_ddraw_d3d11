@@ -901,6 +901,42 @@ void PrimarySurface::barrelEffectSteamVR() {
 }
 
 /*
+ * I tried to create a custom mesh for the 2D present; but it introduced perspective
+ * distortion (why?)
+ */
+HRESULT PrimarySurface::buildSteamVRResizeMesh2D() {
+	HRESULT hr = S_OK;
+
+	// Top-left
+	// Top-right
+	// Bot-right
+	// Bot-left
+	MainVertex vertices[4] =
+	{
+		MainVertex(-1.4f, -1.3f, 0, 1),
+		MainVertex( 0.8f,    -1, 1, 1),
+		MainVertex( 0.8f,     1, 1, 0),
+		MainVertex(-1.4f,  1.3f, 0, 0),
+	};
+
+	D3D11_BUFFER_DESC vertexBufferDesc;
+	vertexBufferDesc.ByteWidth = sizeof(MainVertex) * ARRAYSIZE(vertices);
+	vertexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	vertexBufferDesc.CPUAccessFlags = 0;
+	vertexBufferDesc.MiscFlags = 0;
+	vertexBufferDesc.StructureByteStride = 0;
+
+	D3D11_SUBRESOURCE_DATA vertexBufferData;
+	vertexBufferData.pSysMem = vertices;
+	vertexBufferData.SysMemPitch = 0;
+	vertexBufferData.SysMemSlicePitch = 0;
+
+	return _deviceResources->_d3dDevice->CreateBuffer(&vertexBufferDesc,
+		&vertexBufferData, &this->_deviceResources->_steamVRPresentVertexBuffer);
+}
+
+/*
  * When rendering for SteamVR, we're usually rendering at half the width; but the Present is done
  * at full resolution, so we need to resize the offscreenBuffer before presenting it.
  * Input: _offscreenBuffer
@@ -919,6 +955,18 @@ void PrimarySurface::resizeForSteamVR(int iteration, bool is_2D) {
 	auto& device = resources->_d3dDevice;
 	auto& context = resources->_d3dDeviceContext;
 
+	/*
+	if (resources->_steamVRPresentVertexBuffer == NULL) {
+		HRESULT hr = buildSteamVRResizeMesh2D();
+		if (FAILED(hr)) {
+			log_debug("[DBG] SteamVR resize mesh failed, using default _mainVertexBuffer instead");
+			resources->_steamVRPresentVertexBuffer = resources->_mainVertexBuffer;
+		}
+		else
+			log_debug("[DBG] Using custom resize mesh");
+	}
+	*/
+
 	float screen_res_x = (float)g_FullScreenWidth;
 	float screen_res_y = (float)g_FullScreenHeight;
 	float bgColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -927,6 +975,7 @@ void PrimarySurface::resizeForSteamVR(int iteration, bool is_2D) {
 	UINT stride = sizeof(MainVertex);
 	UINT offset = 0;
 	resources->InitVertexBuffer(resources->_mainVertexBuffer.GetAddressOf(), &stride, &offset);
+	//resources->InitVertexBuffer(resources->_steamVRPresentVertexBuffer.GetAddressOf(), &stride, &offset);
 	resources->InitIndexBuffer(resources->_mainIndexBuffer);
 
 	// Set Primitive Topology
@@ -1427,7 +1476,9 @@ HRESULT PrimarySurface::Flip(
 				//float pitch, yaw, roll, pitchSign = -1.0f;
 				float roll;
 				Vector4 headPos(0,0,0,1);
-				Vector3 headPosFromKeyboard(-g_HeadPos.x, g_HeadPos.y, -g_HeadPos.z);
+				//Vector3 headPosFromKeyboard(0, 0, 0);
+				Vector3 headPosFromKeyboard(g_HeadPos.x, g_HeadPos.y, g_HeadPos.z);
+				//Vector3 headPosFromKeyboard(-g_HeadPos.x, g_HeadPos.y, -g_HeadPos.z);
 				
 				if (ReadFreePIE(g_iFreePIESlot)) {
 					Vector4 pos(g_FreePIEData.x, g_FreePIEData.y, g_FreePIEData.z, 1.0f);
@@ -1444,14 +1495,17 @@ HRESULT PrimarySurface::Flip(
 				// Limits clamping
 				if (headPos[0] < g_fMinPositionX) headPos[0] = g_fMinPositionX;
 				if (headPos[1] < g_fMinPositionY) headPos[1] = g_fMinPositionY;
-				if (-headPos[2] < g_fMinPositionZ) headPos[2] = -g_fMinPositionZ;
+				if (headPos[2] < g_fMinPositionZ) headPos[2] = g_fMinPositionZ;
+				//if (-headPos[2] < g_fMinPositionZ) headPos[2] = -g_fMinPositionZ;
 
 				if (headPos[0] > g_fMaxPositionX) headPos[0] = g_fMaxPositionX;
 				if (headPos[1] > g_fMaxPositionY) headPos[1] = g_fMaxPositionY;
-				if (-headPos[2] > g_fMaxPositionZ) headPos[2] = -g_fMaxPositionZ;
+				if (headPos[2] > g_fMaxPositionZ) headPos[2] = g_fMaxPositionZ;
+				//if (-headPos[2] > g_fMaxPositionZ) headPos[2] = -g_fMaxPositionZ;
 
 				Matrix4 rotMatrixYaw, rotMatrixPitch;
-				rotMatrixYaw.identity(); rotMatrixYaw.rotateY(-g_FreePIEData.yaw);
+				rotMatrixYaw.identity(); rotMatrixYaw.rotateY(g_FreePIEData.yaw);
+				//rotMatrixYaw.identity(); rotMatrixYaw.rotateY(-g_FreePIEData.yaw);
 				rotMatrixPitch.identity(); rotMatrixPitch.rotateX(g_FreePIEData.pitch);
 				rotMatrixYaw = rotMatrixPitch * rotMatrixYaw;
 				// Can we avoid computing the matrix inverse?
@@ -1466,7 +1520,7 @@ HRESULT PrimarySurface::Flip(
 				g_VSMatrixCB.viewMat = g_viewMatrix;
 			}
 
-//#ifdef DBG_VR
+#ifdef DBG_VR
 			if (g_bStart3DCapture && !g_bDo3DCapture) {
 				g_bDo3DCapture = true;
 			}
@@ -1476,7 +1530,7 @@ HRESULT PrimarySurface::Flip(
 				fclose(g_HackFile);
 				g_HackFile = NULL;
 			}
-//#endif
+#endif
 
 			if (g_bUseSteamVR) {
 				//if (!g_pHMD->GetTimeSinceLastVsync(&seconds, &frame))

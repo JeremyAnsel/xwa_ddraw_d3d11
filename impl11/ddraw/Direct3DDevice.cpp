@@ -325,9 +325,7 @@ int g_iPresentCounter = 0, g_iNonZBufferCounter = 0, g_iSkipNonZBufferDrawIdx = 
 // It's reset to false every time the backbuffer is swapped.
 //bool g_bGUIIsRendered = false;
 float g_fZBracketOverride = 65530.0f; // 65535 is probably the maximum Z value in XWA
-//float g_fZOverride = 0.95f;
-//float g_fZFloatingOffset = 0.97f;
-//float g_fZFloatingOffset = 0.0f;
+extern bool g_bRendering3D; // Used to distinguish between 2D (Concourse/Menus) and 3D rendering (main in-flight game)
 
 // g_fZOverride is activated when it's greater than -0.9f, and it's used for bracket rendering so that 
 // objects cover the brackets. In this way, we avoid visual contention from the brackets.
@@ -1211,6 +1209,52 @@ void TestPimax() {
 	g_projRight = HmdMatrix44toMatrix4(projRight);
 }
 
+void Test2DMesh() {
+	/*
+	MainVertex vertices[4] =
+	{
+		MainVertex(-1, -1, 0, 1),
+		MainVertex(1, -1, 1, 1),
+		MainVertex(1,  1, 1, 0),
+		MainVertex(-1,  1, 0, 0),
+	};
+	*/
+	Matrix4 fullMatrixLeft = g_fullMatrixLeft;
+	//fullMatrixLeft.invertGeneral();
+	Vector4 P, Q;
+
+	P.set(-12, -12, -30, 0);
+	Q = fullMatrixLeft * P;
+	Q = Q / Q[3];
+	log_debug("[DBG] (%0.3f, %0.3f) --> (%0.3f, %0.3f)", P[0], P[1], Q[0], Q[1]);
+
+	P.set(12, -12, -30, 0);
+	Q = fullMatrixLeft * P;
+	Q = Q / Q[3];
+	log_debug("[DBG] (%0.3f, %0.3f) --> (%0.3f, %0.3f)", P[0], P[1], Q[0], Q[1]);
+
+	P.set(-12, 12, -30, 0);
+	Q = fullMatrixLeft * P;
+	Q = Q / Q[3];
+	log_debug("[DBG] (%0.3f, %0.3f) --> (%0.3f, %0.3f)", P[0], P[1], Q[0], Q[1]);
+
+	P.set(12, 12, -30, 0);
+	Q = fullMatrixLeft * P;
+	Q = Q / Q[3];
+	log_debug("[DBG] (%0.3f, %0.3f) --> (%0.3f, %0.3f)", P[0], P[1], Q[0], Q[1]);
+}
+
+struct MainVertex
+{
+	float pos[2];
+	float tex[2];
+	MainVertex() {}
+	MainVertex(float x, float y, float tx, float ty) {
+		pos[0] = x; pos[1] = y;
+		tex[0] = tx; tex[1] = ty;
+	}
+};
+
 bool InitSteamVR()
 {
 	char *strDriver = NULL;
@@ -1300,6 +1344,8 @@ bool InitSteamVR()
 	g_fullMatrixLeft  = g_projLeft  * g_EyeMatrixLeftInv;
 	g_fullMatrixRight = g_projRight * g_EyeMatrixRightInv;
 	g_fullMatrixHead = g_projHead * g_targetCompView; // The center matrix does not have eye parallax
+
+	//Test2DMesh();
 
 	ShowMatrix4(g_EyeMatrixLeftInv, "g_EyeMatrixLeftInv");
 	ShowMatrix4(g_projLeft, "g_projLeft");
@@ -1975,33 +2021,6 @@ HRESULT Direct3DDevice::GetStats(
 	return DDERR_UNSUPPORTED;
 }
 
-/*
-void DeleteStereoVertices() {
-	if (g_OrigVerts != NULL) {
-		delete[] g_OrigVerts;
-		g_OrigVerts = NULL;
-	}
-	if (g_3DVerts != NULL) {
-		delete[] g_3DVerts;
-		g_3DVerts = NULL;
-	}
-}
-*/
-
-/*
-void ResizeStereoVertices(int numVerts) {
-	// Only resize if we need more space, otherwise ignore.
-	if (numVerts <= g_iNumVertices)
-		return;
-
-	g_iNumVertices = numVerts + 256; // Add more elements than we need, this prevents resizing too often.
-	DeleteStereoVertices();
-
-	g_OrigVerts = new D3DTLVERTEX[g_iNumVertices];
-	g_3DVerts = new D3DTLVERTEX[g_iNumVertices];
-}
-*/
-
 #ifdef DBG_VR
 void DumpOrigVertices(FILE *file, int numVerts)
 {
@@ -2217,7 +2236,7 @@ HRESULT Direct3DDevice::Execute(
 	bool bModifiedShaders = false, bZWriteEnabled = false;
 
 	g_VSCBuffer = { 0 };
-	g_VSCBuffer.aspect_ratio = g_fAspectRatio;
+	g_VSCBuffer.aspect_ratio = g_bRendering3D ? g_fAspectRatio : g_fConcourseAspectRatio;
 	g_VSCBuffer.z_override = -1.0f;
 	g_VSCBuffer.sz_override = -1.0f;
 	g_VSCBuffer.mult_z_override = -1.0f;
@@ -2349,7 +2368,8 @@ HRESULT Direct3DDevice::Execute(
 		}
 		g_VSCBuffer.viewportScale[2] = scale;
 		g_VSCBuffer.viewportScale[3] = g_fGlobalScale;
-		g_VSCBuffer.aspect_ratio = g_fAspectRatio;
+		// If we're rendering to the Tech Library, then we should use the Concourse Aspect Ratio
+		g_VSCBuffer.aspect_ratio = g_bRendering3D ? g_fAspectRatio : g_fConcourseAspectRatio;
 		g_VSCBuffer.cockpit_threshold = g_fCockpitPZThreshold;
 		g_VSCBuffer.z_override = -1.0f;
 		g_VSCBuffer.sz_override = -1.0f;

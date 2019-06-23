@@ -47,6 +47,8 @@ public:
 
 	void barrelEffectSteamVR();
 
+	HRESULT buildSteamVRResizeMesh2D();
+
 	void capture(int time_delay, ComPtr<ID3D11Texture2D> buffer, const wchar_t *filename);
 
 	STDMETHOD(Flip)(THIS_ LPDIRECTDRAWSURFACE, DWORD);

@@ -66,8 +66,7 @@ void ShutdownFreePIE() {
 
 bool ReadFreePIE(int slot) {
 	// Check how many slots (values) the current FreePIE implementation provides.
-	// TODO: Expand to 6 slots once positional tracking has been enabled.
-	int error = freepie_io_6dof_read(slot, 3, &g_FreePIEData);
+	int error = freepie_io_6dof_read(slot, 1, &g_FreePIEData);
 	if (error < 0) {
 		log_debug("FreePIE error: %d", error);
 		return false;

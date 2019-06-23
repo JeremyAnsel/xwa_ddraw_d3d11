@@ -804,6 +804,7 @@ HRESULT DeviceResources::LoadMainResources()
 
 	if (FAILED(hr = this->_d3dDevice->CreateBuffer(&vertexBufferDesc, &vertexBufferData, &this->_mainVertexBuffer)))
 		return hr;
+	this->_steamVRPresentBuffer = NULL;
 
 	WORD indices[6] =
 	{

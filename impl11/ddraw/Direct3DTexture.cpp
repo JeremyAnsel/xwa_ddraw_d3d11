@@ -532,13 +532,21 @@ HRESULT Direct3DTexture::Load(
 		}
 	}
 	else if (surface->_mipmapCount > 1) {
-		if (surface->_width == 128) {
-			unsigned int size = surface->_width * surface->_height * (useBuffers ? 4 : bpp);
+		// Check the surface with the smallest resolution
+		int width = surface->_width;
+		int height = surface->_height;
+		//int divisor = 1 << (surface->_mipmapCount - 2);
+		//log_debug("[DBG] Mimaps: %d, size: (%d, %d)", surface->_mipmapCount, width, height);
+		width /= 2;
+		height /= 2;
+		//log_debug("[DBG] new size: (%d, %d)", width, height);
+		if (width == 128) {
+			unsigned int size = width * height * (useBuffers ? 4 : bpp);
 
 			// Compute the CRC
-			this->crc = crc32c(0, (const unsigned char *)textureData[0].pSysMem, size);
+			this->crc = crc32c(0, (const unsigned char *)textureData[1].pSysMem, size);
 			if (this->crc == COCKPIT_TARGETING_COMP_CRC_LO_RES) {
-				//log_debug("[DBG] FOUND TARGETING COMPUTER TEXTURE");
+				log_debug("[DBG] ***** FOUND TARGETING COMPUTER TEXTURE");
 				this->is_CockpitTargetingComp = true;
 			}
 		}
