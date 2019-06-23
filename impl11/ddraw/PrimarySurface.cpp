@@ -1243,7 +1243,7 @@ HRESULT PrimarySurface::Flip(
 			/* Present Concourse, ESC Screen Menu */
 			if (this->_deviceResources->_swapChain)
 			{
-				UINT rate = 90 * this->_deviceResources->_refreshRate.Denominator;
+				UINT rate = 25 * this->_deviceResources->_refreshRate.Denominator;
 				UINT numerator = this->_deviceResources->_refreshRate.Numerator + this->_flipFrames;
 
 				UINT interval = numerator / rate;
@@ -1477,7 +1477,7 @@ HRESULT PrimarySurface::Flip(
 				float roll;
 				Vector4 headPos(0,0,0,1);
 				//Vector3 headPosFromKeyboard(0, 0, 0);
-				Vector3 headPosFromKeyboard(g_HeadPos.x, g_HeadPos.y, g_HeadPos.z);
+				Vector3 headPosFromKeyboard(g_HeadPos.x, g_HeadPos.y, g_HeadPos.z); // Regular keyboard functionality
 				//Vector3 headPosFromKeyboard(-g_HeadPos.x, g_HeadPos.y, -g_HeadPos.z);
 				
 				if (ReadFreePIE(g_iFreePIESlot)) {
