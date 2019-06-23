@@ -12,10 +12,10 @@
 #include <stdio.h>
 #include <vector>
 
-extern bool g_bFixSkyBox, g_bSkipGUI, g_bSkipText, g_bSkipSkyBox;
-bool g_bCapture2DOffscreenBuffer = false;
 #ifdef DBG_VR
+extern bool g_bFixSkyBox, g_bSkipGUI, g_bSkipText, g_bSkipSkyBox;
 extern bool g_bDo3DCapture, g_bStart3DCapture;
+bool g_bCapture2DOffscreenBuffer = false;
 bool g_bDumpDebug = false;
 
 //extern bool g_bDumpSpecificTex;
@@ -27,11 +27,12 @@ void IncreaseNoDrawAfterIndex(int Delta);
 //void IncreaseZOverride(float Delta);
 void IncreaseSkipNonZBufferDrawIdx(int Delta);
 void IncreaseSkyBoxIndex(int Delta);
-#endif
 void IncreaseFocalDist(float Delta);
+#endif
 
-extern bool g_bDisableBarrelEffect, g_bEnableVR;
+extern bool g_bDisableBarrelEffect, g_bEnableVR, g_bResetHeadCenter;
 extern bool g_bLeftKeyDown, g_bRightKeyDown, g_bUpKeyDown, g_bDownKeyDown, g_bUpKeyDownShift, g_bDownKeyDownShift;
+extern bool g_bDirectSBSInitialized, g_bSteamVRInitialized;
 HWND ThisWindow = 0;
 WNDPROC OldWindowProc = 0;
 
@@ -53,6 +54,9 @@ void IncreaseSkipNonZBufferDrawIdx(int Delta);
 // Lens distortion
 void IncreaseLensK1(float Delta);
 void IncreaseLensK2(float Delta);
+
+bool InitDirectSBS();
+bool ShutDownDirectSBS();
 
 // SteamVR
 #include <headers/openvr.h>
@@ -85,17 +89,13 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 				return 0;
 
 			case VK_RIGHT:
-				IncreaseFocalDist(0.1f);
 				return 0;
 			case VK_LEFT:
-				IncreaseFocalDist(-0.1f);
 				return 0;
 
-			case VK_UP: // Delta is in cms
-				IncreaseIPD(0.1f);
+			case VK_UP:
 				return 0;
 			case VK_DOWN:
-				IncreaseIPD(-0.1f);
 				return 0;
 			}
 		}
@@ -103,12 +103,14 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 		// Ctrl + Alt
 		if (AltKey && CtrlKey && !ShiftKey) {
 			switch (wParam) {
+
 #if DBG_VR
 			case 'C':
 				log_debug("[DBG] Capture 3D");
 				//g_bDo3DCapture = true;
 				g_bStart3DCapture = true;
 				return 0;
+
 			case 'D':
 				// Force a refresh of the display width
 				g_bDisplayWidth = true;
@@ -153,7 +155,13 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 				return 0;
 
 			case 'V':
-				g_bEnableVR = !g_bEnableVR;
+				// We can't just switch to VR mode if the game was started with no VR support
+				if (!g_bEnableVR) {
+					if (g_bSteamVRInitialized || g_bDirectSBSInitialized)
+						g_bEnableVR = true;
+				} else { // VR mode can always be disabled
+					g_bEnableVR = !g_bEnableVR;
+				}
 				return 0;
 
 			case 'S':
@@ -225,10 +233,10 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 #endif
 
 			case VK_RIGHT:
-				IncreaseSkipNonZBufferDrawIdx(1);
+				//IncreaseSkipNonZBufferDrawIdx(1);
 				return 0;
 			case VK_LEFT:
-				IncreaseSkipNonZBufferDrawIdx(-1);
+				//IncreaseSkipNonZBufferDrawIdx(-1);
 				return 0;
 
 			}
@@ -249,16 +257,16 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 #endif
 
 			case VK_UP:
-				IncreaseFloatingGUIParallax(3.0f);
+				IncreaseFloatingGUIParallax(0.05f);
 				return 0;
 			case VK_DOWN:
-				IncreaseFloatingGUIParallax(-3.0f);
+				IncreaseFloatingGUIParallax(-0.05f);
 				return 0;
 			case VK_LEFT:
-				IncreaseTextParallax(-3.0f);
+				IncreaseTextParallax(-0.05f);
 				return 0;
 			case VK_RIGHT:
-				IncreaseTextParallax(3.0f);
+				IncreaseTextParallax(0.05f);
 				return 0;
 			}
 		}
@@ -267,10 +275,10 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 		if (ShiftKey && !AltKey && !CtrlKey) {
 			switch (wParam) {
 			case VK_LEFT:
-				IncreaseHUDParallax(-3.0f);
+				IncreaseHUDParallax(-0.1f);
 				return 0;
 			case VK_RIGHT:
-				IncreaseHUDParallax(3.0f);
+				IncreaseHUDParallax(0.1f);
 				return 0;
 
 			case VK_UP:
@@ -303,8 +311,10 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 				g_bDownKeyDownShift = false;
 				return 0;
 			case VK_OEM_PERIOD:
-				if (g_bUseSteamVR)
+				if (g_bUseSteamVR) {
 					g_pHMD->ResetSeatedZeroPose();
+					g_bResetHeadCenter = true;
+				}
 				break;
 			}
 		}
@@ -381,6 +391,11 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 			// Do not attempt initalization again, no matter what happened
 			g_bSteamVRInitialized = true;
 		}
+		else if (g_bEnableVR && !g_bUseSteamVR) {
+			log_debug("[DBG] Initializing DirectSBS mode");
+			InitDirectSBS();
+			g_bDirectSBSInitialized = true;
+		}
 		break;
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
@@ -388,6 +403,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	case DLL_PROCESS_DETACH:
 		if (g_bUseSteamVR)
 			ShutDownSteamVR();
+		else if (g_bEnableVR)
+			ShutDownDirectSBS();
 		break;
 	}
 

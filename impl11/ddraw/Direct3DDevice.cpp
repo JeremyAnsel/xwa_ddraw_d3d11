@@ -5,6 +5,141 @@
 // Shaders by Marty McFly (used with permission from the author)
 // https://github.com/martymcmodding/qUINT/tree/master/Shaders
 
+/*
+
+Chimpsky: (0.9.7)
+
+Driver: oculus
+Display: WMHD314A300N88
+
+eyeLeft:
+1.000000, 0.000000, 0.000000, -0.034100
+0.000000, 1.000000, 0.000000, 0.000000
+0.000000, 0.000000, 1.000000, 0.000000
+
+eyeRight:
+1.000000, 0.000000, 0.000000, -0.034100 (my mistake, I was writting the left matrix to disk twice)
+0.000000, 1.000000, 0.000000, 0.000000
+0.000000, 0.000000, 1.000000, 0.000000
+
+projLeft:
+1.190342, 0.000000, -0.148592, 0.000000
+0.000000, 0.999788, -0.110690, 0.000000
+0.000000, 0.000000, -1.000000, -0.001000
+0.000000, 0.000000, -1.000000, 0.000000
+
+projRight:
+1.190342, 0.000000, 0.148592, 0.000000
+0.000000, 0.999788, -0.110690, 0.000000
+0.000000, 0.000000, -1.000000, -0.001000
+0.000000, 0.000000, -1.000000, 0.000000
+
+Raw data (Left eye):
+Left: -0.964926, Right: 0.715264, Top: -1.110925, Bottom: 0.889498
+Raw data (Right eye):
+Left: -0.715264, Right: 0.964926, Top: -1.110925, Bottom: 0.889498
+
+
+Trevor: (0.9.6)
+
+Driver: oculus
+Display: 20B06R03EVHM
+
+eyeLeft:
+1.000000, 0.000000, 0.000000, -0.031750
+0.000000, 1.000000, 0.000000, 0.000000
+0.000000, 0.000000, 1.000000, 0.000000
+
+eyeRight:
+1.000000, 0.000000, 0.000000, 0.031750
+0.000000, 1.000000, 0.000000, 0.000000
+0.000000, 0.000000, 1.000000, 0.000000
+
+projLeft:
+0.929789, 0.000000, 0.015672, 0.000000
+0.000000, 0.750974, 0.000000, 0.000000
+0.000000, 0.000000, -1.010101, -0.505050
+0.000000, 0.000000, -1.000000, 0.000000
+
+projRight:
+0.929789, 0.000000, -0.015672, 0.000000
+0.000000, 0.750974, 0.000000, 0.000000
+0.000000, 0.000000, -1.010101, -0.505050
+0.000000, 0.000000, -1.000000, 0.000000
+
+Raw data (Left eye):
+Left: -1.058658, Right: 1.092368, Top: -1.331603, Bottom: 1.331603
+Raw data (Right eye):
+Left: -1.092368, Right: 1.058658, Top: -1.331603, Bottom: 1.331603
+
+
+FullBody:
+
+Driver: lighthouse
+Display: LHR-3395DDAF
+
+eyeLeft:
+1.000000, 0.000000, 0.000000, -0.033050
+0.000000, 1.000000, 0.000000, 0.000000
+0.000000, 0.000000, 1.000000, 0.015000
+
+eyeRight:
+1.000000, 0.000000, 0.000000, 0.033050
+0.000000, 1.000000, 0.000000, 0.000000
+0.000000, 0.000000, 1.000000, 0.015000
+
+projLeft:
+0.756668, 0.000000, -0.056751, 0.000000
+0.000000, 0.681272, -0.001673, 0.000000
+0.000000, 0.000000, -1.010101, -0.505050
+0.000000, 0.000000, -1.000000, 0.000000
+
+projRight:
+0.757176, 0.000000, 0.056972, 0.000000
+0.000000, 0.681598, -0.005991, 0.000000
+0.000000, 0.000000, -1.010101, -0.505050
+0.000000, 0.000000, -1.000000, 0.000000
+
+Raw data (Left eye):
+Left: -1.396584, Right: 1.246583, Top: -1.470297, Bottom: 1.465387
+Raw data (Right eye):
+Left: -1.245455, Right: 1.395940, Top: -1.475930, Bottom: 1.458352
+
+
+Chee:
+
+Driver: aapvr
+Display: Pimax 5K Plus
+
+eyeLeft:
+0.984808, 0.000000, 0.173648, -0.033236
+0.000000, 1.000000, 0.000000, 0.000000
+-0.173648, 0.000000, 0.984808, 0.000000
+
+eyeRight:
+0.984808, -0.000000, -0.173648, 0.033236
+0.000000, 1.000000, -0.000000, 0.000000
+0.173648, 0.000000, 0.984808, 0.000000
+
+projLeft:
+0.647594, 0.000000, -0.128239, 0.000000
+0.000000, 0.787500, 0.000000, 0.000000
+0.000000, 0.000000, -1.010101, -0.505050
+0.000000, 0.000000, -1.000000, 0.000000
+
+projRight:
+0.647594, 0.000000, 0.128239, 0.000000
+0.000000, 0.787500, 0.000000, 0.000000
+0.000000, 0.000000, -1.010101, -0.505050
+0.000000, 0.000000, -1.000000, 0.000000
+
+Raw data (Left eye):
+Left: -1.742203, Right: 1.346154, Top: -1.269841, Bottom: 1.269841
+Raw data (Right eye):
+Left: -1.346154, Right: 1.742203, Top: -1.269841, Bottom: 1.269841
+
+*/
+
 #include "common.h"
 #include "DeviceResources.h"
 #include "Direct3DDevice.h"
@@ -17,43 +152,74 @@
 #include <wincodec.h>
 #include <vector>
 
+#include "FreePIE.h"
 #include <headers/openvr.h>
+#include "Matrices.h"
 
 #define DBG_MAX_PRESENT_LOGS 0
 
 FILE *g_HackFile = NULL;
 
 const float DEFAULT_FOCAL_DIST = 0.5f;
-const float DEFAULT_FOCAL_DIST_STEAMVR = 0.6f;
-const float DEFAULT_IPD = 6.5f;
+//const float DEFAULT_FOCAL_DIST_STEAMVR = 0.6f;
+const float DEFAULT_IPD = 6.5f; // Ignored in SteamVR mode.
+/*
 const float DEFAULT_HUD_PARALLAX = 12.5f;
 const float DEFAULT_TEXT_PARALLAX = 40.0f;
 const float DEFAULT_FLOATING_GUI_PARALLAX = 34.5f;
-const float DEFAULT_TECH_LIB_PARALLAX = 0.05f;
 const float DEFAULT_FLOATING_OBJ_PARALLAX = 3.0f;
+*/
+const float DEFAULT_HUD_PARALLAX = 1.7f;
+const float DEFAULT_TEXT_PARALLAX = 0.45f;
+const float DEFAULT_FLOATING_GUI_PARALLAX = 0.495f;
+const float DEFAULT_FLOATING_OBJ_PARALLAX = -0.025f;
+
+const float DEFAULT_TECH_LIB_PARALLAX = -2.0f;
 const float DEFAULT_GUI_ELEM_SCALE = 0.75f;
 const float DEFAULT_GUI_ELEM_PZ_THRESHOLD = 0.0008f;
-const float DEFAULT_ZOOM_OUT_SCALE = 0.8f;
-const float DEFAULT_ASPECT_RATIO = 1.33f;
-const float DEFAULT_CONCOURSE_SCALE = 0.4f;
-const float DEFAULT_CONCOURSE_ASPECT_RATIO = 2.0f; // Default for non-SteamVR
-const float DEFAULT_GLOBAL_SCALE = 1.75f;
+const float DEFAULT_ZOOM_OUT_SCALE = 1.0f;
+const bool DEFAULT_ZOOM_OUT_INITIAL_STATE = false;
+//const float DEFAULT_ASPECT_RATIO = 1.33f;
+const float DEFAULT_ASPECT_RATIO = 1.25f;
+//const float DEFAULT_CONCOURSE_SCALE = 0.4f;
+const float DEFAULT_CONCOURSE_SCALE = 12.0f;
+//const float DEFAULT_CONCOURSE_ASPECT_RATIO = 2.0f; // Default for non-SteamVR
+const float DEFAULT_CONCOURSE_ASPECT_RATIO = 1.33f; // Default for non-SteamVR
+const float DEFAULT_GLOBAL_SCALE = 1.8f;
 //const float DEFAULT_GLOBAL_SCALE_STEAMVR = 1.4f;
 const float DEFAULT_LENS_K1 = 2.0f;
 const float DEFAULT_LENS_K2 = 0.22f;
 const float DEFAULT_LENS_K3 = 0.0f;
-const float DEFAULT_COCKPIT_PZ_THRESHOLD = 0.166f; // I used 0.13f for a long time until I jumped on a TIE-Interceptor
+//const float DEFAULT_COCKPIT_PZ_THRESHOLD = 0.166f; // I used 0.13f for a long time until I jumped on a TIE-Interceptor
+const float DEFAULT_COCKPIT_PZ_THRESHOLD = 10.0f; // De-activated
 const int DEFAULT_SKYBOX_INDEX = 2;
 const bool DEFAULT_INTERLEAVED_REPROJECTION = false;
 const bool DEFAULT_BARREL_EFFECT_STATE = true;
 const bool DEFAULT_BARREL_EFFECT_STATE_STEAMVR = false; // SteamVR provides its own lens correction, only enable it if the user really wants it
 const float DEFAULT_BRIGHTNESS = 0.95f;
+const bool DEFAULT_INVERSE_TRANSPOSE = false;
 const float MAX_BRIGHTNESS = 1.0f;
+const bool DEFAULT_FLOATING_AIMING_HUD = true;
+const bool DEFAULT_NATURAL_CONCOURSE_ANIM = true;
+const bool DEFAULT_DYNAMIC_TARGET_COMP = false;
+// 6dof
+const int DEFAULT_FREEPIE_SLOT = 0;
+const float DEFAULT_ROLL_MULTIPLIER =  -1.0f;
+const float DEFAULT_POS_X_MULTIPLIER =  1.0f;
+const float DEFAULT_POS_Y_MULTIPLIER =  1.0f;
+const float DEFAULT_POS_Z_MULTIPLIER = -1.0f;
+const float DEFAULT_MIN_POS_X = -0.25f;
+const float DEFAULT_MAX_POS_X =  0.25f;
+const float DEFAULT_MIN_POS_Y = -0.15f;
+const float DEFAULT_MAX_POS_Y =  0.5f;
+const float DEFAULT_MIN_POS_Z = -0.15f;
+const float DEFAULT_MAX_POS_Z =  0.75f;
 
 const char *FOCAL_DIST_VRPARAM = "focal_dist";
 const char *STEREOSCOPY_STRENGTH_VRPARAM = "IPD";
 const char *SIZE_3D_WINDOW_VRPARAM = "3d_window_size";
 const char *SIZE_3D_WINDOW_ZOOM_OUT_VRPARAM = "3d_window_zoom_out_size";
+const char *WINDOW_ZOOM_OUT_INITIAL_STATE_VRPARAM = "zoomed_out_on_startup";
 const char *CONCOURSE_WINDOW_SCALE_VRPARAM = "concourse_window_scale";
 const char *COCKPIT_Z_THRESHOLD_VRPARAM = "cockpit_z_threshold";
 const char *ASPECT_RATIO_VRPARAM = "3d_aspect_ratio";
@@ -61,11 +227,11 @@ const char *CONCOURSE_ASPECT_RATIO_VRPARAM = "concourse_aspect_ratio";
 const char *K1_VRPARAM = "k1";
 const char *K2_VRPARAM = "k2";
 const char *K3_VRPARAM = "k3";
-const char *HUD_PARALLAX_VRPARAM = "HUD_parallax";
-const char *GUI_PARALLAX_VRPARAM = "GUI_parallax";
-const char *GUI_OBJ_PARALLAX_VRPARAM = "GUI_target_parallax";
-const char *TEXT_PARALLAX_VRPARAM = "Text_parallax";
-const char *TECH_LIB_PARALLAX_VRPARAM = "Tech_Library_parallax";
+const char *HUD_PARALLAX_VRPARAM = "HUD_depth";
+const char *GUI_PARALLAX_VRPARAM = "GUI_depth";
+const char *GUI_OBJ_PARALLAX_VRPARAM = "GUI_target_relative_depth";
+const char *TEXT_PARALLAX_VRPARAM = "Text_depth";
+const char *TECH_LIB_PARALLAX_VRPARAM = "Tech_Library_relative_depth";
 const char *BRIGHTNESS_VRPARAM = "brightness";
 const char *VR_MODE_VRPARAM = "VR_Mode"; // Select "None", "DirectSBS" or "SteamVR"
 const char *VR_MODE_NONE_SVAL = "None";
@@ -73,6 +239,22 @@ const char *VR_MODE_DIRECT_SBS_SVAL = "DirectSBS";
 const char *VR_MODE_STEAMVR_SVAL = "SteamVR";
 const char *INTERLEAVED_REPROJ_VRPARAM = "SteamVR_Interleaved_Reprojection";
 const char *BARREL_EFFECT_STATE_VRPARAM = "apply_lens_correction";
+const char *INVERSE_TRANSPOSE_VRPARAM = "alternate_steamvr_eye_inverse";
+const char *FLOATING_AIMING_HUD_VRPARAM = "floating_aiming_HUD";
+const char *NATURAL_CONCOURSE_ANIM_VRPARAM = "concourse_animations_at_25fps";
+const char *DYNAMIC_COCKPIT_TARGET_COMP_VRPARAM = "dynamic_cockpit_enabled";
+// 6dof vrparams
+const char *FREEPIE_SLOT_VRPARAM = "freepie_slot";
+const char *ROLL_MULTIPLIER_VRPARAM = "roll_multiplier";
+const char *POS_X_MULTIPLIER_VRPARAM = "positional_x_multiplier";
+const char *POS_Y_MULTIPLIER_VRPARAM = "positional_y_multiplier";
+const char *POS_Z_MULTIPLIER_VRPARAM = "positional_z_multiplier";
+const char *MIN_POSITIONAL_X_VRPARAM = "min_positional_track_x";
+const char *MAX_POSITIONAL_X_VRPARAM = "max_positional_track_x";
+const char *MIN_POSITIONAL_Y_VRPARAM = "min_positional_track_y";
+const char *MAX_POSITIONAL_Y_VRPARAM = "max_positional_track_y";
+const char *MIN_POSITIONAL_Z_VRPARAM = "min_positional_track_z";
+const char *MAX_POSITIONAL_Z_VRPARAM = "max_positional_track_z";
 
 /*
 typedef enum {
@@ -93,10 +275,29 @@ bool g_bSteamVREnabled = false; // The user sets this flag to true to request su
 bool g_bSteamVRInitialized = false; // The system will set this flag after SteamVR has been initialized
 bool g_bUseSteamVR = false; // The system will set this flag if the user requested SteamVR and SteamVR was initialized properly
 bool g_bInterleavedReprojection = DEFAULT_INTERLEAVED_REPROJECTION;
+bool g_bInverseTranspose = DEFAULT_INVERSE_TRANSPOSE; // Transpose the eye matrices before computing the inverse
+bool g_bResetHeadCenter = true; // Reset the head center on startup
+vr::HmdMatrix34_t g_EyeMatrixLeft, g_EyeMatrixRight;
+Matrix4 g_EyeMatrixLeftInv, g_EyeMatrixRightInv;
+Matrix4 g_projLeft, g_projRight, g_projHead;
+Matrix4 g_fullMatrixLeft, g_fullMatrixRight, g_fullMatrixHead;
+Matrix4 g_viewMatrix;
+bool g_bNaturalConcourseAnimations = DEFAULT_NATURAL_CONCOURSE_ANIM;
+bool g_bDynamicCockpit = DEFAULT_DYNAMIC_TARGET_COMP;
+float g_fRollMultiplier = DEFAULT_ROLL_MULTIPLIER;
+float g_fPosXMultiplier = DEFAULT_POS_X_MULTIPLIER;
+float g_fPosYMultiplier = DEFAULT_POS_Y_MULTIPLIER;
+float g_fPosZMultiplier = DEFAULT_POS_Z_MULTIPLIER;
+float g_fMinPositionX = DEFAULT_MIN_POS_X, g_fMaxPositionX = DEFAULT_MAX_POS_X;
+float g_fMinPositionY = DEFAULT_MIN_POS_Y, g_fMaxPositionY = DEFAULT_MAX_POS_Y;
+float g_fMinPositionZ = DEFAULT_MIN_POS_Z, g_fMaxPositionZ = DEFAULT_MAX_POS_Z;
+Vector3 g_headCenter; // The head's center: this value should be re-calibrated whenever we set the headset
+void projectSteamVR(float X, float Y, float Z, vr::EVREye eye, float &x, float &y, float &z);
 
 /* Vertices that will be used for the VertexBuffer. */
-D3DTLVERTEX *g_OrigVerts = NULL, *g_LeftVerts = NULL, *g_RightVerts = NULL;
-int g_iNumVertices = 0;
+D3DTLVERTEX *g_OrigVerts = NULL;
+//D3DTLVERTEX *g_3DVerts = NULL;
+//int g_iNumVertices = 0;
 
 // Counter for calls to DrawIndexed() (This helps us know where were are in the rendering process)
 // Gets reset everytime the backbuffer is presented and is increased only after BOTH the left and
@@ -116,12 +317,16 @@ bool g_bSkipGUI = false; // Skip non-skybox draw calls with disabled Z-Buffer
 bool g_bSkipText = false; // Skips text draw calls
 bool g_bSkipAfterTargetComp = false; // Skip all draw calls after the targetting computer has been drawn
 bool g_bTargetCompDrawn = false; // Becomes true after the targetting computer has been drawn
+bool g_bPrevIsFloatingGUI3DObject = false; // Stores the last value of g_bIsFloatingGUI3DObject -- useful to detect when the targeted craft is about to be drawn
+bool g_bIsFloating3DObject = false; // true when rendering the targeted 3D object.
 unsigned int g_iFloatingGUIDrawnCounter = 0;
 int g_iPresentCounter = 0, g_iNonZBufferCounter = 0, g_iSkipNonZBufferDrawIdx = -1;
 // The following flag tells us when the main GUI elements (HUD, radars, etc) have been rendered
 // It's reset to false every time the backbuffer is swapped.
 //bool g_bGUIIsRendered = false;
-float g_fZOverride = 0.05f; // 0 is Z-Far and 1 is ZNear in ZBuffer-Log coords. 0.05 is almost at ZFar
+float g_fZBracketOverride = 65530.0f; // 65535 is probably the maximum Z value in XWA
+extern bool g_bRendering3D; // Used to distinguish between 2D (Concourse/Menus) and 3D rendering (main in-flight game)
+
 // g_fZOverride is activated when it's greater than -0.9f, and it's used for bracket rendering so that 
 // objects cover the brackets. In this way, we avoid visual contention from the brackets.
 bool g_bCockpitPZHackEnabled = true;
@@ -145,30 +350,43 @@ float g_fGlobalScale = DEFAULT_GLOBAL_SCALE;
 float g_fGlobalScaleZoomOut = DEFAULT_ZOOM_OUT_SCALE;
 float g_fConcourseScale = DEFAULT_CONCOURSE_SCALE;
 float g_fConcourseAspectRatio = DEFAULT_CONCOURSE_ASPECT_RATIO;
-float g_fHUDParallax = DEFAULT_HUD_PARALLAX;   // The aiming HUD is rendered at this depth
-float g_fTextParallax = DEFAULT_TEXT_PARALLAX; // All text gets rendered at this parallax
-float g_fFloatingGUIParallax = DEFAULT_FLOATING_GUI_PARALLAX; // Floating GUI elements are rendered at this depth
-float g_fFloatingGUIObjParallax = DEFAULT_FLOATING_OBJ_PARALLAX; // The targeted object must be rendered above the Floating GUI
+float g_fHUDDepth = DEFAULT_HUD_PARALLAX; // The aiming HUD is rendered at this depth
+bool g_bFloatingAimingHUD = DEFAULT_FLOATING_AIMING_HUD; // The aiming HUD can be fixed to the cockpit glass or floating
+float g_fTextDepth = DEFAULT_TEXT_PARALLAX; // All text gets rendered at this parallax
+float g_fFloatingGUIDepth = DEFAULT_FLOATING_GUI_PARALLAX; // Floating GUI elements are rendered at this depth
+float g_fFloatingGUIObjDepth = DEFAULT_FLOATING_OBJ_PARALLAX; // The targeted object must be rendered above the Floating GUI
 float g_fTechLibraryParallax = DEFAULT_TECH_LIB_PARALLAX;
 float g_fAspectRatio = DEFAULT_ASPECT_RATIO;
-bool g_bZoomOut = false;
+bool g_bZoomOut = DEFAULT_ZOOM_OUT_INITIAL_STATE;
+bool g_bZoomOutInitialState = DEFAULT_ZOOM_OUT_INITIAL_STATE;
 float g_fBrightness = DEFAULT_BRIGHTNESS;
 float g_fGUIElemsScale = DEFAULT_GLOBAL_SCALE; // Used to reduce the size of all the GUI elements
+int g_iFreePIESlot = DEFAULT_FREEPIE_SLOT;
+bool g_bDirectSBSInitialized = false;
 
+VertexShaderMatrixCB g_VSMatrixCB;
 VertexShaderCBuffer g_VSCBuffer;
 PixelShaderCBuffer g_PSCBuffer;
 
 float g_fCockpitPZThreshold = DEFAULT_COCKPIT_PZ_THRESHOLD; // The TIE-Interceptor needs this thresold!
 float g_fBackupCockpitPZThreshold = g_fCockpitPZThreshold; // Backup of the cockpit threshold, used when toggling this effect on or off.
 
-const float IPD_SCALE_FACTOR = 1625.0f; // Empirically estimated to correspond to an IPD of 6.5
+const float IPD_SCALE_FACTOR = 100.0f; // Transform centimeters to meters (IPD = 6.5 becomes 0.065)
+const float GAME_SCALE_FACTOR = 60.0f; // Estimated empirically
+const float GAME_SCALE_FACTOR_Z = 60.0f; // Estimated empirically
+
 // In reality, there should be a different factor per in-game resolution; but for now this should be enough
-const float C = 1.0f, Z_FAR = 50.0f;
-const float LOG_K = log(C*Z_FAR + 1.0f);
+const float C = 1.0f, Z_FAR = 1.0f;
+const float LOG_K = 1.0f;
 
 float g_fIPD = DEFAULT_IPD / IPD_SCALE_FACTOR;
 float g_fHalfIPD = g_fIPD / 2.0f;
 float g_fFocalDist = DEFAULT_FOCAL_DIST;
+
+/*
+ * New Cockpit Textures
+ */
+extern ComPtr<ID3D11ShaderResourceView> g_NewCockpitTargetCompOverlay;
 
 /*
  * Control/Debug variables
@@ -182,41 +400,30 @@ int g_iHUDTexDumpCounter = 0;
 int g_iDumpGUICounter = 0, g_iHUDCounter = 0;
 #undef INDEX_BUF_SAVE
 
-//extern std::vector<uint32_t> Floating_GUI_CRCs; // Remove this later, it's only here for debugging purposes.
-//extern uint32_t *HUD_CRCs; // Remove this later, it's only here for debugging purposes.
 
 /* Reloads all the CRCs. */
 bool ReloadCRCs();
 bool isInVector(uint32_t crc, std::vector<uint32_t> &vector);
 void DeleteStereoVertices();
+bool InitDirectSBS();
+bool LoadNewCockpitTextures(ID3D11Device *device);
+void UnloadNewCockpitTextures();
 
 /* Maps (-6, 6) to (-0.5, 0.5) using a sigmoid function */
 float centeredSigmoid(float x) {
 	return 1.0f / (1.0f + exp(-x)) - 0.5f;
 }
 
-/* Maps (-6, 6) to (-0.5, 0.5) using a sine function */
-/*
-const float PI = 3.141592f;
-const float HALF_PI = PI / 2.0f;
-float centered_sine(float x) {
-	return sin(HALF_PI * (x / 6.0f)) * 0.5f;
-}
-*/
-
-typedef struct HeadPosStruct {
-	float x, y, z;
-} HeadPos;
-
 HeadPos g_HeadPosAnim = { 0 }, g_HeadPos = { 0 };
 bool g_bLeftKeyDown, g_bRightKeyDown, g_bUpKeyDown, g_bDownKeyDown, g_bUpKeyDownShift, g_bDownKeyDownShift;
-const float ANIM_INCR = 0.1f, MAX_LEAN_X = 0.015f, MAX_LEAN_Y = 0.015f, MAX_LEAN_Z = 0.03f;
+const float ANIM_INCR = 0.1f, MAX_LEAN_X = 0.75f, MAX_LEAN_Y = 0.75f, MAX_LEAN_Z = 1.0f;
+// The MAX_LEAN values will be clamped by the limits from vrparams.cfg
 
 void animTickX() {
 	if (g_bRightKeyDown)
-		g_HeadPosAnim.x += ANIM_INCR;
-	else if (g_bLeftKeyDown)
 		g_HeadPosAnim.x -= ANIM_INCR;
+	else if (g_bLeftKeyDown)
+		g_HeadPosAnim.x += ANIM_INCR;
 	else if (!g_bRightKeyDown && !g_bLeftKeyDown) {
 		if (g_HeadPosAnim.x < 0.0001)
 			g_HeadPosAnim.x += ANIM_INCR;
@@ -271,14 +478,14 @@ void animTickZ() {
 
 // NewIPD is in cms
 void EvaluateIPD(float NewIPD) {
-	if (NewIPD < 0.0f)
+	/* if (NewIPD < 0.0f)
 		NewIPD = 0.0f;
 	if (NewIPD > 12.0f) {
 		NewIPD = 12.0f;
-	}
+	} */
 	g_fIPD = NewIPD / IPD_SCALE_FACTOR;
+	log_debug("[DBG] NewIPD: %0.3f, Actual g_fIPD: %0.6f", NewIPD, g_fIPD);
 	g_fHalfIPD = g_fIPD / 2.0f;
-	//log_debug("[DBG] New IPD: %f", IPD);
 }
 
 // Delta is in cms here
@@ -302,7 +509,7 @@ void ToggleZoomOutMode() {
 }
 
 void IncreaseZOverride(float Delta) {
-	g_fZOverride += Delta;
+	g_fZBracketOverride += Delta;
 	//log_debug("[DBG] g_fZOverride: %f", g_fZOverride);
 }
 
@@ -320,18 +527,18 @@ void IncreaseZoomOutScale(float Delta) {
 }
 
 void IncreaseHUDParallax(float Delta) {
-	g_fHUDParallax += Delta;
-	//log_debug("[DBG] HUD parallax: %f", g_fHUDParallax);
+	g_fHUDDepth += Delta;
+	log_debug("[DBG] HUD parallax: %f", g_fHUDDepth);
 }
 
 void IncreaseFloatingGUIParallax(float Delta) {
-	g_fFloatingGUIParallax += Delta;
-	//log_debug("[DBG] GUI parallax: %f", g_fFloatingGUIParallax);
+	g_fFloatingGUIDepth += Delta;
+	log_debug("[DBG] GUI parallax: %f", g_fFloatingGUIDepth);
 }
 
 void IncreaseTextParallax(float Delta) {
-	g_fTextParallax += Delta;
-	//log_debug("[DBG] Text parallax: %f", g_fTextParallax);
+	g_fTextDepth += Delta;
+	log_debug("[DBG] Text parallax: %f", g_fTextDepth);
 }
 
 void IncreaseCockpitThreshold(float Delta) {
@@ -400,7 +607,8 @@ void IncreaseLensK2(float Delta) {
 
 /* Restores the various VR parameters to their default values. */
 void ResetVRParams() {
-	g_fFocalDist = g_bSteamVREnabled ? DEFAULT_FOCAL_DIST_STEAMVR : DEFAULT_FOCAL_DIST;
+	//g_fFocalDist = g_bSteamVREnabled ? DEFAULT_FOCAL_DIST_STEAMVR : DEFAULT_FOCAL_DIST;
+	g_fFocalDist = DEFAULT_FOCAL_DIST;
 	EvaluateIPD(DEFAULT_IPD);
 	g_bCockpitPZHackEnabled = true;
 	g_fGUIElemPZThreshold = DEFAULT_GUI_ELEM_PZ_THRESHOLD;
@@ -408,6 +616,7 @@ void ResetVRParams() {
 	//g_fGlobalScale = g_bSteamVREnabled ? DEFAULT_GLOBAL_SCALE_STEAMVR : DEFAULT_GLOBAL_SCALE;
 	g_fGlobalScale = DEFAULT_GLOBAL_SCALE;
 	g_fGlobalScaleZoomOut = DEFAULT_ZOOM_OUT_SCALE;
+	g_bZoomOut = g_bZoomOutInitialState;
 	g_fGUIElemsScale = g_bZoomOut ? g_fGlobalScaleZoomOut : g_fGlobalScale;
 	g_fConcourseScale = DEFAULT_CONCOURSE_SCALE;
 	g_fCockpitPZThreshold = DEFAULT_COCKPIT_PZ_THRESHOLD;
@@ -427,11 +636,13 @@ void ResetVRParams() {
 
 	g_iNoDrawBeforeIndex = 0; g_iNoDrawAfterIndex = -1;
 	g_iNoExecBeforeIndex = 0; g_iNoExecAfterIndex = -1;
-	g_fHUDParallax = DEFAULT_HUD_PARALLAX;
-	g_fTextParallax = DEFAULT_TEXT_PARALLAX;
-	g_fFloatingGUIParallax = DEFAULT_FLOATING_GUI_PARALLAX;
+	g_fHUDDepth = DEFAULT_HUD_PARALLAX;
+	g_bFloatingAimingHUD = DEFAULT_FLOATING_AIMING_HUD;
+	g_fTextDepth = DEFAULT_TEXT_PARALLAX;
+	g_fFloatingGUIDepth = DEFAULT_FLOATING_GUI_PARALLAX;
 	g_fTechLibraryParallax = DEFAULT_TECH_LIB_PARALLAX;
-	g_fFloatingGUIObjParallax = DEFAULT_FLOATING_OBJ_PARALLAX;
+	g_fFloatingGUIObjDepth = DEFAULT_FLOATING_OBJ_PARALLAX;
+	g_bNaturalConcourseAnimations = DEFAULT_NATURAL_CONCOURSE_ANIM;
 
 	g_fBrightness = DEFAULT_BRIGHTNESS;
 
@@ -440,6 +651,19 @@ void ResetVRParams() {
 		g_pVRCompositor->ForceInterleavedReprojectionOn(g_bInterleavedReprojection);
 
 	g_bDisableBarrelEffect = g_bUseSteamVR ? !DEFAULT_BARREL_EFFECT_STATE_STEAMVR : !DEFAULT_BARREL_EFFECT_STATE;
+
+	g_iFreePIESlot = DEFAULT_FREEPIE_SLOT;
+	g_fRollMultiplier = DEFAULT_ROLL_MULTIPLIER;
+	g_fPosXMultiplier = DEFAULT_POS_X_MULTIPLIER;
+	g_fPosYMultiplier = DEFAULT_POS_Y_MULTIPLIER;
+	g_fPosZMultiplier = DEFAULT_POS_Z_MULTIPLIER;
+	g_fMinPositionX = DEFAULT_MIN_POS_X; g_fMaxPositionX = DEFAULT_MAX_POS_X;
+	g_fMinPositionY = DEFAULT_MIN_POS_Y; g_fMaxPositionY = DEFAULT_MAX_POS_Y;
+	g_fMinPositionZ = DEFAULT_MIN_POS_Z; g_fMaxPositionZ = DEFAULT_MAX_POS_Z;
+
+	// Recompute the eye and projection matrices
+	if (!g_bUseSteamVR)
+		InitDirectSBS();
 	// Load CRCs
 	ReloadCRCs();
 }
@@ -462,9 +686,10 @@ void SaveVRParams() {
 	fprintf(file, "; VR parameters. Write one parameter per line.\n");
 	fprintf(file, "; Always make a backup copy of this file before modifying it.\n");
 	fprintf(file, "; If you want to restore it to its default settings, simply delete the\n");
-	fprintf(file, "; file and restart the game.Then press Ctrl + Alt + S to save a\n");
+	fprintf(file, "; file and restart the game. Then press Ctrl + Alt + S to save a\n");
 	fprintf(file, "; new config file with the default parameters.\n");
 	fprintf(file, "; To reload this file during game (at any point) just press Ctrl+Alt+L.\n");
+	fprintf(file, "; Most parameters can be re-applied when reloading.\n");
 	fprintf(file, "; You can also press Ctrl+Alt+R to reset the viewing params to default values.\n\n");
 
 	fprintf(file, "; VR Mode. Select from None, DirectSBS and SteamVR.\n");
@@ -481,16 +706,24 @@ void SaveVRParams() {
 	//fprintf(file, "focal_dist = %0.6f # Try not to modify this value, change IPD instead.\n", focal_dist);
 
 	fprintf(file, "; %s is measured in cms; but it's an approximation to in-game units. Set it to 0 to\n", STEREOSCOPY_STRENGTH_VRPARAM);
-	fprintf(file, "; remove the stereoscopy effect. The maximum allowed by the engine is 12cm\n");
+	fprintf(file, "; remove the stereoscopy effect. The maximum allowed by the engine is 12cm.\n");
+	fprintf(file, "; This setting is ignored in SteamVR mode. Configure the IPD through SteamVR instead.\n");
 	fprintf(file, "%s = %0.1f\n", STEREOSCOPY_STRENGTH_VRPARAM, g_fIPD * IPD_SCALE_FACTOR);
 	fprintf(file, "%s = %0.3f\n", SIZE_3D_WINDOW_VRPARAM, g_fGlobalScale);
 	fprintf(file, "%s = %0.3f\n", SIZE_3D_WINDOW_ZOOM_OUT_VRPARAM, g_fGlobalScaleZoomOut);
+	fprintf(file, "; Set the following to 1 to start the HUD in zoomed-out mode:\n");
+	fprintf(file, "%s = %d\n", WINDOW_ZOOM_OUT_INITIAL_STATE_VRPARAM, g_bZoomOutInitialState);
 	fprintf(file, "%s = %0.3f\n", CONCOURSE_WINDOW_SCALE_VRPARAM, g_fConcourseScale);
+	fprintf(file, "; The concourse animations can be played as fast as possible, or at its original\n");
+	fprintf(file, "; 25fps setting:\n");
+	fprintf(file, "%s = %d\n", NATURAL_CONCOURSE_ANIM_VRPARAM, g_bNaturalConcourseAnimations);
+	/*
 	fprintf(file, "; The following is a hack to increase the stereoscopy on objects. Unfortunately it\n");
 	fprintf(file, "; also causes some minor artifacts: this is basically the threshold between the\n");
 	fprintf(file, "; cockpit and the 'outside' world in normalized coordinates (0 is ZNear 1 is ZFar).\n");
 	fprintf(file, "; Set it to 2 to disable this hack (stereoscopy will be reduced).\n");
 	fprintf(file, "%s = %0.3f\n\n", COCKPIT_Z_THRESHOLD_VRPARAM, g_fCockpitPZThreshold);
+	*/
 
 	fprintf(file, "; Specify the aspect ratio here to override the aspect ratio computed by the library.\n");
 	fprintf(file, "; ALWAYS specify BOTH the Concourse and 3D window aspect ratio.\n");
@@ -500,20 +733,32 @@ void SaveVRParams() {
 	fprintf(file, "%s = %0.3f\n", CONCOURSE_ASPECT_RATIO_VRPARAM, g_fConcourseAspectRatio);
 
 	fprintf(file, "\n; Lens correction parameters. k2 has the biggest effect and k1 fine-tunes the effect.\n");
+	fprintf(file, "; Positive values = convex warping; negative = concave warping.\n");
 	fprintf(file, "%s = %0.6f\n", K1_VRPARAM, g_fLensK1);
 	fprintf(file, "%s = %0.6f\n", K2_VRPARAM, g_fLensK2);
 	fprintf(file, "%s = %0.6f\n", K3_VRPARAM, g_fLensK3);
 	fprintf(file, "%s = %d\n", BARREL_EFFECT_STATE_VRPARAM, !g_bDisableBarrelEffect);
 
-	fprintf(file, "\n; Depth for various GUI elements. Set these to 0 to put them at infinity (ZFar).\n");
-	fprintf(file, "%s = %0.3f\n", HUD_PARALLAX_VRPARAM, g_fHUDParallax);
-	fprintf(file, "%s = %0.3f\n", GUI_PARALLAX_VRPARAM, g_fFloatingGUIParallax);
-	fprintf(file, "%s = %0.3f\n", GUI_OBJ_PARALLAX_VRPARAM, g_fFloatingGUIObjParallax);
-	fprintf(file, "; %s is always added to %s\n", GUI_OBJ_PARALLAX_VRPARAM, GUI_PARALLAX_VRPARAM);
+	fprintf(file, "\n; Depth for various GUI elements in meters from the head's origin.\n");
+	fprintf(file, "; Positive depth is forwards, negative is backwards (towards you).\n");
+	fprintf(file, "; As a reference, the background starfield is 65km meters away.\n");
+	fprintf(file, "%s = %0.3f\n", HUD_PARALLAX_VRPARAM, g_fHUDDepth);
+	fprintf(file, "; If 6dof is enabled, the aiming HUD can be fixed to the cockpit or it can float\n");
+	fprintf(file, "; and follow you. When it's fixed, it's probably more realistic; but it will be\n");
+	fprintf(file, "; harder to aim when you lean. You can move it back to 65000m away to fix this\n");
+	fprintf(file, "; When the aiming HUD is floating, it will follow you around no matter how much you\n");
+	fprintf(file, "; lean, making it easier to aim properly (but it's probably less realistic).\n");
+	fprintf(file, "%s = %d\n", FLOATING_AIMING_HUD_VRPARAM, g_bFloatingAimingHUD);
+	fprintf(file, "%s = %0.3f\n", GUI_PARALLAX_VRPARAM, g_fFloatingGUIDepth);
+	fprintf(file, "%s = %0.3f\n", GUI_OBJ_PARALLAX_VRPARAM, g_fFloatingGUIObjDepth);
+	fprintf(file, "; %s is relative and it's always added to %s\n", GUI_OBJ_PARALLAX_VRPARAM, GUI_PARALLAX_VRPARAM);
 	fprintf(file, "; This has the effect of making the targeted object \"hover\" above the targeting computer\n");
-	fprintf(file, "%s = %0.3f\n", TEXT_PARALLAX_VRPARAM, g_fTextParallax);
-	fprintf(file, "; As a rule of thumb always make %s > %s so that\n", TEXT_PARALLAX_VRPARAM, GUI_PARALLAX_VRPARAM);
-	fprintf(file, "; the text hovers above the targeting computer\n");
+	fprintf(file, "%s = %0.3f\n", TEXT_PARALLAX_VRPARAM, g_fTextDepth);
+	fprintf(file, "; As a rule of thumb always make %s <= %s so that\n", TEXT_PARALLAX_VRPARAM, GUI_PARALLAX_VRPARAM);
+	fprintf(file, "; the text hovers above the targeting computer\n\n");
+	fprintf(file, "; This is the parallax added to the controls in the tech library. Make it negative to bring the\n");
+	fprintf(file, "; controls towards you. Objects in the tech library are obviously scaled by XWA, because there's\n");
+	fprintf(file, "; otherwise no way to visualize both a Star Destroyer and an A-Wing in the same volume.\n");
 	fprintf(file, "%s = %0.3f\n", TECH_LIB_PARALLAX_VRPARAM, g_fTechLibraryParallax);
 
 	fprintf(file, "\n");
@@ -522,8 +767,32 @@ void SaveVRParams() {
 	fprintf(file, "; A value of 1 is normal brightness, 0 will render everything black.\n");
 	fprintf(file, "%s = %0.3f\n", BRIGHTNESS_VRPARAM, g_fBrightness);
 
-	fprintf(file, "\n");
+	fprintf(file, "\n; Interleaved Reprojection is a SteamVR setting that locks the framerate at 45fps.\n");
+	fprintf(file, "; In some cases, it may help provide a smoother experience. Try toggling it\n");
+	fprintf(file, "; to see what works better for your specific case.\n");
 	fprintf(file, "%s = %d\n", INTERLEAVED_REPROJ_VRPARAM, g_bInterleavedReprojection);
+
+	//fprintf(file, "\n");
+	//fprintf(file, "%s = %d\n", INVERSE_TRANSPOSE_VRPARAM, g_bInverseTranspose);
+	fprintf(file, "\n; 6dof section. Set any of these multipliers to 0 to de-activate individual axes.\n");
+	fprintf(file, "; The settings for pitch and yaw are in cockpitlook.cfg\n");
+	fprintf(file, "%s = %0.3f\n", ROLL_MULTIPLIER_VRPARAM, g_fRollMultiplier);
+	fprintf(file, "%s = %0.3f\n", POS_X_MULTIPLIER_VRPARAM, g_fPosXMultiplier);
+	fprintf(file, "%s = %0.3f\n", POS_Y_MULTIPLIER_VRPARAM, g_fPosYMultiplier);
+	fprintf(file, "%s = %0.3f\n", POS_Z_MULTIPLIER_VRPARAM, g_fPosZMultiplier);
+	fprintf(file, "\n; Limits of the position in meters.\n");
+	fprintf(file, "; x+ is to the right.\n");
+	fprintf(file, "; y+ is down.\n");
+	fprintf(file, "; z+ is forward.\n");
+	fprintf(file, "%s = %0.3f\n",   MIN_POSITIONAL_X_VRPARAM, g_fMinPositionX);
+	fprintf(file, "%s = %0.3f\n\n", MAX_POSITIONAL_X_VRPARAM, g_fMaxPositionX);
+	fprintf(file, "%s = %0.3f\n",   MIN_POSITIONAL_Y_VRPARAM, g_fMinPositionY);
+	fprintf(file, "%s = %0.3f\n\n", MAX_POSITIONAL_Y_VRPARAM, g_fMaxPositionY);
+	fprintf(file, "%s = %0.3f\n",   MIN_POSITIONAL_Z_VRPARAM, g_fMinPositionZ);
+	fprintf(file, "%s = %0.3f\n\n", MAX_POSITIONAL_Z_VRPARAM, g_fMaxPositionZ);
+
+	fprintf(file, "; The following setting only applies when using FreePIE for 6dof:\n");
+	fprintf(file, "%s = %d\n", FREEPIE_SLOT_VRPARAM, g_iFreePIESlot);
 
 	fclose(file);
 	log_debug("[DBG] vrparams.cfg saved");
@@ -573,6 +842,10 @@ void LoadVRParams() {
 				// Size of the window while playing the game; but zoomed out to see all the GUI
 				g_fGlobalScaleZoomOut = value;
 			}
+			else if (_stricmp(param, WINDOW_ZOOM_OUT_INITIAL_STATE_VRPARAM) == 0) {
+				g_bZoomOutInitialState = (bool)value;
+				g_bZoomOut = (bool)value;
+			}
 			else if (_stricmp(param, CONCOURSE_WINDOW_SCALE_VRPARAM) == 0) {
 				// Concourse and 2D menus scale
 				g_fConcourseScale = value;
@@ -601,19 +874,21 @@ void LoadVRParams() {
 				g_bDisableBarrelEffect = !((bool)value);
 			}
 			else if (_stricmp(param, HUD_PARALLAX_VRPARAM) == 0) {
-				g_fHUDParallax = value;
-				//log_debug("[DBG] HUD Parallax read: %f", value);
+				g_fHUDDepth = value;
+			}
+			else if (_stricmp(param, FLOATING_AIMING_HUD_VRPARAM) == 0) {
+				g_bFloatingAimingHUD = (bool)value;
 			}
 			else if (_stricmp(param, GUI_PARALLAX_VRPARAM) == 0) {
 				// "Floating" GUI elements: targetting computer and the like
-				g_fFloatingGUIParallax = value;
+				g_fFloatingGUIDepth = value;
 			}
 			else if (_stricmp(param, GUI_OBJ_PARALLAX_VRPARAM) == 0) {
 				// "Floating" GUI targeted elements
-				g_fFloatingGUIObjParallax = value;
+				g_fFloatingGUIObjDepth = value;
 			}
 			else if (_stricmp(param, TEXT_PARALLAX_VRPARAM) == 0) {
-				g_fTextParallax = value;
+				g_fTextDepth = value;
 			}
 			else if (_stricmp(param, TECH_LIB_PARALLAX_VRPARAM) == 0) {
 				g_fTechLibraryParallax = value;
@@ -643,15 +918,62 @@ void LoadVRParams() {
 			}
 			else if (_stricmp(param, INTERLEAVED_REPROJ_VRPARAM) == 0) {
 				g_bInterleavedReprojection = (bool)value;
-				if (g_bUseSteamVR && g_bInterleavedReprojection) {
+				if (g_bUseSteamVR) {
 					log_debug("[DBG] Setting Interleaved Reprojection to: %d", g_bInterleavedReprojection);
 					g_pVRCompositor->ForceInterleavedReprojectionOn(g_bInterleavedReprojection);
 				}
-
 			}
+			else if (_stricmp(param, INVERSE_TRANSPOSE_VRPARAM) == 0) {
+				g_bInverseTranspose = (bool)value;
+				log_debug("[DBG] Inverse Transpose set to: %d", g_bInverseTranspose);
+			}
+			else if (_stricmp(param, NATURAL_CONCOURSE_ANIM_VRPARAM) == 0) {
+				g_bNaturalConcourseAnimations = (bool)value;
+			}
+			else if (_stricmp(param, DYNAMIC_COCKPIT_TARGET_COMP_VRPARAM) == 0) {
+				g_bDynamicCockpit = (bool)value;
+			}
+
+			// 6dof parameters
+			else if (_stricmp(param, FREEPIE_SLOT_VRPARAM) == 0) {
+				g_iFreePIESlot = (int )value;
+			}
+			else if (_stricmp(param, ROLL_MULTIPLIER_VRPARAM) == 0) {
+				g_fRollMultiplier = value;
+			}
+			else if (_stricmp(param, POS_X_MULTIPLIER_VRPARAM) == 0) {
+				g_fPosXMultiplier = value;
+			}
+			else if (_stricmp(param, POS_Y_MULTIPLIER_VRPARAM) == 0) {
+				g_fPosYMultiplier = value;
+			}
+			else if (_stricmp(param, POS_Z_MULTIPLIER_VRPARAM) == 0) {
+				g_fPosZMultiplier = value;
+			}
+
+			else if (_stricmp(param, MIN_POSITIONAL_X_VRPARAM) == 0) {
+				g_fMinPositionX = value;
+			}
+			else if (_stricmp(param, MAX_POSITIONAL_X_VRPARAM) == 0) {
+				g_fMaxPositionX = value;
+			}
+			else if (_stricmp(param, MIN_POSITIONAL_Y_VRPARAM) == 0) {
+				g_fMinPositionY = value;
+			}
+			else if (_stricmp(param, MAX_POSITIONAL_Y_VRPARAM) == 0) {
+				g_fMaxPositionY = value;
+			}
+			else if (_stricmp(param, MIN_POSITIONAL_Z_VRPARAM) == 0) {
+				g_fMinPositionZ = value;
+			}
+			else if (_stricmp(param, MAX_POSITIONAL_Z_VRPARAM) == 0) {
+				g_fMaxPositionZ = value;
+			}
+
 			param_read_count++;
 		}
 	} // while ... read file
+	// Apply the initial Zoom Out state:
 	g_fGUIElemsScale = g_bZoomOut ? g_fGlobalScaleZoomOut : g_fGlobalScale;
 	fclose(file);
 
@@ -664,6 +986,7 @@ next:
  * Back-projects a 2D coordinate + Logarithmic ZBuffer coordinate into 3D space.
  * The 2D coordinate must be in normalized space (-0.5..0.5) with the center of the image at (0,0).
  */
+/*
 static inline void
 back_project(float px, float py, float pz, float direct_pz, float &X, float &Y, float &Z)
 {
@@ -675,19 +998,29 @@ back_project(float px, float py, float pz, float direct_pz, float &X, float &Y, 
 	Z = (exp(pz * LOG_K) - 1.0f) / direct_pz;
 	X = Z * px / g_fFocalDist;
 	Y = Z * py / g_fFocalDist;
+
+	X *= GAME_SCALE_FACTOR;
+	Y *= GAME_SCALE_FACTOR;
+	Z *= GAME_SCALE_FACTOR_Z;
 }
+*/
 
 /*
  * Projects a 3D coordinate back into 2D normailzed space (center of the image is at
  * the origin).
  */
+/*
 static inline void
 project(float X, float Y, float Z, float &px, float &py, float &pz) 
 {
-	pz = log(Z * C + 1.0f) / LOG_K;
+	// Z = (exp(pz * LOG_K) - 1.0f) / direct_pz;
+	// Z / direct_pz + 1.0f = exp(pz * LOG_K)
+	//pz = log(Z * C + 1.0f) / LOG_K;
+	//pz = log(Z/(1 - pz) * C + 1.0f) / LOG_K;
 	px = X * g_fFocalDist / Z;
 	py = Y * g_fFocalDist / Z;
 }
+*/
 
 ////////////////////////////////////////////////////////////////
 // SteamVR functions
@@ -733,17 +1066,227 @@ void DumpMatrix44(FILE *file, const vr::HmdMatrix44_t &m) {
 	}
 }
 
+void DumpMatrix4(FILE *file, const Matrix4 &mat) {
+	fprintf(file, "%0.6f, %0.6f, %0.6f, %0.6f\n", mat[0], mat[4], mat[8], mat[12]);
+	fprintf(file, "%0.6f, %0.6f, %0.6f, %0.6f\n", mat[1], mat[5], mat[9], mat[13]);
+	fprintf(file, "%0.6f, %0.6f, %0.6f, %0.6f\n", mat[2], mat[6], mat[10], mat[14]);
+	fprintf(file, " %0.6f, %0.6f, %0.6f, %0.6f\n", mat[3], mat[7], mat[11], mat[15]);
+}
+
+void ShowMatrix4(const Matrix4 &mat, char *name) {
+	log_debug("[DBG] -----------------------------------------");
+	if (name != NULL)
+		log_debug("[DBG] %s", name);
+	log_debug("[DBG] %0.6f, %0.6f, %0.6f, %0.6f", mat[0], mat[4], mat[8], mat[12]);
+	log_debug("[DBG] %0.6f, %0.6f, %0.6f, %0.6f", mat[1], mat[5], mat[9], mat[13]);
+	log_debug("[DBG] %0.6f, %0.6f, %0.6f, %0.6f", mat[2], mat[6], mat[10], mat[14]);
+	log_debug("[DBG] %0.6f, %0.6f, %0.6f, %0.6f", mat[3], mat[7], mat[11], mat[15]);
+	log_debug("[DBG] =========================================");
+}
+
+void ShowHmdMatrix34(const vr::HmdMatrix34_t &mat, char *name) {
+	log_debug("[DBG] -----------------------------------------");
+	if (name != NULL)
+		log_debug("[DBG] %s", name);
+	log_debug("[DBG] %0.6f, %0.6f, %0.6f, %0.6f", mat.m[0][0], mat.m[0][1], mat.m[0][2], mat.m[0][3]);
+	log_debug("[DBG] %0.6f, %0.6f, %0.6f, %0.6f", mat.m[1][0], mat.m[1][1], mat.m[1][2], mat.m[1][3]);
+	log_debug("[DBG] %0.6f, %0.6f, %0.6f, %0.6f", mat.m[2][0], mat.m[2][1], mat.m[2][2], mat.m[2][3]);
+	log_debug("[DBG] =========================================");
+}
+
+void ShowHmdMatrix44(const vr::HmdMatrix44_t &mat, char *name) {
+	log_debug("[DBG] -----------------------------------------");
+	if (name != NULL)
+		log_debug("[DBG] %s", name);
+	log_debug("[DBG] %0.6f, %0.6f, %0.6f, %0.6f", mat.m[0][0], mat.m[0][1], mat.m[0][2], mat.m[0][3]);
+	log_debug("[DBG] %0.6f, %0.6f, %0.6f, %0.6f", mat.m[1][0], mat.m[1][1], mat.m[1][2], mat.m[1][3]);
+	log_debug("[DBG] %0.6f, %0.6f, %0.6f, %0.6f", mat.m[2][0], mat.m[2][1], mat.m[2][2], mat.m[2][3]);
+	log_debug("[DBG] %0.6f, %0.6f, %0.6f, %0.6f", mat.m[3][0], mat.m[3][1], mat.m[3][2], mat.m[3][3]);
+	log_debug("[DBG] =========================================");
+}
+
+void Matrix4toHmdMatrix44(const Matrix4 &m4, vr::HmdMatrix44_t &mat) {
+	mat.m[0][0] = m4[0];  mat.m[1][0] = m4[1];  mat.m[2][0] = m4[2];  mat.m[3][0] = m4[3];
+	mat.m[0][1] = m4[4];  mat.m[1][1] = m4[5];  mat.m[2][1] = m4[6];  mat.m[3][1] = m4[7];
+	mat.m[0][2] = m4[8];  mat.m[1][2] = m4[9];  mat.m[2][2] = m4[10]; mat.m[3][2] = m4[11];
+	mat.m[0][3] = m4[12]; mat.m[1][3] = m4[13]; mat.m[2][3] = m4[14]; mat.m[3][3] = m4[14];
+}
+
+Matrix4 HmdMatrix44toMatrix4(const vr::HmdMatrix44_t &mat) {
+	Matrix4 matrixObj(
+		mat.m[0][0], mat.m[1][0], mat.m[2][0], mat.m[3][0],
+		mat.m[0][1], mat.m[1][1], mat.m[2][1], mat.m[3][1],
+		mat.m[0][2], mat.m[1][2], mat.m[2][2], mat.m[3][2],
+		mat.m[0][3], mat.m[1][3], mat.m[2][3], mat.m[3][3]
+	);
+	return matrixObj;
+}
+
+Matrix4 HmdMatrix34toMatrix4(const vr::HmdMatrix34_t &mat) {
+	Matrix4 matrixObj(
+		mat.m[0][0], mat.m[1][0], mat.m[2][0], 0.0f,
+		mat.m[0][1], mat.m[1][1], mat.m[2][1], 0.0f,
+		mat.m[0][2], mat.m[1][2], mat.m[2][2], 0.0f,
+		mat.m[0][3], mat.m[1][3], mat.m[2][3], 1.0f
+	);
+	return matrixObj;
+}
+
+void ProcessSteamVREyeMatrices(vr::EVREye eye) {
+	if (g_pHMD == NULL) {
+		log_debug("[DBG] Cannot process SteamVR matrices because g_pHMD == NULL");
+		return;
+	}
+
+	vr::HmdMatrix34_t eyeMatrix = g_pHMD->GetEyeToHeadTransform(eye);
+	//ShowHmdMatrix34(eyeMatrix, "HmdMatrix34_t eyeMatrix");
+	if (eye == vr::EVREye::Eye_Left)
+		g_EyeMatrixLeft = eyeMatrix;
+	else
+		g_EyeMatrixRight = eyeMatrix;
+
+	Matrix4 matrixObj = HmdMatrix34toMatrix4(eyeMatrix);
+	/*
+	// Pimax matrix: 11.11 degrees on the Y axis and 6.64 IPD
+	Matrix4 matrixObj(
+		0.984808, 0.000000, 0.173648, -0.033236,
+		0.000000, 1.000000, 0.000000, 0.000000,
+		-0.173648, 0.000000, 0.984808, 0.000000,
+		0, 0, 0, 1);
+	matrixObj.transpose();
+	*/
+
+	if (g_bInverseTranspose) {
+		log_debug("[DBG] Computing Inverse Transpose");
+		matrixObj.transpose();
+	}
+	// Invert the matrix and store it
+	matrixObj.invertGeneral();
+	if (eye == vr::EVREye::Eye_Left)
+		g_EyeMatrixLeftInv = matrixObj;
+	else
+		g_EyeMatrixRightInv = matrixObj;
+}
+
+void ShowVector4(const Vector4 &X, char *name) {
+	if (name != NULL)
+		log_debug("[DBG] %s = %0.6f, %0.6f, %0.6f, %0.6f",
+			name, X[0], X[1], X[2], X[3]);
+	else
+		log_debug("[DBG] %0.6f, %0.6f, %0.6f, %0.6f",
+			X[0], X[1], X[2], X[3]);
+}
+
+void TestPimax() {
+	vr::HmdMatrix34_t eyeLeft;
+	eyeLeft.m[0][0] =  0.984808f; eyeLeft.m[0][1] = 0.000000f, eyeLeft.m[0][2] = 0.173648f; eyeLeft.m[0][3] = -0.033236f;
+	eyeLeft.m[1][0] =  0.000000f; eyeLeft.m[1][1] = 1.000000f; eyeLeft.m[1][2] = 0.000000f; eyeLeft.m[1][3] =  0.000000f;
+	eyeLeft.m[2][0] = -0.173648f; eyeLeft.m[2][1] = 0.000000f; eyeLeft.m[2][2] = 0.984808f; eyeLeft.m[2][3] =  0.000000f;
+
+	vr::HmdMatrix34_t eyeRight;
+	eyeRight.m[0][0] = 0.984808f; eyeRight.m[0][1] = 0.000000f, eyeRight.m[0][2] = -0.173648f; eyeRight.m[0][3] = 0.033236f;
+	eyeRight.m[1][0] = 0.000000f; eyeRight.m[1][1] = 1.000000f; eyeRight.m[1][2] =  0.000000f; eyeRight.m[1][3] = 0.000000f;
+	eyeRight.m[2][0] = 0.173648f; eyeRight.m[2][1] = 0.000000f; eyeRight.m[2][2] =  0.984808f; eyeRight.m[2][3] = 0.000000f;
+
+	g_EyeMatrixLeftInv = HmdMatrix34toMatrix4(eyeLeft);
+	g_EyeMatrixRightInv = HmdMatrix34toMatrix4(eyeRight);
+	g_EyeMatrixLeftInv.invertGeneral();
+	g_EyeMatrixRightInv.invertGeneral();
+
+	vr::HmdMatrix44_t projLeft;
+	projLeft.m[0][0] = 0.647594f; projLeft.m[0][1] = 0.000000f; projLeft.m[0][2] = -0.128239f; projLeft.m[0][3] =  0.000000f;
+	projLeft.m[1][0] = 0.000000f; projLeft.m[1][1] = 0.787500f; projLeft.m[1][2] =  0.000000f; projLeft.m[1][3] =  0.000000f;
+	projLeft.m[2][0] = 0.000000f; projLeft.m[2][1] = 0.000000f; projLeft.m[2][2] = -1.010101f; projLeft.m[2][3] = -0.505050f;
+	projLeft.m[3][0] = 0.000000f; projLeft.m[3][1] = 0.000000f; projLeft.m[3][2] = -1.000000f; projLeft.m[3][3] =  0.000000f;
+
+	vr::HmdMatrix44_t projRight;
+	projRight.m[0][0] = 0.647594f; projRight.m[0][1] = 0.000000f; projRight.m[0][2] =  0.128239f; projRight.m[0][3] =  0.000000f;
+	projRight.m[1][0] = 0.000000f; projRight.m[1][1] = 0.787500f; projRight.m[1][2] =  0.000000f; projRight.m[1][3] =  0.000000f;
+	projRight.m[2][0] = 0.000000f; projRight.m[2][1] = 0.000000f; projRight.m[2][2] = -1.010101f; projRight.m[2][3] = -0.505050f;
+	projRight.m[3][0] = 0.000000f; projRight.m[3][1] = 0.000000f; projRight.m[3][2] = -1.000000f; projRight.m[3][3] =  0.000000f;
+
+	g_projLeft = HmdMatrix44toMatrix4(projLeft);
+	g_projRight = HmdMatrix44toMatrix4(projRight);
+}
+
+void Test2DMesh() {
+	/*
+	MainVertex vertices[4] =
+	{
+		MainVertex(-1, -1, 0, 1),
+		MainVertex(1, -1, 1, 1),
+		MainVertex(1,  1, 1, 0),
+		MainVertex(-1,  1, 0, 0),
+	};
+	*/
+	Matrix4 fullMatrixLeft = g_fullMatrixLeft;
+	//fullMatrixLeft.invertGeneral();
+	Vector4 P, Q;
+
+	P.set(-12, -12, -30, 0);
+	Q = fullMatrixLeft * P;
+	Q = Q / Q[3];
+	log_debug("[DBG] (%0.3f, %0.3f) --> (%0.3f, %0.3f)", P[0], P[1], Q[0], Q[1]);
+
+	P.set(12, -12, -30, 0);
+	Q = fullMatrixLeft * P;
+	Q = Q / Q[3];
+	log_debug("[DBG] (%0.3f, %0.3f) --> (%0.3f, %0.3f)", P[0], P[1], Q[0], Q[1]);
+
+	P.set(-12, 12, -30, 0);
+	Q = fullMatrixLeft * P;
+	Q = Q / Q[3];
+	log_debug("[DBG] (%0.3f, %0.3f) --> (%0.3f, %0.3f)", P[0], P[1], Q[0], Q[1]);
+
+	P.set(12, 12, -30, 0);
+	Q = fullMatrixLeft * P;
+	Q = Q / Q[3];
+	log_debug("[DBG] (%0.3f, %0.3f) --> (%0.3f, %0.3f)", P[0], P[1], Q[0], Q[1]);
+}
+
+struct MainVertex
+{
+	float pos[2];
+	float tex[2];
+	MainVertex() {}
+	MainVertex(float x, float y, float tx, float ty) {
+		pos[0] = x; pos[1] = y;
+		tex[0] = tx; tex[1] = ty;
+	}
+};
+
 bool InitSteamVR()
 {
 	char *strDriver = NULL;
 	char *strDisplay = NULL;
 	FILE *file = NULL;
+	//Matrix4 RollTest;
 	bool result = true;
+
+	Matrix4 g_targetCompView
+	(
+		3.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 6.0f, 0.0f, 2.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f
+	);
+	g_targetCompView.transpose();
 
 	int file_error = fopen_s(&file, "./steamvr_mat.txt", "wt");
 	log_debug("[DBG] Initializing SteamVR");
 	vr::EVRInitError eError = vr::VRInitError_None;
 	g_pHMD = vr::VR_Init(&eError, vr::VRApplication_Scene);
+	g_headCenter.set(0, 0, 0);
+
+	// Generic matrix used for the dynamic targeting computer -- maybe I should use the left projection matrix instead?
+	g_projHead.set
+	(
+		1.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, -1.0f, -0.01f, // Use the focal_dist here?
+		0.0f, 0.0f, -1.0f, 0.0f
+	);
+	g_projHead.transpose();
 
 	if (eError != vr::VRInitError_None)
 	{
@@ -774,7 +1317,7 @@ bool InitSteamVR()
 	}
 	log_debug("[DBG] SteamVR Compositor Initialized");
 
-	g_pVRCompositor->ForceInterleavedReprojectionOn(g_bInterleavedReprojection); // Looks like we get slightly better performance with this setting.
+	g_pVRCompositor->ForceInterleavedReprojectionOn(g_bInterleavedReprojection);
 	log_debug("[DBG] InterleavedReprojection: %d", g_bInterleavedReprojection);
 
 	g_pVRScreenshots = vr::VRScreenshots();
@@ -785,10 +1328,34 @@ bool InitSteamVR()
 	// Reset the seated pose
 	g_pHMD->ResetSeatedZeroPose();
 
+	// Pre-multiply and store the eye and projection matrices:
+	ProcessSteamVREyeMatrices(vr::EVREye::Eye_Left);
+	ProcessSteamVREyeMatrices(vr::EVREye::Eye_Right);
+
+	vr::HmdMatrix44_t projLeft = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Left, 0.001f, 100.0f);
+	vr::HmdMatrix44_t projRight = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Right, 0.001f, 100.0f);
+
+	g_projLeft  = HmdMatrix44toMatrix4(projLeft);
+	g_projRight = HmdMatrix44toMatrix4(projRight);
+
+	// Override all of the above with the Pimax matrices
+	//TestPimax();
+
+	g_fullMatrixLeft  = g_projLeft  * g_EyeMatrixLeftInv;
+	g_fullMatrixRight = g_projRight * g_EyeMatrixRightInv;
+	g_fullMatrixHead = g_projHead * g_targetCompView; // The center matrix does not have eye parallax
+
+	//Test2DMesh();
+
+	ShowMatrix4(g_EyeMatrixLeftInv, "g_EyeMatrixLeftInv");
+	ShowMatrix4(g_projLeft, "g_projLeft");
+
+	ShowMatrix4(g_EyeMatrixRightInv, "g_EyeMatrixRightInv");
+	ShowMatrix4(g_projRight, "g_projRight");
+	
 	// Dump information about the view matrices
 	if (file_error == 0) {
-		vr::HmdMatrix34_t eyeLeft = g_pHMD->GetEyeToHeadTransform(vr::EVREye::Eye_Left);
-		vr::HmdMatrix34_t eyeRight = g_pHMD->GetEyeToHeadTransform(vr::EVREye::Eye_Right);
+		Matrix4 eye, test;
 
 		if (strDriver != NULL)
 			fprintf(file, "Driver: %s\n", strDriver);
@@ -796,16 +1363,39 @@ bool InitSteamVR()
 			fprintf(file, "Display: %s\n", strDisplay);
 		fprintf(file, "\n");
 
+		// Left Eye matrix
 		fprintf(file, "eyeLeft:\n");
-		DumpMatrix34(file, eyeLeft);
+		DumpMatrix34(file, g_EyeMatrixLeft);
 		fprintf(file, "\n");
 
+		fprintf(file, "eyeLeftInv:\n");
+		DumpMatrix4(file, g_EyeMatrixLeftInv);
+		fprintf(file, "\n");
+
+		eye = HmdMatrix34toMatrix4(g_EyeMatrixLeft);
+		test = eye * g_EyeMatrixLeftInv;
+		fprintf(file, "Left Eye inverse test:\n");
+		DumpMatrix4(file, test);
+		fprintf(file, "\n");
+
+		// Right Eye matrix
 		fprintf(file, "eyeRight:\n");
-		DumpMatrix34(file, eyeRight);
+		DumpMatrix34(file, g_EyeMatrixRight);
 		fprintf(file, "\n");
 
-		vr::HmdMatrix44_t projLeft = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Left, DEFAULT_FOCAL_DIST, Z_FAR);
-		vr::HmdMatrix44_t projRight = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Right, DEFAULT_FOCAL_DIST, Z_FAR);
+		fprintf(file, "eyeRightInv:\n");
+		DumpMatrix4(file, g_EyeMatrixRightInv);
+		fprintf(file, "\n");
+
+		eye = HmdMatrix34toMatrix4(g_EyeMatrixRight);
+		test = eye * g_EyeMatrixRightInv;
+		fprintf(file, "Right Eye inverse test:\n");
+		DumpMatrix4(file, test);
+		fprintf(file, "\n");
+
+		// Z_FAR was 50 for version 0.9.6, and I believe Z_Near was 0.5 (focal dist)
+		//vr::HmdMatrix44_t projLeft = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Left, DEFAULT_FOCAL_DIST, 50.0f);
+		//vr::HmdMatrix44_t projRight = g_pHMD->GetProjectionMatrix(vr::EVREye::Eye_Right, DEFAULT_FOCAL_DIST, 50.0f);
 
 		fprintf(file, "projLeft:\n");
 		DumpMatrix44(file, projLeft);
@@ -829,12 +1419,20 @@ bool InitSteamVR()
 	}
 
 out:
-	if (strDriver != NULL)
+	g_bSteamVRInitialized = result;
+
+	if (strDriver != NULL) {
 		delete[] strDriver;
-	if (strDisplay != NULL)
+		strDriver = NULL;
+	}
+	if (strDisplay != NULL) {
 		delete[] strDisplay;
-	if (file != NULL)
+		strDisplay = NULL;
+	}
+	if (file != NULL) {
 		fclose(file);
+		file = NULL;
+	}
 	return result;
 }
 
@@ -844,12 +1442,78 @@ void ShutDownSteamVR() {
 	return;
 	//log_debug("[DBG] Not shutting down SteamVR, just returning...");
 	//return;
+	/*
 	log_debug("[DBG] Shutting down SteamVR...");
 	vr::VR_Shutdown();
 	g_pHMD = NULL;
 	g_pVRCompositor = NULL;
 	g_pVRScreenshots = NULL;
 	log_debug("[DBG] SteamVR shut down");
+	*/
+}
+
+bool InitDirectSBS()
+{
+	InitFreePIE();
+	g_headCenter.set(0, 0, 0);
+
+	g_EyeMatrixLeftInv.set
+	(
+		1.0f, 0.0f, 0.0f, g_fHalfIPD,
+		0.0f, 1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f
+	);
+	// Matrices are stored in column-major format, so we have to transpose them to
+	// match the format above:
+	g_EyeMatrixLeftInv.transpose();
+
+	g_EyeMatrixRightInv.set
+	(
+		1.0f, 0.0f, 0.0f, -g_fHalfIPD,
+		0.0f, 1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f
+	);
+	// Matrices are stored in column-major format, so we have to transpose them to
+	// match the format above:
+	g_EyeMatrixRightInv.transpose();
+
+	g_projLeft.set
+	(
+		0.847458f, 0.0f,       0.0f,  0.0f,
+		0.0f,      0.746269f,  0.0f,  0.0f,
+		0.0f,      0.0f,      -1.0f, -0.01f, // Use the focal_dist here?
+		0.0f,      0.0f,      -1.0f,  0.0f
+	);
+	g_projLeft.transpose();
+	g_projRight = g_projLeft;
+
+	g_fullMatrixLeft  = g_projLeft  * g_EyeMatrixLeftInv;
+	g_fullMatrixRight = g_projRight * g_EyeMatrixRightInv;
+
+	Matrix4 g_targetCompView
+	(
+		3.0f, 0.0f, 0.0f,  0.0f,
+		0.0f, 6.0f, 0.0f,  2.0f,
+		0.0f, 0.0f, 1.0f,  0.0f,
+		0.0f, 0.0f, 0.0f,  1.0f
+	);
+	g_targetCompView.transpose();
+	g_fullMatrixHead  = g_projLeft * g_targetCompView; // The center matrix does not have eye parallax
+
+	//ShowMatrix4(g_EyeMatrixLeftInv, "g_EyeMatrixLeftInv");
+	//ShowMatrix4(g_projLeft, "g_projLeft");
+	//ShowMatrix4(g_EyeMatrixRightInv, "g_EyeMatrixRightInv");
+	//ShowMatrix4(g_projRight, "g_projRight");
+	log_debug("[DBG] DirectSBS mode initialized");
+	g_bDirectSBSInitialized = true;
+	return true;
+}
+
+bool ShutDownDirectSBS() {
+	ShutdownFreePIE();
+	return true;
 }
 
 /*
@@ -967,13 +1631,15 @@ public:
 		case D3DCMP_NEVER:
 			return D3D11_COMPARISON_NEVER;
 		case D3DCMP_LESS:
-			return D3D11_COMPARISON_LESS;
+			return D3D11_COMPARISON_LESS; // Original setting
+			//return D3D11_COMPARISON_GREATER;
 		case D3DCMP_EQUAL:
 			return D3D11_COMPARISON_EQUAL;
 		case D3DCMP_LESSEQUAL:
 			return D3D11_COMPARISON_LESS_EQUAL;
 		case D3DCMP_GREATER:
-			return D3D11_COMPARISON_GREATER;
+			return D3D11_COMPARISON_GREATER; // Original setting
+			//return D3D11_COMPARISON_LESS;
 		case D3DCMP_NOTEQUAL:
 			return D3D11_COMPARISON_NOT_EQUAL;
 		case D3DCMP_GREATEREQUAL:
@@ -1113,12 +1779,21 @@ Direct3DDevice::Direct3DDevice(DeviceResources* deviceResources)
 	this->_renderStates = new RenderStates(this->_deviceResources);
 
 	this->_maxExecuteBufferSize = 0;
+
+	if (this->_deviceResources->_d3dDevice != NULL) {
+		log_debug("[DBG] Loading new resources, device: 0x%x", _deviceResources->_d3dDevice);
+		LoadNewCockpitTextures(this->_deviceResources->_d3dDevice);
+	}
+	else {
+		log_debug("[DBG] Could not load new textures: d3dDevice is NULL");
+	}
 }
 
 Direct3DDevice::~Direct3DDevice()
 {
-	DeleteStereoVertices();
-	g_iNumVertices = 0;
+	UnloadNewCockpitTextures();
+	//DeleteStereoVertices();
+	//g_iNumVertices = 0;
 	delete this->_renderStates;
 }
 
@@ -1299,9 +1974,8 @@ HRESULT Direct3DDevice::CreateExecuteBuffer(
 
 		if (FAILED(device->CreateBuffer(&vertexBufferDesc, nullptr, &this->_vertexBuffer)))
 			return DDERR_INVALIDOBJECT;
-		if (FAILED(device->CreateBuffer(&vertexBufferDesc, nullptr, &this->_vertexBufferL)))
-			return DDERR_INVALIDOBJECT;
-		if (FAILED(device->CreateBuffer(&vertexBufferDesc, nullptr, &this->_vertexBufferR)))
+		// This buffer is used in both the SteamVR and DirectSBS modes:
+		if (FAILED(device->CreateBuffer(&vertexBufferDesc, nullptr, &this->_vertexBuffer3D)))
 			return DDERR_INVALIDOBJECT;
 
 		D3D11_BUFFER_DESC indexBufferDesc;
@@ -1347,33 +2021,11 @@ HRESULT Direct3DDevice::GetStats(
 	return DDERR_UNSUPPORTED;
 }
 
-void DeleteStereoVertices() {
-	if (g_OrigVerts != NULL)
-		delete[] g_OrigVerts;
-	if (g_LeftVerts != NULL)
-		delete[] g_LeftVerts;
-	if (g_RightVerts != NULL)
-		delete[] g_RightVerts;
-}
-
-void ResizeStereoVertices(int numVerts) {
-	// Only resize if we need more space, otherwise ignore.
-	if (numVerts <= g_iNumVertices)
-		return;
-
-	g_iNumVertices = numVerts + 256; // Add more elements than we need, this prevents resizing too often.
-	DeleteStereoVertices();
-
-	g_OrigVerts = new D3DTLVERTEX[g_iNumVertices];
-	g_LeftVerts = new D3DTLVERTEX[g_iNumVertices];
-	g_RightVerts = new D3DTLVERTEX[g_iNumVertices];
-}
-
 #ifdef DBG_VR
 void DumpOrigVertices(FILE *file, int numVerts)
 {
 	char buf[256];
-	float px, py, pz;
+	float px, py, pz, rhw;
 
 	// Don't catpure things we are not drawing
 	if (g_iDrawCounter < g_iNoDrawBeforeIndex)
@@ -1382,66 +2034,116 @@ void DumpOrigVertices(FILE *file, int numVerts)
 		return;
 
 	for (register int i = 0; i < numVerts; i++) {
-		px = g_orig_verts[i].sx;
-		py = g_orig_verts[i].sy;
-		pz = g_orig_verts[i].sz;
+		px = g_OrigVerts[i].sx;
+		py = g_OrigVerts[i].sy;
+		pz = g_OrigVerts[i].sz;
+		rhw = g_OrigVerts[i].rhw;
 
-		sprintf_s(buf, 256, "v %f %f %f\n", px, py, pz);
+		// 1/rhw is the linear Z depth times a scale factor
+		sprintf_s(buf, 256, "%f %f %f %f %f\n", px, py, pz, rhw, 1.0f/rhw);
 		fprintf(file, buf);
 	}
 }
 #endif
 
+/* 
+ * In SteamVR, the coordinate system is as follows:
+ * +x is right
+ * +y is up
+ * -z is forward
+ * Distance is meters
+ * This function is not used anymore and the projection is done in the vertex shader
+ */
+void projectSteamVR(float X, float Y, float Z, vr::EVREye eye, float &x, float &y, float &z) {
+	Vector4 PX; // PY;
+
+	PX.set(X, -Y, -Z, 1.0f);
+	if (eye == vr::EVREye::Eye_Left) {
+		PX = g_fullMatrixLeft * PX;
+	} else {
+		PX = g_fullMatrixRight * PX;
+	}
+	// Project
+	PX /= PX[3];
+	// Convert to 2D
+	x =  PX[0];
+	y = -PX[1];
+	z =  PX[2];
+}
+
+/* 
+ * This function was originally used to reconstruct 3D. Now, most of this logic is in the 
+ * SBSVertexShader. We actually don't need this function at all, and at some point it will
+ * be moved entirely to the vertex shader. At that point, we can get rid of g_3DVerts too and
+ * the logic associated with it.
+ */
+/*
 void PreprocessVerticesStereo(float width, float height, int numVerts)
 {
 	// Pre-process vertices for Stereo
-	float X, Y, Z, px, py, pz, qx, qy, qz, direct_pz;
-	bool is_cockpit;
+	float px, py;
+	//bool is_cockpit;
 	float scale_x = 1.0f / width;
 	float scale_y = 1.0f / height;
-	bool is_GUI = false;
+	//float w;
+	//float scale = scale_x;
+	//bool is_GUI = false;
 
 	// Back-project and do stereo
 	for (register int i = 0; i < numVerts; i++) {
-		g_LeftVerts[i]  = g_OrigVerts[i];
-		g_RightVerts[i] = g_OrigVerts[i];
+		g_3DVerts[i] = g_OrigVerts[i];
 		// Normalize the coords: move the screen's center to (0,0) and scale the (x,y) axes
 		// to -0.5..0.5
 		px = g_OrigVerts[i].sx * scale_x - 0.5f;
 		py = g_OrigVerts[i].sy * scale_y - 0.5f;
 		// Also invert the Z axis so that z = 0 is the screen plane and z = 1 is ZFar, the original
 		// values have ZFar = 0, and ZNear = 1
-		direct_pz = g_OrigVerts[i].sz;
-		pz = 1.0f - direct_pz;
+		//direct_pz = g_OrigVerts[i].sz;
+		//pz = 1.0f - direct_pz;
 
 		// GUI elements seem to be in the range 0..0.0005, so 0.0006 sounds like a good threshold:
-		is_GUI = (pz <= g_fGUIElemPZThreshold);
-		is_cockpit = (pz <= g_fCockpitPZThreshold);
+		//is_GUI = (pz <= g_fGUIElemPZThreshold);
+		//is_cockpit = (pz <= g_fCockpitPZThreshold);
 
-		// Back-project into 3D space
-		back_project(px, py, pz, direct_pz, X, Y, Z);
-
+		g_3DVerts[i].sx = px;
+		g_3DVerts[i].sy = py;
+	}
+	*/
 		// Reproject back into 2D space
-		if (is_GUI) {
+		//if (is_GUI) {
 			// We need to restore the original ZBuffer value for the GUI elements or
 			// they will cause Z-Fighting with the 3D objects. Also the depth of the
 			// GUI elements is fixed by directly setting their parallax. So, nothing
 			// to do here.
+			/*
 			qx = px;
 			qy = py;
 			qz = pz;
-		} else if (is_cockpit) {
-			project(X + g_fHalfIPD, Y, Z, px, py, pz);
-			project(X - g_fHalfIPD, Y, Z, qx, qy, qz);
-		} else {
-			float disp = 30.0f; // Objects "out there" need to have their parallax boosted or they just look flat
+			*/
+			//g_3DVerts[i].sz = g_fFocalDist;
+			//g_3DVerts[i].sz = 0.0008f;
+			//g_3DVerts[i].sz = g_fFloatingGUIParallax;
+			//g_3DVerts[i].sz += 0.9f;
+		//} 
+		/*
+		else { //if (is_cockpit) {
+			if (g_bUseSteamVR) {
+				projectSteamVR(X, Y, Z, vr::EVREye::Eye_Left, px, py, pz);
+				projectSteamVR(X, Y, Z, vr::EVREye::Eye_Right, qx, qy, qz);
+			} else {
+				project(X + g_fHalfIPD, Y, Z, px, py, pz);
+				project(X - g_fHalfIPD, Y, Z, qx, qy, qz);
+			}			
+		} /* else {
+			float disp = 10.0f; // Objects "out there" need to have their parallax boosted or they just look flat
 			project(X + g_fHalfIPD * disp, Y, Z, px, py, pz);
 			project(X - g_fHalfIPD * disp, Y, Z, qx, qy, qz);
-		}
+		} */
 
+		/*
 		// (px,py) and (qx,qy) are now in the range [-0.5,..,0.5], we need
 		// to map them to the range [0..width, 0..height]
-
+		
 		// Compute the vertices for the left image
 		{
 			// De-normalize coords (left image)
@@ -1462,18 +2164,20 @@ void PreprocessVerticesStereo(float width, float height, int numVerts)
 			g_LeftVerts[i].sz  = g_OrigVerts[i].sz;
 			g_RightVerts[i].sz = g_OrigVerts[i].sz;
 		//}
-	}
+
+		*/
+	//} // Original end of the main for-loop
 
 #ifdef DBG_VR
 	// DBG: Hack: Dump the 3D scene. Triggered with Ctrl-Alt-C
 	if (g_bDo3DCapture)
 	{
-		if (g_hack_file == NULL)
-			fopen_s(&g_hack_file, "./vertexbuf.obj", "wt");
-		DumpOrigVertices(g_hack_file, numVerts);
+		if (g_HackFile == NULL)
+			fopen_s(&g_HackFile, "./vertexbuf.obj", "wt");
+		DumpOrigVertices(g_HackFile, numVerts);
 	}
 #endif
-}
+//}
 
 /* Function to quickly enable/disable ZWrite. Currently only used for brackets */
 HRESULT Direct3DDevice::QuickSetZWriteEnabled(BOOL Enabled) {
@@ -1532,17 +2236,21 @@ HRESULT Direct3DDevice::Execute(
 	bool bModifiedShaders = false, bZWriteEnabled = false;
 
 	g_VSCBuffer = { 0 };
-	g_VSCBuffer.aspect_ratio = g_fAspectRatio;
+	g_VSCBuffer.aspect_ratio = g_bRendering3D ? g_fAspectRatio : g_fConcourseAspectRatio;
 	g_VSCBuffer.z_override = -1.0f;
+	g_VSCBuffer.sz_override = -1.0f;
+	g_VSCBuffer.mult_z_override = -1.0f;
+	g_VSCBuffer.cockpit_threshold = g_fGUIElemPZThreshold;
+	g_VSCBuffer.bPreventTransform = 0.0f;
 	g_PSCBuffer.brightness = MAX_BRIGHTNESS;
 
 	char* step = "";
 
 	this->_deviceResources->InitInputLayout(resources->_inputLayout);
-	// The original code used _vertexShader:
 	if (g_bEnableVR)
 		this->_deviceResources->InitVertexShader(resources->_sbsVertexShader);
 	else
+		// The original code used _vertexShader:
 		this->_deviceResources->InitVertexShader(resources->_vertexShader);	
 	this->_deviceResources->InitPixelShader(resources->_pixelShaderTexture);
 	this->_deviceResources->InitTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -1552,44 +2260,42 @@ HRESULT Direct3DDevice::Execute(
 	int numVerts = executeBuffer->_executeData.dwVertexCount;
 	size_t vertsLength = sizeof(D3DTLVERTEX) * numVerts;
 	// Resize the aux buffers that store the left and right vertices
-	ResizeStereoVertices(numVerts);
+	//ResizeStereoVertices(numVerts);
 	// Save the original vertices
-	memcpy(g_OrigVerts, executeBuffer->_buffer, sizeof(D3DTLVERTEX) * numVerts);
+	//memcpy(g_OrigVerts, executeBuffer->_buffer, sizeof(D3DTLVERTEX) * numVerts);
+	g_OrigVerts = (D3DTLVERTEX *)executeBuffer->_buffer;
 	// Generate vertex positions for the left and right images
 	float displayWidth = (float)resources->_displayWidth;
 	float displayHeight = (float)resources->_displayHeight;
-	if (g_bEnableVR) PreprocessVerticesStereo(displayWidth, displayHeight, numVerts);
+	//if (g_bEnableVR) PreprocessVerticesStereo(displayWidth, displayHeight, numVerts);
 
 	// Copy the vertex data to the vertexbuffers
 	// Original data, no parallax
-	step = "VertexBuffer (Monoscopic)";
+	step = "VertexBuffer";
 	hr = context->Map(this->_vertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
 	if (SUCCEEDED(hr))
 	{
 		memcpy(map.pData, g_OrigVerts, vertsLength);
 		context->Unmap(this->_vertexBuffer, 0);
 	}
+	resources->InitVertexBuffer(this->_vertexBuffer.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
 
 	// Copy the vertex data to the left and right VertexBuffers
+	/*
 	if (g_bEnableVR) {
-		// Left vertices
-		step = "VertexBuffer (Left)";
-		hr = context->Map(this->_vertexBufferL, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
+		// 3D vertices
+		step = "VertexBuffer (3D)";
+		hr = context->Map(this->_vertexBuffer3D, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
 		if (SUCCEEDED(hr))
 		{
-			memcpy(map.pData, g_LeftVerts, vertsLength);
-			context->Unmap(this->_vertexBufferL, 0);
+			memcpy(map.pData, g_3DVerts, vertsLength);
+			context->Unmap(this->_vertexBuffer3D, 0);
 		}
 
-		// Right vertices
-		step = "VertexBuffer (Right)";
-		hr = context->Map(this->_vertexBufferR, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
-		if (SUCCEEDED(hr))
-		{
-			memcpy(map.pData, g_RightVerts, vertsLength);
-			context->Unmap(this->_vertexBufferR, 0);
-		}
+		// Send the 3D vertices, let the shader do the projection
+		resources->InitVertexBuffer(this->_vertexBuffer3D.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
 	}
+	*/
 
 	// Constant Buffer step (and aspect ratio)
 	if (SUCCEEDED(hr))
@@ -1653,13 +2359,21 @@ HRESULT Direct3DDevice::Execute(
 			scale *= g_config.Concourse3DScale;
 		}
 
-		g_VSCBuffer.viewportScale[0] =  2.0f / (float)resources->_displayWidth;
-		g_VSCBuffer.viewportScale[1] = -2.0f / (float)resources->_displayHeight;
+		if (g_bEnableVR) {
+			g_VSCBuffer.viewportScale[0] = 1.0f / displayWidth;
+			g_VSCBuffer.viewportScale[1] = 1.0f / displayHeight;
+		} else {
+			g_VSCBuffer.viewportScale[0] =  2.0f / displayWidth;
+			g_VSCBuffer.viewportScale[1] = -2.0f / displayHeight;
+		}
 		g_VSCBuffer.viewportScale[2] = scale;
 		g_VSCBuffer.viewportScale[3] = g_fGlobalScale;
-		g_VSCBuffer.aspect_ratio = g_fAspectRatio;
-		g_VSCBuffer.parallax = 0.0f;
+		// If we're rendering to the Tech Library, then we should use the Concourse Aspect Ratio
+		g_VSCBuffer.aspect_ratio = g_bRendering3D ? g_fAspectRatio : g_fConcourseAspectRatio;
+		g_VSCBuffer.cockpit_threshold = g_fCockpitPZThreshold;
 		g_VSCBuffer.z_override = -1.0f;
+		g_VSCBuffer.sz_override = -1.0f;
+		g_VSCBuffer.mult_z_override = -1.0f;
 		resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 		resources->InitPSConstantBufferBrightness(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 
@@ -1859,6 +2573,7 @@ HRESULT Direct3DDevice::Execute(
 					At the beginning of every frame:
 					  - g_bTargetCompDrawn will be set to false
 					  - g_iFloating_GUI_drawn_counter is set to 0
+					  - g_bPrevIsFloatingGUI3DObject && g_bIsFloating3DObject are set to false
 
 					We're using a non-exhaustive list of GUI CRCs to tell when the 3D content has finished drawing.
 				*/
@@ -1869,7 +2584,9 @@ HRESULT Direct3DDevice::Execute(
 				bZWriteEnabled = this->_renderStates->GetZWriteEnabled();
 
 				/* If we have drawn at least one Floating GUI element and now the ZWrite has been enabled
-				   again, then we're about to draw the floating 3D element */
+				   again, then we're about to draw the floating 3D element. Although, g_bTargetCompDrawn
+				   isn't fully semantically correct because it should be set to true *after* it has actually
+				   been drawn. Here it's being set *before* it's drawn. */
 				if (!g_bTargetCompDrawn && g_iFloatingGUIDrawnCounter > 0 && bZWriteEnabled)
 					g_bTargetCompDrawn = true;
 				// bIsNoZWrite is true if ZWrite is disabled and the SkyBox has been rendered.
@@ -1884,22 +2601,31 @@ HRESULT Direct3DDevice::Execute(
 				// ZWrite disabled. So, how can we tell if a bracket is being rendered or a shadow?
 				// Brackets are rendered with ZFunc D3DCMP_ALWAYS (8),
 				// Shadows are rendered with ZFunc D3DCMP_GREATEREQUAL (7)
+				// Cockpit glass & Engine Glow is rendered with ZFunc D3DCMP_GREATER (5)
 				bool bIsBracket = bIsNoZWrite && lastTextureSelected == NULL && 
 					this->_renderStates->GetZFunc() == D3DCMP_ALWAYS;
 				bool bIsFloatingGUI = lastTextureSelected != NULL && lastTextureSelected->is_Floating_GUI;
-				bool bIsFloating3DObject = g_bTargetCompDrawn && lastTextureSelected != NULL &&
+				g_bPrevIsFloatingGUI3DObject = g_bIsFloating3DObject;
+				g_bIsFloating3DObject = g_bTargetCompDrawn && lastTextureSelected != NULL &&
 					!lastTextureSelected->is_Text && !lastTextureSelected->is_TrianglePointer &&
-					!lastTextureSelected->is_HUD && !lastTextureSelected->is_Floating_GUI;
+					!lastTextureSelected->is_HUD && !lastTextureSelected->is_Floating_GUI &&
+					!lastTextureSelected->is_TargetingComp;
 				// The GUI starts rendering whenever we detect a GUI element, or Text, or a bracket.
-				g_bStartedGUI |= bIsGUI || bIsText || bIsBracket;
+				g_bStartedGUI |= bIsGUI || bIsText || bIsBracket || bIsFloatingGUI;
 				//g_bStartedGUI |= bIsGUI || bIsText; // bIsBracket is true for brackets *and* for (hangar) shadows
 				// bIsScaleableGUIElem is true when we're about to render a HUD element that can be scaled down with Ctrl+Z
 				bool bIsScaleableGUIElem = g_bStartedGUI && !bIsHUD && !bIsBracket && !bIsTrianglePointer;
+				bool bIsTranspOrGlow = bIsNoZWrite && _renderStates->GetZFunc() == D3DCMP_GREATER;
 				// lastTextureSelected can be NULL. This happens when drawing the square
 				// brackets around the currently-selected object.
 				/*************************************************************************
 					State management ends here
 				 *************************************************************************/
+
+				//if (bIsNoZWrite && _renderStates->GetZFunc() == D3DCMP_GREATER) {
+				//	goto out;
+					//log_debug("[DBG] NoZWrite, ZFunc: %d", _renderStates->GetZFunc());
+				//}
 
 				 // Skip specific draw calls for debugging purposes.
 #ifdef DBG_VR
@@ -1941,7 +2667,11 @@ HRESULT Direct3DDevice::Execute(
 					viewport.MaxDepth = D3D11_MAX_DEPTH;
 					resources->InitViewport(&viewport);
 
-					resources->InitVertexBuffer(this->_vertexBuffer.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
+					// For non-VR mode, send the original 2D vertices
+					//g_VSMatrixCB.projEye.identity();
+					//resources->InitVSConstantBufferMatrix(resources->_VSMatrixBuffer.GetAddressOf(), &g_VSMatrixCB);
+					//resources->InitVertexBuffer(this->_vertexBuffer.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
+
 					context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
 						resources->_depthStencilViewL.Get());
 					context->DrawIndexed(3 * instruction->wCount, currentIndexLocation, 0);
@@ -1973,7 +2703,25 @@ HRESULT Direct3DDevice::Execute(
 				if (bIsBracket) {
 					bModifiedShaders = true;
 					QuickSetZWriteEnabled(TRUE);
-					g_VSCBuffer.z_override = g_fZOverride;
+					g_VSCBuffer.sz_override = 0.05f;
+					g_VSCBuffer.z_override = g_fZBracketOverride;
+				}
+
+				/* // Looks like we no longer need to clear the depth buffers for the targeted object
+				if (!g_bPrevIsFloatingGUI3DObject && g_bIsFloating3DObject) {
+					// The targeted craft is about to be drawn! Clear both depth stencils?
+					context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
+					context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewR, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
+				}
+				*/
+
+				if (g_bDynamicCockpit && !g_bPrevIsFloatingGUI3DObject && g_bIsFloating3DObject) {
+					// The targeted craft is about to be drawn!
+					// Let's clear the render target view for the targeting computer
+					float bgColor[4] = { 0.1f, 0.1f, 0.3f, 0.0f };
+					context->ClearRenderTargetView(resources->_renderTargetViewTargetComp, bgColor);
+					context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
+					context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewR, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
 				}
 
 				// Reduce the scale for GUI elements, except for the HUD
@@ -1983,60 +2731,77 @@ HRESULT Direct3DDevice::Execute(
 				}
 
 				// Dim all the GUI elements
-				if (g_bStartedGUI && !bIsFloating3DObject) {
+				if (g_bStartedGUI && !g_bIsFloating3DObject) {
 					bModifiedShaders = true;
 					g_PSCBuffer.brightness = g_fBrightness;
 				}
 
-				if (bModifiedShaders)
-					resources->InitPSConstantBufferBrightness(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
+				if (bIsSkyBox) {
+					bModifiedShaders = true;
+					// If we make the skybox a bit bigger to enable roll, it "swims" -- it's probably not going to work.
+					//g_VSCBuffer.viewportScale[3] = g_fGlobalScale + 0.2f;
+					// Send the skybox to infinity:
+					g_VSCBuffer.sz_override = 0.01f;
+					g_VSCBuffer.mult_z_override = 5000.0f; // Infinity is probably at 65535, we can probably multiply by something bigger here.
+				}
 
-				// ****************************************************************************
-				// Left image state settings
-				// ****************************************************************************
+				/*
+				if (bIsTranspOrGlow) {
+					bModifiedShaders = true;
+				}
+				*/
+
+				// Replace the targeting computer texture with our own at run-time:
+				// Fun fact: we can also replace the HUD textures at run-time too!
+				if (g_bDynamicCockpit && lastTextureSelected != NULL && lastTextureSelected->is_CockpitTargetingComp) {
+					// Replace the targeting computer texture with our own
+					/*
+					if (g_NewCockpitTargetCompOverlay != NULL)
+						context->PSSetShaderResources(0, 1, g_NewCockpitTargetCompOverlay.GetAddressOf());
+					*/
+					// Resolve the last offscreenBufferTargetComp and use it as input to the PixelShader
+					context->ResolveSubresource(resources->_offscreenBufferTargetCompAsInput, 0, resources->_offscreenBufferTargetComp,
+						0, DXGI_FORMAT_B8G8R8A8_UNORM);
+					context->PSSetShaderResources(0, 1, resources->_offscreenTargetCompAsInputShaderResourceView.GetAddressOf());
+				}
+
+				// Add an extra parallax to HUD elements
+				if (bIsHUD) {
+					bModifiedShaders = true;
+					g_VSCBuffer.z_override = g_fHUDDepth;
+					if (g_bFloatingAimingHUD)
+						g_VSCBuffer.bPreventTransform = 1.0f;
+				}
 
 				// Let's render the triangle pointer closer to the center so that we can see it all the time,
-				// also, render the triangle pointer at text depth.
+				// and let's put it at text depth so that it doesn't cause visual contention against the
+				// cockpit
 				if (bIsTrianglePointer) {
 					bModifiedShaders = true;
 					g_VSCBuffer.viewportScale[3] = g_fGUIElemScale;
-					g_VSCBuffer.parallax = g_fHalfIPD * g_fTextParallax;
-				}
-
-				// Add an extra parallax to HUD elements, left image
-				if (bIsHUD) {
-					bModifiedShaders = true;
-					g_VSCBuffer.parallax = g_fHalfIPD * g_fHUDParallax;
+					g_VSCBuffer.z_override = g_fTextDepth;
 				}
 
 				// Add extra parallax to Floating GUI elements, left image
-				if (bIsFloatingGUI || bIsFloating3DObject || bIsScaleableGUIElem) {
+				if (bIsFloatingGUI || g_bIsFloating3DObject || bIsScaleableGUIElem) {
 					bModifiedShaders = true;
-					g_VSCBuffer.parallax = bIsFloating3DObject ?
-						g_fHalfIPD * (g_fFloatingGUIParallax + g_fFloatingGUIObjParallax) :
-						g_fHalfIPD * g_fFloatingGUIParallax;
+					if (!bIsBracket)
+						g_VSCBuffer.z_override = g_fFloatingGUIDepth;
+					if (g_bIsFloating3DObject && !bIsBracket) {
+						g_VSCBuffer.z_override += g_fFloatingGUIObjDepth;
+					}
 				}
 
 				// Add an extra parallax to Text elements, left image
-				if (bIsText) {
+				if (bIsText) { // This is now a common setting
 					bModifiedShaders = true;
-					g_VSCBuffer.parallax = g_fHalfIPD * g_fTextParallax;
+					g_VSCBuffer.z_override = g_fTextDepth;
 				}
 
-				// Select either the original vertex buffer or the left-image vertex buffer. Certain elements are
-				// rendered at infinity using the original VB and others are rendered at various depths but using
-				// the original VB and adding a specific parallax (like the text and HUD)
-				if (SUCCEEDED(hr))
-				{
-					// Use the original vertices for the Sky, HUD, Text and Brackets:
-					if (bIsSkyBox || bIsHUD || bIsText || bIsBracket) // Should I add Floating GUI elements here as well?
-						resources->InitVertexBuffer(this->_vertexBuffer.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
-					else
-						resources->InitVertexBuffer(this->_vertexBufferL.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
-				}
-
-				if (bModifiedShaders)
+				if (bModifiedShaders) {
+					resources->InitPSConstantBufferBrightness(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
+				}
 
 				// Skip the draw call for debugging purposes depending on g_iNoDrawBeforeIndex and g_iNoDrawAfterIndex
 #ifdef DBG_VR
@@ -2050,13 +2815,24 @@ HRESULT Direct3DDevice::Execute(
 				// Render the left image
 				// ****************************************************************************
 				// SteamVR probably requires independent ZBuffers; for non-Steam we can get away
-				// with just using one, though.
-				if (g_bUseSteamVR)
-					context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
+				// with just using one, though... but why would we use just one? To make AO 
+				// computation faster? On the other hand, having always 2 z-buffers makes the code
+				// easier.
+
+				if (g_bDynamicCockpit && g_bIsFloating3DObject) {
+					// Set the targeting computer renderTargetView
+					context->OMSetRenderTargets(1, resources->_renderTargetViewTargetComp.GetAddressOf(),
 						resources->_depthStencilViewL.Get());
-				else
-					context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
-						resources->_depthStencilViewL.Get());
+				}
+				else {
+					if (g_bUseSteamVR)
+						context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
+							resources->_depthStencilViewL.Get());
+					else
+						context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
+							resources->_depthStencilViewL.Get());
+				}
+				
 				// VIEWPORT-LEFT
 				if (g_bUseSteamVR) {
 					viewport.Width = (float)resources->_backbufferWidth;
@@ -2064,61 +2840,32 @@ HRESULT Direct3DDevice::Execute(
 				else {
 					viewport.Width = (float)resources->_backbufferWidth / 2.0f;
 				}
+				// Targeting computer hack:
+				if (g_bDynamicCockpit && g_bIsFloating3DObject) {
+					viewport.Width = (float)resources->_backbufferWidth;
+				}
 				viewport.Height = (float)resources->_backbufferHeight;
 				viewport.TopLeftX = 0.0f;
 				viewport.TopLeftY = 0.0f;
 				viewport.MinDepth = D3D11_MIN_DEPTH;
 				viewport.MaxDepth = D3D11_MAX_DEPTH;
 				resources->InitViewport(&viewport);
+				// Set the left projection matrix
+				if (g_bDynamicCockpit && g_bIsFloating3DObject) {
+					g_VSMatrixCB.projEye = g_fullMatrixHead;
+					g_VSMatrixCB.viewMat.identity();
+				} 
+				else
+					g_VSMatrixCB.projEye = g_fullMatrixLeft;
+				// The viewMatrix is set at the beginning of the frame
+				resources->InitVSConstantBufferMatrix(resources->_VSMatrixBuffer.GetAddressOf(), &g_VSMatrixCB);
 				// Draw the Left Image
 				context->DrawIndexed(3 * instruction->wCount, currentIndexLocation, 0);
 
-				// ****************************************************************************
-				// Right image state settings
-				// ****************************************************************************
-
-				// Let's render the triangle pointer closer to the center so that we can see it all the time,
-				// also, render the triangle pointer at text depth.
-				if (bIsTrianglePointer) {
-					bModifiedShaders = true;
-					g_VSCBuffer.viewportScale[3] = g_fGUIElemScale;
-					g_VSCBuffer.parallax = -g_fHalfIPD * g_fTextParallax;
-				}
-
-				// Add an extra parallax to HUD elements, right image
-				if (bIsHUD) {
-					bModifiedShaders = true;
-					g_VSCBuffer.parallax = -g_fHalfIPD * g_fHUDParallax;
-				}
-
-				// Add extra parallax to Floating GUI elements, right image
-				if (bIsFloatingGUI || bIsFloating3DObject || bIsScaleableGUIElem) {
-					bModifiedShaders = true;
-					g_VSCBuffer.parallax = bIsFloating3DObject ?
-						-g_fHalfIPD * (g_fFloatingGUIParallax + g_fFloatingGUIObjParallax) :
-						-g_fHalfIPD * g_fFloatingGUIParallax;
-				}
-
-				// Add an extra parallax to Text elements, right image
-				if (bIsText) {
-					bModifiedShaders = true;
-					g_VSCBuffer.parallax = -g_fHalfIPD * g_fTextParallax;
-				}
-
-				// Select either the original vertex buffer or the right-image vertex buffer. Certain elements are
-				// rendered at infinity using the original VB and others are rendered at various depths but using
-				// the original VB and adding a specific parallax (like the text and HUD)
-				if (SUCCEEDED(hr))
-				{
-					// Use the original vertices for the Sky, HUD, Text and Brackets:
-					if (bIsSkyBox || bIsHUD || bIsText || bIsBracket) // Should I add Floating GUI elements here as well?
-						resources->InitVertexBuffer(this->_vertexBuffer.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
-					else
-						resources->InitVertexBuffer(this->_vertexBufferR.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
-				}
-
-				if (bModifiedShaders)
-					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
+				// HACK: Disable rendering to the right image because the floating object is now rendered to a separate render
+				// target view.
+				if (g_bDynamicCockpit && g_bIsFloating3DObject)
+					goto out;
 
 				// ****************************************************************************
 				// Render the right image
@@ -2148,13 +2895,18 @@ HRESULT Direct3DDevice::Execute(
 				viewport.MinDepth = D3D11_MIN_DEPTH;
 				viewport.MaxDepth = D3D11_MAX_DEPTH;
 				resources->InitViewport(&viewport);
+				// Set the right projection matrix
+				g_VSMatrixCB.projEye = g_fullMatrixRight;
+				// TEMPORARY SWAP OF LEFT-RIGHT TO TEST ISSUES SEEN IN THE FIELD
+				//g_VSMatrixCB.projEye = g_fullMatrixLeft;
+				resources->InitVSConstantBufferMatrix(resources->_VSMatrixBuffer.GetAddressOf(), &g_VSMatrixCB);
 				// Draw the Right Image
 				context->DrawIndexed(3 * instruction->wCount, currentIndexLocation, 0);
 
 				// out: label
-#ifdef DBG_VR
+//#ifdef DBG_VR
 			out:
-#endif
+//#endif
 				// Update counters
 				g_iDrawCounter++;
 				// Have we just finished drawing the targetting computer?
@@ -2165,6 +2917,8 @@ HRESULT Direct3DDevice::Execute(
 					// Restore the No-Z-Write state for bracket elements
 					QuickSetZWriteEnabled(bZWriteEnabled);
 					g_VSCBuffer.z_override = -1.0f;
+					g_VSCBuffer.sz_override = -1.0f;
+					g_VSCBuffer.mult_z_override = -1.0f;
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 				}
 
@@ -2172,9 +2926,11 @@ HRESULT Direct3DDevice::Execute(
 				// constant buffers); but only if we altered it previously.
 				if (bModifiedShaders) {
 					g_VSCBuffer.viewportScale[3] = g_fGlobalScale;
-					g_VSCBuffer.parallax = 0.0f;
 					g_PSCBuffer.brightness = MAX_BRIGHTNESS;
 					g_VSCBuffer.z_override = -1.0f;
+					g_VSCBuffer.sz_override = -1.0f;
+					g_VSCBuffer.mult_z_override = -1.0f;
+					g_VSCBuffer.bPreventTransform = 0.0f;
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 					resources->InitPSConstantBufferBrightness(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 				}

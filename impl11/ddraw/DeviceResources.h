@@ -3,6 +3,7 @@
 // Extended for VR by Leo Reyes (c) 2019
 
 #pragma once
+#include "Matrices.h"
 
 enum RenderMainColorKeyType
 {
@@ -20,6 +21,7 @@ class OffscreenSurface;
 /* 2D Constant Buffers */
 typedef struct MainShadersCBStruct {
 	float scale, aspectRatio, parallax, brightness;
+	float use_3D;
 } MainShadersCBuffer;
 
 typedef struct BarrelPixelShaderCBStruct {
@@ -29,12 +31,23 @@ typedef struct BarrelPixelShaderCBStruct {
 /* 3D Constant Bufffers */
 typedef struct VertexShaderCBStruct {
 	float viewportScale[4];
-	float aspect_ratio, parallax, z_override;
+	float aspect_ratio, cockpit_threshold, z_override, sz_override;
+	float mult_z_override, bPreventTransform;
 } VertexShaderCBuffer;
 
 typedef struct PixelShaderCBStruct {
 	float brightness; // Used to control the brightness of some elements -- mostly for ReShade compatibility
 } PixelShaderCBuffer;
+
+typedef struct VertexShaderMatrixCBStruct
+{
+	Matrix4 projEye;
+	Matrix4 viewMat;
+} VertexShaderMatrixCB;
+
+typedef struct HeadPosStruct {
+	float x, y, z;
+} HeadPos;
 
 class DeviceResources
 {
@@ -61,7 +74,8 @@ public:
 	void InitIndexBuffer(ID3D11Buffer* buffer);
 	void InitViewport(D3D11_VIEWPORT* viewport);
 	void InitVSConstantBuffer3D(ID3D11Buffer** buffer, const VertexShaderCBuffer* vsCBuffer);
-	void InitVSConstantBuffer2D(ID3D11Buffer** buffer, const float parallax, const float aspectRatio, const float scale, const float brightness);
+	void InitVSConstantBufferMatrix(ID3D11Buffer** buffer, const VertexShaderMatrixCB* vsCBuffer);
+	void InitVSConstantBuffer2D(ID3D11Buffer** buffer, const float parallax, const float aspectRatio, const float scale, const float brightness, const float use_3D);
 	void InitPSConstantBuffer2D(ID3D11Buffer** buffer, const float parallax, const float aspectRatio, const float scale, const float brightness);
 	void InitPSConstantBufferBarrel(ID3D11Buffer** buffer, const float k1, const float k2, const float k3);
 	void InitPSConstantBufferBrightness(ID3D11Buffer** buffer, const PixelShaderCBuffer *psConstants);
@@ -91,18 +105,22 @@ public:
 	ComPtr<ID3D11Texture2D> _backBuffer;
 	ComPtr<ID3D11Texture2D> _offscreenBuffer;
 	ComPtr<ID3D11Texture2D> _offscreenBufferR; // When SteamVR is used, _offscreenBuffer becomes the left eye and this one becomes the right eye
+	ComPtr<ID3D11Texture2D> _offscreenBufferTargetComp; // Used to render the targeting computer dynamically
 	ComPtr<ID3D11Texture2D> _offscreenBufferAsInput;
-	ComPtr<ID3D11Texture2D> _offscreenBufferAsInputR; // When SteamVR is used, these buffers can be used to make copies of the
+	ComPtr<ID3D11Texture2D> _offscreenBufferAsInputR; // When SteamVR is used, this is the right eye as input buffer
+	ComPtr<ID3D11Texture2D> _offscreenBufferTargetCompAsInput;
 	ComPtr<ID3D11Texture2D> _offscreenBufferPost; // This is the output of the barrel effect
 	ComPtr<ID3D11Texture2D> _offscreenBufferPostR; // This is the output of the barrel effect for the right image when using SteamVR
 	ComPtr<ID3D11Texture2D> _steamVRPresentBuffer; // This is the buffer that will be presented for SteamVR
 	ComPtr<ID3D11RenderTargetView> _renderTargetView;
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewR; // When SteamVR is used, _renderTargetView is the left eye, and this one is the right eye
+	ComPtr<ID3D11RenderTargetView> _renderTargetViewTargetComp; // Used to render the targeting computer dynamically
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewPost; // Used for the barrel effect
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewPostR; // Used for the barrel effect (right image) when SteamVR is used.
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewSteamVRResize; // Used for the barrel effect
 	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputShaderResourceView;
 	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputShaderResourceViewR; // When SteamVR is enabled, this is the SRV for the right eye
+	ComPtr<ID3D11ShaderResourceView> _offscreenTargetCompAsInputShaderResourceView;
 	ComPtr<ID3D11Texture2D> _depthStencilL;
 	ComPtr<ID3D11Texture2D> _depthStencilR;
 	ComPtr<ID3D11DepthStencilView> _depthStencilViewL;
@@ -121,6 +139,7 @@ public:
 	ComPtr<ID3D11BlendState> _mainBlendState;
 	ComPtr<ID3D11DepthStencilState> _mainDepthState;
 	ComPtr<ID3D11Buffer> _mainVertexBuffer;
+	ComPtr<ID3D11Buffer> _steamVRPresentVertexBuffer; // Used in SteamVR mode to correct the image presented on the monitor
 	ComPtr<ID3D11Buffer> _mainIndexBuffer;
 	ComPtr<ID3D11Texture2D> _mainDisplayTexture;
 	ComPtr<ID3D11ShaderResourceView> _mainDisplayTextureView;
@@ -134,6 +153,7 @@ public:
 	ComPtr<ID3D11PixelShader> _pixelShaderSolid;
 	ComPtr<ID3D11RasterizerState> _rasterizerState;
 	ComPtr<ID3D11Buffer> _VSConstantBuffer;
+	ComPtr<ID3D11Buffer> _VSMatrixBuffer;
 	ComPtr<ID3D11Buffer> _PSConstantBuffer;
 	ComPtr<ID3D11Buffer> _barrelConstantBuffer;
 	ComPtr<ID3D11Buffer> _mainShadersConstantBuffer;

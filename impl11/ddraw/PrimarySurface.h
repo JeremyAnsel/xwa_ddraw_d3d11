@@ -41,11 +41,13 @@ public:
 
 	void barrelEffect2D(int iteration);
 
-	void resizeForSteamVR(int iteration);
+	void resizeForSteamVR(int iteration, bool is_2D);
 
 	void barrelEffect3D();
 
 	void barrelEffectSteamVR();
+
+	HRESULT buildSteamVRResizeMesh2D();
 
 	void capture(int time_delay, ComPtr<ID3D11Texture2D> buffer, const wchar_t *filename);
 

@@ -41,10 +41,12 @@ extern float g_fConcourseScale, g_fConcourseAspectRatio, g_fTechLibraryParallax,
 extern bool /* g_bRendering3D, */ g_bDumpDebug, g_bOverrideAspectRatio;
 int g_iDraw2DCounter = 0;
 extern bool g_bEnableVR, g_bForceViewportChange;
+extern Matrix4 g_fullMatrixLeft, g_fullMatrixRight;
+extern VertexShaderMatrixCB g_VSMatrixCB;
 
 // SteamVR
 #include <headers/openvr.h>
-extern bool g_bSteamVRInitialized, g_bUseSteamVR, g_bEnableVR, g_bSteamVRTexturesInitialized;
+extern bool g_bSteamVRInitialized, g_bUseSteamVR, g_bEnableVR;
 extern uint32_t g_steamVRWidth, g_steamVRHeight;
 DWORD g_FullScreenWidth = 0, g_FullScreenHeight = 0;
 bool InitSteamVR();
@@ -275,10 +277,14 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 	this->_depthStencilR.Release();
 	this->_renderTargetView.Release();
 	this->_renderTargetViewPost.Release();
+	this->_renderTargetViewTargetComp.Release();
 	this->_offscreenAsInputShaderResourceView.Release();
+	this->_offscreenTargetCompAsInputShaderResourceView.Release();
 	this->_offscreenBuffer.Release();
 	this->_offscreenBufferAsInput.Release();
 	this->_offscreenBufferPost.Release();
+	this->_offscreenBufferTargetComp.Release();
+	this->_offscreenBufferTargetCompAsInput.Release();
 	if (g_bUseSteamVR) {
 		this->_offscreenBufferR.Release();
 		this->_offscreenBufferAsInputR.Release();
@@ -363,7 +369,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 				this->_swapChain->GetDesc(&sd);
 				g_FullScreenWidth = sd.BufferDesc.Width;
 				g_FullScreenHeight = sd.BufferDesc.Height;
-				//log_debug("[DBG] Fullscreen size: %d, %d", sd.BufferDesc.Width, sd.BufferDesc.Height);
+				log_debug("[DBG] Fullscreen size: %d, %d", g_FullScreenWidth, g_FullScreenHeight);
 			}
 		}
 
@@ -443,6 +449,15 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			goto out;
 		}
 
+		step = "OffscreenBufferTargetComp";
+		// offscreenBufferTargetComp should be just like offscreenBuffer because it will be used as a renderTarget
+		hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBufferTargetComp);
+		if (FAILED(hr)) {
+			log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
+			log_err_desc(step, hWnd, hr, desc);
+			goto out;
+		}
+
 		if (g_bUseSteamVR) {
 			step = "OffscreenBufferPostR";
 			hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBufferPostR);
@@ -467,6 +482,14 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		desc.SampleDesc.Quality = 0;
 		desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 		hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBufferAsInput);
+		if (FAILED(hr)) {
+			log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
+			log_err_desc(step, hWnd, hr, desc);
+			goto out;
+		}
+
+		// _offscreenBufferTargetCompAsInput should have the same properties as _offscreenBufferAsInput
+		hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBufferTargetCompAsInput);
 		if (FAILED(hr)) {
 			log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
 			log_err_desc(step, hWnd, hr, desc);
@@ -500,6 +523,16 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			goto out;
 		}
 
+		// Create the shader resource view for offscreenBufferTargetCompAsInput
+		step = "offscreenTargetCompAsInputShaderResourceView";
+		hr = this->_d3dDevice->CreateShaderResourceView(this->_offscreenBufferTargetCompAsInput,
+			&shaderResourceViewDesc, &this->_offscreenTargetCompAsInputShaderResourceView);
+		if (FAILED(hr)) {
+			log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
+			log_shaderres_view(step, hWnd, hr, shaderResourceViewDesc);
+			goto out;
+		}
+
 		if (g_bUseSteamVR) {
 			// Create the shader resource view for offscreenBufferAsInputR
 			step = "offscreenAsInputShaderResourceViewR";
@@ -515,14 +548,18 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 
 	if (SUCCEEDED(hr))
 	{
-		step = "RenderTargetView";
 		CD3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc(this->_useMultisampling ? D3D11_RTV_DIMENSION_TEXTURE2DMS : D3D11_RTV_DIMENSION_TEXTURE2D);
 
+		step = "RenderTargetView";
 		hr = this->_d3dDevice->CreateRenderTargetView(this->_offscreenBuffer, &renderTargetViewDesc, &this->_renderTargetView);
 		if (FAILED(hr)) goto out;
 
 		step = "RenderTargetViewPost";
 		hr = this->_d3dDevice->CreateRenderTargetView(this->_offscreenBufferPost, &renderTargetViewDesc, &this->_renderTargetViewPost);
+		if (FAILED(hr)) goto out;
+
+		step = "RenderTargetViewTargetComp";
+		hr = this->_d3dDevice->CreateRenderTargetView(this->_offscreenBufferTargetComp, &renderTargetViewDesc, &this->_renderTargetViewTargetComp);
 		if (FAILED(hr)) goto out;
 
 		if (g_bUseSteamVR) {
@@ -767,6 +804,7 @@ HRESULT DeviceResources::LoadMainResources()
 
 	if (FAILED(hr = this->_d3dDevice->CreateBuffer(&vertexBufferDesc, &vertexBufferData, &this->_mainVertexBuffer)))
 		return hr;
+	this->_steamVRPresentBuffer = NULL;
 
 	WORD indices[6] =
 	{
@@ -845,7 +883,7 @@ HRESULT DeviceResources::LoadResources()
 		return hr;
 
 	D3D11_BUFFER_DESC constantBufferDesc;
-	constantBufferDesc.ByteWidth = 32;
+	constantBufferDesc.ByteWidth = 64;
 	constantBufferDesc.Usage = D3D11_USAGE_DEFAULT;
 	constantBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	constantBufferDesc.CPUAccessFlags = 0;
@@ -854,6 +892,10 @@ HRESULT DeviceResources::LoadResources()
 
 	// This was the original constant buffer. Now it's called _VSConstantBuffer
 	if (FAILED(hr = this->_d3dDevice->CreateBuffer(&constantBufferDesc, nullptr, &this->_VSConstantBuffer)))
+		return hr;
+
+	constantBufferDesc.ByteWidth = 128; // 4x4 elems in a matrix = 16 elems. Each elem is a float, so 4 bytes * 16 = 64 bytes per matrix. This is a multiple of 16
+	if (FAILED(hr = this->_d3dDevice->CreateBuffer(&constantBufferDesc, nullptr, &this->_VSMatrixBuffer)))
 		return hr;
 
 	// Create the constant buffer for the (3D) textured pixel shader
@@ -867,7 +909,7 @@ HRESULT DeviceResources::LoadResources()
 		return hr;
 
 	// Create the constant buffer for the main pixel shader
-	constantBufferDesc.ByteWidth = 16;
+	constantBufferDesc.ByteWidth = 32;
 	if (FAILED(hr = this->_d3dDevice->CreateBuffer(&constantBufferDesc, nullptr, &this->_mainShadersConstantBuffer)))
 		return hr;
 
@@ -1088,8 +1130,36 @@ void DeviceResources::InitVSConstantBuffer3D(ID3D11Buffer** buffer, const Vertex
 	g_LastVSConstantBufferSet = VS_CONSTANT_BUFFER_3D;
 }
 
+void DeviceResources::InitVSConstantBufferMatrix(ID3D11Buffer** buffer, const VertexShaderMatrixCB* vsCBuffer)
+{
+	//static ID3D11Buffer** currentBuffer = nullptr;
+	//static VertexShaderCBuffer currentVSConstants{};
+	//static int sizeof_constants = sizeof(VertexShaderCBuffer);
+
+	/*
+	if (g_LastVSConstantBufferSet == VS_CONSTANT_BUFFER_NONE ||
+		g_LastVSConstantBufferSet != VS_CONSTANT_BUFFER_3D ||
+		memcmp(vsCBuffer, &currentVSConstants, sizeof_constants) != 0)
+	{ 
+		memcpy(&currentVSConstants, vsCBuffer, sizeof_constants);
+		this->_d3dDeviceContext->UpdateSubresource(buffer[0], 0, nullptr, vsCBuffer, 0, 0);
+	}	
+
+	if (g_LastVSConstantBufferSet == VS_CONSTANT_BUFFER_NONE ||
+		g_LastVSConstantBufferSet != VS_CONSTANT_BUFFER_3D ||
+		buffer != currentBuffer)
+	{
+		currentBuffer = buffer;
+		this->_d3dDeviceContext->VSSetConstantBuffers(0, 1, buffer);
+	}
+	g_LastVSConstantBufferSet = VS_CONSTANT_BUFFER_3D;
+	*/
+	this->_d3dDeviceContext->UpdateSubresource(buffer[0], 0, nullptr, vsCBuffer, 0, 0);
+	this->_d3dDeviceContext->VSSetConstantBuffers(1, 1, buffer);
+}
+
 void DeviceResources::InitVSConstantBuffer2D(ID3D11Buffer** buffer, const float parallax,
-	const float aspectRatio, const float scale, const float brightness)
+	const float aspectRatio, const float scale, const float brightness, const float use_3D)
 {
 	static ID3D11Buffer** currentBuffer = nullptr;
 	if (g_LastVSConstantBufferSet == VS_CONSTANT_BUFFER_NONE ||
@@ -1097,12 +1167,14 @@ void DeviceResources::InitVSConstantBuffer2D(ID3D11Buffer** buffer, const float 
 		g_MSCBuffer.parallax != parallax ||
 		g_MSCBuffer.aspectRatio != aspectRatio ||
 		g_MSCBuffer.scale != scale ||
-		g_MSCBuffer.brightness != brightness)
+		g_MSCBuffer.brightness != brightness ||
+		g_MSCBuffer.use_3D != use_3D)
 	{
 		g_MSCBuffer.parallax = parallax;
 		g_MSCBuffer.aspectRatio = aspectRatio;
 		g_MSCBuffer.scale = scale;
 		g_MSCBuffer.brightness = brightness;
+		g_MSCBuffer.use_3D = use_3D;
 		this->_d3dDeviceContext->UpdateSubresource(buffer[0], 0, nullptr, &g_MSCBuffer, 0, 0);
 	}
 
@@ -1529,12 +1601,12 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 	UINT left = (this->_backbufferWidth - w) / 2;
 	UINT top = (this->_backbufferHeight - h) / 2;
 
-	if (g_bEnableVR) {
-		InitVSConstantBuffer2D(this->_mainShadersConstantBuffer.GetAddressOf(), 0.0f, g_fConcourseAspectRatio, g_fConcourseScale, g_fBrightness);
+	if (g_bEnableVR) { // SteamVR and DirectSBS modes
+		InitVSConstantBuffer2D(this->_mainShadersConstantBuffer.GetAddressOf(), 0.0f, g_fConcourseAspectRatio, g_fConcourseScale, g_fBrightness, 1.0f); // Use 3D projection matrices
 		InitPSConstantBuffer2D(this->_mainShadersConstantBuffer.GetAddressOf(), 0.0f, g_fConcourseAspectRatio, g_fConcourseScale, g_fBrightness);
 	} 
 	else {
-		InitVSConstantBuffer2D(this->_mainShadersConstantBuffer.GetAddressOf(), 0, 1, 1, g_fBrightness);
+		InitVSConstantBuffer2D(this->_mainShadersConstantBuffer.GetAddressOf(), 0, 1, 1, g_fBrightness, 0.0f); // Don't 3D projection matrices when VR is disabled
 		InitPSConstantBuffer2D(this->_mainShadersConstantBuffer.GetAddressOf(), 0, 1, 1, g_fBrightness);
 	}
 
@@ -1595,25 +1667,25 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 		viewport.MaxDepth = D3D11_MAX_DEPTH;
 		viewport.MinDepth = D3D11_MIN_DEPTH;
 		this->InitViewport(&viewport);
-		//g_MSCBuffer.parallax = g_fTechLibraryParallax * g_iDraw2DCounter;
-		this->InitVSConstantBuffer2D(this->_mainShadersConstantBuffer.GetAddressOf(),
-			g_fTechLibraryParallax * g_iDraw2DCounter, g_fConcourseAspectRatio, g_fConcourseScale, g_fBrightness);
+		this->InitVSConstantBuffer2D(_mainShadersConstantBuffer.GetAddressOf(),
+			g_fTechLibraryParallax * g_iDraw2DCounter, g_fConcourseAspectRatio, g_fConcourseScale, g_fBrightness, 
+			1.0f); // Use 3D projection matrices
+
 		// The Concourse and 2D menu are drawn here... maybe the default starfield too?
 		// When SteamVR is not used, the RenderTargets are set in the OnSizeChanged() event above
-		if (g_bUseSteamVR) {
-			this->_d3dDeviceContext->OMSetRenderTargets(1, this->_renderTargetView.GetAddressOf(), this->_depthStencilViewL.Get());
-		} /*
-		else {
-			this->_d3dDeviceContext->OMSetRenderTargets(1, this->_renderTargetView.GetAddressOf(), this->_depthStencilViewL.Get());
-		} */
+		g_VSMatrixCB.projEye = g_fullMatrixLeft;
+		InitVSConstantBufferMatrix(_VSMatrixBuffer.GetAddressOf(), &g_VSMatrixCB);
+		if (g_bUseSteamVR)
+			_d3dDeviceContext->OMSetRenderTargets(1, _renderTargetView.GetAddressOf(), _depthStencilViewL.Get());
+		else
+			_d3dDeviceContext->OMSetRenderTargets(1, _renderTargetView.GetAddressOf(), _depthStencilViewL.Get());
 		this->_d3dDeviceContext->DrawIndexed(6, 0, 0);
 
 		// Right viewport
 		if (g_bUseSteamVR) {
 			viewport.TopLeftX = 0;
 			viewport.Width = screen_res_x;
-		}
-		else {
+		} else {
 			viewport.TopLeftX = screen_res_x / 2.0f;
 			viewport.Width = screen_res_x / 2.0f;
 		}
@@ -1622,16 +1694,16 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 		viewport.MaxDepth = D3D11_MAX_DEPTH;
 		viewport.MinDepth = D3D11_MIN_DEPTH;
 		this->InitViewport(&viewport);
-		//g_MSCBuffer.parallax = -g_fTechLibraryParallax * g_iDraw2DCounter;
 		this->InitVSConstantBuffer2D(this->_mainShadersConstantBuffer.GetAddressOf(),
-			-g_fTechLibraryParallax * g_iDraw2DCounter, g_fConcourseAspectRatio, g_fConcourseScale, g_fBrightness);
+			g_fTechLibraryParallax * g_iDraw2DCounter, g_fConcourseAspectRatio, g_fConcourseScale, g_fBrightness,
+			1.0f); // Use 3D projection matrices
 		// The Concourse and 2D menu are drawn here... maybe the default starfield too?
-		if (g_bUseSteamVR) {
-			this->_d3dDeviceContext->OMSetRenderTargets(1, this->_renderTargetViewR.GetAddressOf(), this->_depthStencilViewR.Get());
-		} /*
-		else {
-			this->_d3dDeviceContext->OMSetRenderTargets(1, this->_renderTargetView.GetAddressOf(), this->_depthStencilViewL.Get());
-		} */
+		g_VSMatrixCB.projEye = g_fullMatrixRight;
+		InitVSConstantBufferMatrix(_VSMatrixBuffer.GetAddressOf(), &g_VSMatrixCB);
+		if (g_bUseSteamVR)
+			_d3dDeviceContext->OMSetRenderTargets(1, _renderTargetViewR.GetAddressOf(), _depthStencilViewR.Get());
+		else
+			_d3dDeviceContext->OMSetRenderTargets(1, _renderTargetView.GetAddressOf(), _depthStencilViewL.Get());
 		this->_d3dDeviceContext->DrawIndexed(6, 0, 0);
 	out:
 		// Increase the 2D DrawCounter -- this is used in the Tech Library to increase the parallax when the second 2D
