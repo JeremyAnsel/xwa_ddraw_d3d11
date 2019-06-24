@@ -162,7 +162,7 @@ extern float g_fLensK1, g_fLensK2, g_fLensK3;
 MainShadersCBuffer g_MSCBuffer;
 extern float g_fConcourseScale, g_fConcourseAspectRatio;
 extern int g_iDraw2DCounter;
-extern bool g_bStartedGUI;
+extern bool g_bStartedGUI, g_bPrevStartedGUI, g_bIsScaleableGUIElem, g_bPrevIsScaleableGUIElem;
 extern bool g_bEnableVR, g_bDisableBarrelEffect;
 extern bool g_bDumpGUI;
 extern int g_iDrawCounter, g_iExecBufCounter, g_iPresentCounter, g_iNonZBufferCounter;
@@ -1420,6 +1420,9 @@ HRESULT PrimarySurface::Flip(
 			g_bPrevIsFloatingGUI3DObject = false;
 			g_bIsFloating3DObject = false;
 			g_bStartedGUI = false;
+			g_bPrevStartedGUI = false;
+			g_bIsScaleableGUIElem = false;
+			g_bPrevIsScaleableGUIElem = false;
 			
 			// Perform the lean left/right etc animations
 			animTickX();

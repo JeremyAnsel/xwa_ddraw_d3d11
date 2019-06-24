@@ -313,6 +313,9 @@ int g_iSkyBoxExecIndex = DEFAULT_SKYBOX_INDEX; // This gives us the threshold fo
 bool g_bFixSkyBox = true; // Fix the skybox (send it to infinity: use original vertices without parallax)
 bool g_bSkipSkyBox = false;
 bool g_bStartedGUI = false; // Set to false at the beginning of each frame. Set to true when the GUI has begun rendering.
+bool g_bPrevStartedGUI = false; // Keeps the last value of g_bStartedGUI -- helps detect when the GUI is about to be rendered.
+bool g_bIsScaleableGUIElem = false; // Set to false at the beginning of each frame. Set to true when the scaleable GUI has begun rendering.
+bool g_bPrevIsScaleableGUIElem = false; // Keeps the last value of g_bIsScaleableGUIElem -- helps detect when scaleable GUI is about to start rendering.
 bool g_bSkipGUI = false; // Skip non-skybox draw calls with disabled Z-Buffer
 bool g_bSkipText = false; // Skips text draw calls
 bool g_bSkipAfterTargetComp = false; // Skip all draw calls after the targetting computer has been drawn
@@ -2246,6 +2249,10 @@ HRESULT Direct3DDevice::Execute(
 	g_PSCBuffer.brightness = MAX_BRIGHTNESS;
 	g_PSCBuffer.bShadeless = 0.0f;
 
+	// Save the current viewMatrix: if the Dynamic Cockpit is enabled, we'll need it later to restore the transform
+	Matrix4 currentViewMat = g_VSMatrixCB.viewMat;
+	bool bModifiedViewMatrix = false;
+	
 	char* step = "";
 
 	this->_deviceResources->InitInputLayout(resources->_inputLayout);
@@ -2607,22 +2614,41 @@ HRESULT Direct3DDevice::Execute(
 				bool bIsBracket = bIsNoZWrite && lastTextureSelected == NULL && 
 					this->_renderStates->GetZFunc() == D3DCMP_ALWAYS;
 				bool bIsFloatingGUI = lastTextureSelected != NULL && lastTextureSelected->is_Floating_GUI;
+				bool bIsTranspOrGlow = bIsNoZWrite && _renderStates->GetZFunc() == D3DCMP_GREATER;
+				// Hysteresis detection (state is about to switch to render something different, like the HUD)
 				g_bPrevIsFloatingGUI3DObject = g_bIsFloating3DObject;
 				g_bIsFloating3DObject = g_bTargetCompDrawn && lastTextureSelected != NULL &&
 					!lastTextureSelected->is_Text && !lastTextureSelected->is_TrianglePointer &&
 					!lastTextureSelected->is_HUD && !lastTextureSelected->is_Floating_GUI &&
 					!lastTextureSelected->is_TargetingComp;
 				// The GUI starts rendering whenever we detect a GUI element, or Text, or a bracket.
+				g_bPrevStartedGUI = g_bStartedGUI;
 				g_bStartedGUI |= bIsGUI || bIsText || bIsBracket || bIsFloatingGUI;
-				//g_bStartedGUI |= bIsGUI || bIsText; // bIsBracket is true for brackets *and* for (hangar) shadows
 				// bIsScaleableGUIElem is true when we're about to render a HUD element that can be scaled down with Ctrl+Z
-				bool bIsScaleableGUIElem = g_bStartedGUI && !bIsHUD && !bIsBracket && !bIsTrianglePointer;
-				bool bIsTranspOrGlow = bIsNoZWrite && _renderStates->GetZFunc() == D3DCMP_GREATER;
+				g_bPrevIsScaleableGUIElem = g_bIsScaleableGUIElem;
+				g_bIsScaleableGUIElem = g_bStartedGUI && !bIsHUD && !bIsBracket && !bIsTrianglePointer;
+				
 				// lastTextureSelected can be NULL. This happens when drawing the square
-				// brackets around the currently-selected object.
+				// brackets around the currently-selected object (and maybe other situations)
 				/*************************************************************************
 					State management ends here
 				 *************************************************************************/
+
+				/*
+				if (!g_bPrevStartedGUI && g_bStartedGUI) {
+					// We're about to start rendering *ALL* the GUI: including the triangle pointer and text
+					// This is where we can capture the current frame for post-processing effects
+				}
+				*/
+
+				if (!g_bPrevIsScaleableGUIElem && g_bIsScaleableGUIElem)
+					// We're about to render the scaleable HUD, time to clear the dynamic cockpit texture
+					if (g_bDynCockpitEnabled) {
+						float bgColor[4] = { 0.1f, 0.1f, 0.4f, 0.0f };
+						context->ClearRenderTargetView(resources->_renderTargetViewDynCockpit, bgColor);
+						context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
+					}
+				
 
 				//if (bIsNoZWrite && _renderStates->GetZFunc() == D3DCMP_GREATER) {
 				//	goto out;
@@ -2658,6 +2684,38 @@ HRESULT Direct3DDevice::Execute(
 				} */
 #endif
 				
+				// We will be modifying the normal render state from this point on. The state and the Pixel/Vertex
+				// shaders are already set by this point; but if we modify them, we'll set bModifiedShaders to true
+				// so that we can restore the state at the end of the draw call.
+				bModifiedShaders = false;
+				bModifiedViewMatrix = false;
+
+				// Dynamic Cockpit: Remove all the alpha overlays in hi-res mode
+				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitAlphaOverlay)
+					goto out;
+
+				//if (g_bDynCockpitEnabled && !g_bPrevIsFloatingGUI3DObject && g_bIsFloating3DObject) {
+					// The targeted craft is about to be drawn!
+					// Let's clear the render target view for the dynamic cockpit
+					//float bgColor[4] = { 0.1f, 0.1f, 0.3f, 0.0f };
+					//context->ClearRenderTargetView(resources->_renderTargetViewDynCockpit, bgColor);
+					//context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
+				//}
+
+				// Replace the targeting computer texture with our own at run-time:
+				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitTargetComp) {
+					//if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitSrc) {
+					bModifiedShaders = true;
+					g_PSCBuffer.bShadeless = 1.0f; // Render the targeted object without the diffuse component (shadeless)
+					//if (g_NewDynCockpitTargetComp != NULL)
+					//	context->PSSetShaderResources(0, 1, g_NewDynCockpitTargetComp.GetAddressOf());
+
+					// Resolve the last offscreenBufferTargetComp and use it as input to the PixelShader
+					context->ResolveSubresource(resources->_offscreenBufferAsInputDynCockpit, 0, resources->_offscreenBufferDynCockpit,
+						0, DXGI_FORMAT_B8G8R8A8_UNORM);
+					context->PSSetShaderResources(0, 1, resources->_offscreenAsInputShaderResourceViewDynCockpit.GetAddressOf());
+				}
+
 				// Early exit: if we're not in VR mode, we only need the state; but not the extra
 				// processing. (The state will be used later to do post-processing like Bloom and AO.
 				if (!g_bEnableVR) {
@@ -2669,37 +2727,38 @@ HRESULT Direct3DDevice::Execute(
 					viewport.MaxDepth = D3D11_MAX_DEPTH;
 					resources->InitViewport(&viewport);
 
-					// For non-VR mode, send the original 2D vertices
-					//g_VSMatrixCB.projEye.identity();
-					//resources->InitVSConstantBufferMatrix(resources->_VSMatrixBuffer.GetAddressOf(), &g_VSMatrixCB);
-					//resources->InitVertexBuffer(this->_vertexBuffer.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
+					if (bModifiedShaders) {
+						resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
+						resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
+					}
 
-					context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
-						resources->_depthStencilViewL.Get());
+					// The original 2D vertices are already in the GPU, so just render as usual
+					// Enable the dynamic cockpit in regular non-VR mode:
+					if (g_bDynCockpitEnabled && g_bIsFloating3DObject) {
+						// Set the targeting computer renderTargetView
+						context->OMSetRenderTargets(1, resources->_renderTargetViewDynCockpit.GetAddressOf(),
+							resources->_depthStencilViewL.Get());
+					}
+					else {
+						context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
+							resources->_depthStencilViewL.Get());
+					}
 					context->DrawIndexed(3 * instruction->wCount, currentIndexLocation, 0);
-					goto no_vr_out;
+					goto out;
 				}
 
 				/********************************************************************
 				   Modify the state of the render for VR
 				 ********************************************************************/
 
-				 // Elements that are drawn with ZBuffer disabled:
-				 // * All GUI HUD elements except for the targetting computer (why?)
-				 // * Lens flares.
-				 // * All the text and brackets around objects. The brackets have their own draw call.
-				 // * Glasses on other cockpits and engine glow <-- Good candidate for bloom!
-				 // * Maybe explosions and other animations? I think explosions are actually rendered at depth (?)
-				 // * Cockpit sparks?
+				// Elements that are drawn with ZBuffer disabled:
+				// * All GUI HUD elements except for the targetting computer (why?)
+				// * Lens flares.
+				// * All the text and brackets around objects. The brackets have their own draw call.
+				// * Glasses on other cockpits and engine glow <-- Good candidate for bloom!
+				// * Maybe explosions and other animations? I think explosions are actually rendered at depth (?)
+				// * Cockpit sparks?
 
-				 // We will be modifying the normal render state from this point on. The state and the Pixel/Vertex
-				 // shaders are already set by this point; but if we modify them, we'll set bModifiedShaders to true
-				 // so that we can restore the state at the end of the draw call.
-				bModifiedShaders = false;
-
-				// *****************************************************************************
-				// Common state settings: things that apply to both the left and right images.
-				// *****************************************************************************
 				// The game renders brackets with ZWrite disabled; but we need to enable it temporarily so that we
 				// can place the brackets at infinity and avoid visual contention
 				if (bIsBracket) {
@@ -2717,17 +2776,8 @@ HRESULT Direct3DDevice::Execute(
 				}
 				*/
 
-				if (g_bDynCockpitEnabled && !g_bPrevIsFloatingGUI3DObject && g_bIsFloating3DObject) {
-					// The targeted craft is about to be drawn!
-					// Let's clear the render target view for the targeting computer
-					float bgColor[4] = { 0.1f, 0.1f, 0.3f, 0.0f };
-					context->ClearRenderTargetView(resources->_renderTargetViewDynCockpit, bgColor);
-					context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
-					context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewR, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
-				}
-
 				// Reduce the scale for GUI elements, except for the HUD
-				if (bIsScaleableGUIElem) {
+				if (g_bIsScaleableGUIElem) {
 					bModifiedShaders = true;
 					g_VSCBuffer.viewportScale[3] = g_fGUIElemsScale;
 				}
@@ -2753,25 +2803,7 @@ HRESULT Direct3DDevice::Execute(
 				}
 				*/
 
-				// Remove all the alpha overlays in hi-res mode
-				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitAlphaOverlay)
-					goto out;
-
-				// Replace the targeting computer texture with our own at run-time:
-				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitTargetComp) {
-				//if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitSrc) {
-					bModifiedShaders = true;
-					g_PSCBuffer.bShadeless = 1.0f; // Render the targeted object without the diffuse component (shadeless)
-					//if (g_NewDynCockpitTargetComp != NULL)
-					//	context->PSSetShaderResources(0, 1, g_NewDynCockpitTargetComp.GetAddressOf());
-					
-					// Resolve the last offscreenBufferTargetComp and use it as input to the PixelShader
-					context->ResolveSubresource(resources->_offscreenBufferAsInputDynCockpit, 0, resources->_offscreenBufferDynCockpit,
-						0, DXGI_FORMAT_B8G8R8A8_UNORM);
-					context->PSSetShaderResources(0, 1, resources->_offscreenAsInputShaderResourceViewDynCockpit.GetAddressOf());
-				}
-
-				// Add an extra parallax to HUD elements
+				// Add an extra depth to HUD elements
 				if (bIsHUD) {
 					bModifiedShaders = true;
 					g_VSCBuffer.z_override = g_fHUDDepth;
@@ -2789,7 +2821,7 @@ HRESULT Direct3DDevice::Execute(
 				}
 
 				// Add extra parallax to Floating GUI elements, left image
-				if (bIsFloatingGUI || g_bIsFloating3DObject || bIsScaleableGUIElem) {
+				if (bIsFloatingGUI || g_bIsFloating3DObject || g_bIsScaleableGUIElem) {
 					bModifiedShaders = true;
 					if (!bIsBracket)
 						g_VSCBuffer.z_override = g_fFloatingGUIDepth;
@@ -2859,8 +2891,9 @@ HRESULT Direct3DDevice::Execute(
 				resources->InitViewport(&viewport);
 				// Dynamic Cockpit: Set the left projection matrix to identity (?)
 				if (g_bDynCockpitEnabled && g_bIsFloating3DObject) {
+					bModifiedViewMatrix = true;
 					g_VSMatrixCB.projEye = g_fullMatrixHead;
-					g_VSMatrixCB.viewMat.identity();
+					g_VSMatrixCB.viewMat.identity(); // We need to do this to prevent the dynamic cockpit from reacting to motion
 				} 
 				else
 					g_VSMatrixCB.projEye = g_fullMatrixLeft;
@@ -2920,13 +2953,18 @@ HRESULT Direct3DDevice::Execute(
 				if (lastTextureSelected != NULL && lastTextureSelected->is_Floating_GUI)
 					g_iFloatingGUIDrawnCounter++;
 
-				if (bIsBracket) {
+				if (bIsBracket && bModifiedShaders) {
 					// Restore the No-Z-Write state for bracket elements
 					QuickSetZWriteEnabled(bZWriteEnabled);
 					g_VSCBuffer.z_override = -1.0f;
 					g_VSCBuffer.sz_override = -1.0f;
 					g_VSCBuffer.mult_z_override = -1.0f;
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
+				}
+
+				if (g_bDynCockpitEnabled && bModifiedViewMatrix) {
+					bModifiedViewMatrix = false;
+					g_VSMatrixCB.viewMat = currentViewMat;
 				}
 
 				// Restore the normal state of the render (currently this only means restore the original Vertex/Pixel
@@ -2943,7 +2981,7 @@ HRESULT Direct3DDevice::Execute(
 					resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 				}
 
-			no_vr_out:
+			//no_vr_out:
 				currentIndexLocation += 3 * instruction->wCount;
 				break;
 			}
