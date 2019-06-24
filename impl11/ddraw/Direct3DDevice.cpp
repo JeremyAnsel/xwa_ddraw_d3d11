@@ -283,7 +283,7 @@ Matrix4 g_projLeft, g_projRight, g_projHead;
 Matrix4 g_fullMatrixLeft, g_fullMatrixRight, g_fullMatrixHead;
 Matrix4 g_viewMatrix;
 bool g_bNaturalConcourseAnimations = DEFAULT_NATURAL_CONCOURSE_ANIM;
-bool g_bDynamicCockpit = DEFAULT_DYNAMIC_TARGET_COMP;
+bool g_bDynCockpitEnabled = DEFAULT_DYNAMIC_TARGET_COMP;
 float g_fRollMultiplier = DEFAULT_ROLL_MULTIPLIER;
 float g_fPosXMultiplier = DEFAULT_POS_X_MULTIPLIER;
 float g_fPosYMultiplier = DEFAULT_POS_Y_MULTIPLIER;
@@ -386,7 +386,7 @@ float g_fFocalDist = DEFAULT_FOCAL_DIST;
 /*
  * New Cockpit Textures
  */
-extern ComPtr<ID3D11ShaderResourceView> g_NewCockpitTargetCompOverlay;
+extern ComPtr<ID3D11ShaderResourceView> g_NewDynCockpitTargetComp;
 
 /*
  * Control/Debug variables
@@ -931,7 +931,7 @@ void LoadVRParams() {
 				g_bNaturalConcourseAnimations = (bool)value;
 			}
 			else if (_stricmp(param, DYNAMIC_COCKPIT_TARGET_COMP_VRPARAM) == 0) {
-				g_bDynamicCockpit = (bool)value;
+				g_bDynCockpitEnabled = (bool)value;
 			}
 
 			// 6dof parameters
@@ -1782,7 +1782,7 @@ Direct3DDevice::Direct3DDevice(DeviceResources* deviceResources)
 
 	if (this->_deviceResources->_d3dDevice != NULL) {
 		log_debug("[DBG] Loading new resources, device: 0x%x", _deviceResources->_d3dDevice);
-		LoadNewCockpitTextures(this->_deviceResources->_d3dDevice);
+		//LoadNewCockpitTextures(this->_deviceResources->_d3dDevice);
 	}
 	else {
 		log_debug("[DBG] Could not load new textures: d3dDevice is NULL");
@@ -1791,7 +1791,7 @@ Direct3DDevice::Direct3DDevice(DeviceResources* deviceResources)
 
 Direct3DDevice::~Direct3DDevice()
 {
-	UnloadNewCockpitTextures();
+	//UnloadNewCockpitTextures();
 	//DeleteStereoVertices();
 	//g_iNumVertices = 0;
 	delete this->_renderStates;
@@ -2242,7 +2242,9 @@ HRESULT Direct3DDevice::Execute(
 	g_VSCBuffer.mult_z_override = -1.0f;
 	g_VSCBuffer.cockpit_threshold = g_fGUIElemPZThreshold;
 	g_VSCBuffer.bPreventTransform = 0.0f;
+
 	g_PSCBuffer.brightness = MAX_BRIGHTNESS;
+	g_PSCBuffer.bShadeless = 0.0f;
 
 	char* step = "";
 
@@ -2375,7 +2377,7 @@ HRESULT Direct3DDevice::Execute(
 		g_VSCBuffer.sz_override = -1.0f;
 		g_VSCBuffer.mult_z_override = -1.0f;
 		resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
-		resources->InitPSConstantBufferBrightness(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
+		resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 
 		// This is the original monoscopic viewport:
 		/*
@@ -2715,11 +2717,11 @@ HRESULT Direct3DDevice::Execute(
 				}
 				*/
 
-				if (g_bDynamicCockpit && !g_bPrevIsFloatingGUI3DObject && g_bIsFloating3DObject) {
+				if (g_bDynCockpitEnabled && !g_bPrevIsFloatingGUI3DObject && g_bIsFloating3DObject) {
 					// The targeted craft is about to be drawn!
 					// Let's clear the render target view for the targeting computer
 					float bgColor[4] = { 0.1f, 0.1f, 0.3f, 0.0f };
-					context->ClearRenderTargetView(resources->_renderTargetViewTargetComp, bgColor);
+					context->ClearRenderTargetView(resources->_renderTargetViewDynCockpit, bgColor);
 					context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
 					context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewR, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
 				}
@@ -2751,18 +2753,22 @@ HRESULT Direct3DDevice::Execute(
 				}
 				*/
 
+				// Remove all the alpha overlays in hi-res mode
+				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitAlphaOverlay)
+					goto out;
+
 				// Replace the targeting computer texture with our own at run-time:
-				// Fun fact: we can also replace the HUD textures at run-time too!
-				if (g_bDynamicCockpit && lastTextureSelected != NULL && lastTextureSelected->is_CockpitTargetingComp) {
-					// Replace the targeting computer texture with our own
-					/*
-					if (g_NewCockpitTargetCompOverlay != NULL)
-						context->PSSetShaderResources(0, 1, g_NewCockpitTargetCompOverlay.GetAddressOf());
-					*/
+				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitTargetComp) {
+				//if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitSrc) {
+					bModifiedShaders = true;
+					g_PSCBuffer.bShadeless = 1.0f; // Render the targeted object without the diffuse component (shadeless)
+					//if (g_NewDynCockpitTargetComp != NULL)
+					//	context->PSSetShaderResources(0, 1, g_NewDynCockpitTargetComp.GetAddressOf());
+					
 					// Resolve the last offscreenBufferTargetComp and use it as input to the PixelShader
-					context->ResolveSubresource(resources->_offscreenBufferTargetCompAsInput, 0, resources->_offscreenBufferTargetComp,
+					context->ResolveSubresource(resources->_offscreenBufferAsInputDynCockpit, 0, resources->_offscreenBufferDynCockpit,
 						0, DXGI_FORMAT_B8G8R8A8_UNORM);
-					context->PSSetShaderResources(0, 1, resources->_offscreenTargetCompAsInputShaderResourceView.GetAddressOf());
+					context->PSSetShaderResources(0, 1, resources->_offscreenAsInputShaderResourceViewDynCockpit.GetAddressOf());
 				}
 
 				// Add an extra parallax to HUD elements
@@ -2799,7 +2805,7 @@ HRESULT Direct3DDevice::Execute(
 				}
 
 				if (bModifiedShaders) {
-					resources->InitPSConstantBufferBrightness(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
+					resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 				}
 
@@ -2819,9 +2825,10 @@ HRESULT Direct3DDevice::Execute(
 				// computation faster? On the other hand, having always 2 z-buffers makes the code
 				// easier.
 
-				if (g_bDynamicCockpit && g_bIsFloating3DObject) {
+				// Dynamic Cockpit: Use the proper render target view
+				if (g_bDynCockpitEnabled && g_bIsFloating3DObject) {
 					// Set the targeting computer renderTargetView
-					context->OMSetRenderTargets(1, resources->_renderTargetViewTargetComp.GetAddressOf(),
+					context->OMSetRenderTargets(1, resources->_renderTargetViewDynCockpit.GetAddressOf(),
 						resources->_depthStencilViewL.Get());
 				}
 				else {
@@ -2840,8 +2847,8 @@ HRESULT Direct3DDevice::Execute(
 				else {
 					viewport.Width = (float)resources->_backbufferWidth / 2.0f;
 				}
-				// Targeting computer hack:
-				if (g_bDynamicCockpit && g_bIsFloating3DObject) {
+				// Dynamic Cockpit: the render target should have the original width
+				if (g_bDynCockpitEnabled && g_bIsFloating3DObject) {
 					viewport.Width = (float)resources->_backbufferWidth;
 				}
 				viewport.Height = (float)resources->_backbufferHeight;
@@ -2850,8 +2857,8 @@ HRESULT Direct3DDevice::Execute(
 				viewport.MinDepth = D3D11_MIN_DEPTH;
 				viewport.MaxDepth = D3D11_MAX_DEPTH;
 				resources->InitViewport(&viewport);
-				// Set the left projection matrix
-				if (g_bDynamicCockpit && g_bIsFloating3DObject) {
+				// Dynamic Cockpit: Set the left projection matrix to identity (?)
+				if (g_bDynCockpitEnabled && g_bIsFloating3DObject) {
 					g_VSMatrixCB.projEye = g_fullMatrixHead;
 					g_VSMatrixCB.viewMat.identity();
 				} 
@@ -2864,7 +2871,7 @@ HRESULT Direct3DDevice::Execute(
 
 				// HACK: Disable rendering to the right image because the floating object is now rendered to a separate render
 				// target view.
-				if (g_bDynamicCockpit && g_bIsFloating3DObject)
+				if (g_bDynCockpitEnabled && g_bIsFloating3DObject)
 					goto out;
 
 				// ****************************************************************************
@@ -2927,12 +2934,13 @@ HRESULT Direct3DDevice::Execute(
 				if (bModifiedShaders) {
 					g_VSCBuffer.viewportScale[3] = g_fGlobalScale;
 					g_PSCBuffer.brightness = MAX_BRIGHTNESS;
+					g_PSCBuffer.bShadeless = 0.0f;
 					g_VSCBuffer.z_override = -1.0f;
 					g_VSCBuffer.sz_override = -1.0f;
 					g_VSCBuffer.mult_z_override = -1.0f;
 					g_VSCBuffer.bPreventTransform = 0.0f;
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
-					resources->InitPSConstantBufferBrightness(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
+					resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 				}
 
 			no_vr_out:

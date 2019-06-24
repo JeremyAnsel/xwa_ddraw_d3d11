@@ -8,6 +8,7 @@ SamplerState sampler0 : register(s0);
 cbuffer ConstantBuffer : register(b0)
 {
 	float brightness; // Used to dim some elements to prevent the Bloom effect -- mostly for ReShade compatibility
+	float bShadeless; // Ignore diffuse component. Used to render the dynamic cockpit.
 };
 
 struct PixelShaderInput
@@ -21,5 +22,8 @@ float4 main(PixelShaderInput input) : SV_TARGET
 {
 	float4 texelColor = texture0.Sample(sampler0, input.tex);
 
-	return float4(brightness * texelColor.xyz, texelColor.w) * input.color;
+	if (bShadeless > 0.5)
+		return float4(brightness * texelColor.xyz, texelColor.w);
+	else
+		return float4(brightness * texelColor.xyz, texelColor.w) * input.color;
 }

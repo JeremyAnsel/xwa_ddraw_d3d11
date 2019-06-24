@@ -31,6 +31,7 @@
 #include "../Release/PixelShaderSolid.h"
 #endif
 
+#include <WICTextureLoader.h>
 #include <headers/openvr.h>
 
 bool g_bWndProcReplaced = false;
@@ -67,6 +68,10 @@ typedef enum {
 	PS_CONSTANT_BUFFER_BRIGHTNESS,
 } PSConstantBufferType;
 PSConstantBufferType g_LastPSConstantBufferSet = PS_CONSTANT_BUFFER_NONE;
+
+extern bool g_bDynCockpitEnabled;
+bool g_bNewCockpitTexturesLoaded = false;
+ComPtr<ID3D11ShaderResourceView> g_NewDynCockpitTargetComp = NULL;
 
 FILE *g_DebugFile = NULL;
 
@@ -149,6 +154,46 @@ struct MainVertex
 		this->tex[1] = v;
 	}
 };
+
+
+bool LoadNewCockpitTextures(ID3D11Device *device) {
+	HRESULT res = S_OK;
+
+	if (!g_bDynCockpitEnabled) {
+		log_debug("[DBG] [Dyn] Dynamic Cockpit is disabled. Will not load new textures");
+		g_bNewCockpitTexturesLoaded = false;
+		goto out;
+	}
+
+	if (g_bNewCockpitTexturesLoaded) {
+		log_debug("[DBG} [Dyn] New textures for Dynamic Cockpit already loaded, skipping");
+		return true;
+	}
+
+	if (g_NewDynCockpitTargetComp == NULL) {
+		log_debug("[DBG] [Dyn] Loading new Cockpit Targeting Computer");
+		res = DirectX::CreateWICTextureFromFile(device, L"./NewTextures/x-wing-targeting-comp-full-res.png", NULL, &g_NewDynCockpitTargetComp);
+		if (FAILED(res))
+			g_NewDynCockpitTargetComp = NULL;
+		else
+			g_bNewCockpitTexturesLoaded = true;
+	}
+
+out:
+	log_debug("[DBG} [Dyn] New cockpit textures loaded: %d", g_bNewCockpitTexturesLoaded);
+	return g_bNewCockpitTexturesLoaded;
+}
+
+void UnloadNewCockpitTextures() {
+	if (!g_bDynCockpitEnabled || !g_bNewCockpitTexturesLoaded)
+		return;
+	log_debug("[DBG] [Dyn] Releasing textures");
+	if (g_NewDynCockpitTargetComp != NULL) {
+		g_NewDynCockpitTargetComp.Release();
+		g_NewDynCockpitTargetComp = NULL;
+		g_bNewCockpitTexturesLoaded = false;
+	}
+}
 
 DeviceResources::DeviceResources()
 {
@@ -277,14 +322,14 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 	this->_depthStencilR.Release();
 	this->_renderTargetView.Release();
 	this->_renderTargetViewPost.Release();
-	this->_renderTargetViewTargetComp.Release();
+	this->_renderTargetViewDynCockpit.Release();
 	this->_offscreenAsInputShaderResourceView.Release();
-	this->_offscreenTargetCompAsInputShaderResourceView.Release();
+	this->_offscreenAsInputShaderResourceViewDynCockpit.Release();
 	this->_offscreenBuffer.Release();
 	this->_offscreenBufferAsInput.Release();
 	this->_offscreenBufferPost.Release();
-	this->_offscreenBufferTargetComp.Release();
-	this->_offscreenBufferTargetCompAsInput.Release();
+	this->_offscreenBufferDynCockpit.Release();
+	this->_offscreenBufferAsInputDynCockpit.Release();
 	if (g_bUseSteamVR) {
 		this->_offscreenBufferR.Release();
 		this->_offscreenBufferAsInputR.Release();
@@ -298,6 +343,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 
 	this->_backBuffer.Release();
 	this->_swapChain.Release();
+	UnloadNewCockpitTextures();
 
 	this->_refreshRate = { 0, 1 };
 
@@ -451,7 +497,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 
 		step = "OffscreenBufferTargetComp";
 		// offscreenBufferTargetComp should be just like offscreenBuffer because it will be used as a renderTarget
-		hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBufferTargetComp);
+		hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBufferDynCockpit);
 		if (FAILED(hr)) {
 			log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
 			log_err_desc(step, hWnd, hr, desc);
@@ -489,7 +535,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		}
 
 		// _offscreenBufferTargetCompAsInput should have the same properties as _offscreenBufferAsInput
-		hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBufferTargetCompAsInput);
+		hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBufferAsInputDynCockpit);
 		if (FAILED(hr)) {
 			log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
 			log_err_desc(step, hWnd, hr, desc);
@@ -525,8 +571,8 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 
 		// Create the shader resource view for offscreenBufferTargetCompAsInput
 		step = "offscreenTargetCompAsInputShaderResourceView";
-		hr = this->_d3dDevice->CreateShaderResourceView(this->_offscreenBufferTargetCompAsInput,
-			&shaderResourceViewDesc, &this->_offscreenTargetCompAsInputShaderResourceView);
+		hr = this->_d3dDevice->CreateShaderResourceView(this->_offscreenBufferAsInputDynCockpit,
+			&shaderResourceViewDesc, &this->_offscreenAsInputShaderResourceViewDynCockpit);
 		if (FAILED(hr)) {
 			log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
 			log_shaderres_view(step, hWnd, hr, shaderResourceViewDesc);
@@ -544,6 +590,8 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 				goto out;
 			}
 		}
+
+		LoadNewCockpitTextures(this->_d3dDevice);
 	}
 
 	if (SUCCEEDED(hr))
@@ -559,7 +607,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		if (FAILED(hr)) goto out;
 
 		step = "RenderTargetViewTargetComp";
-		hr = this->_d3dDevice->CreateRenderTargetView(this->_offscreenBufferTargetComp, &renderTargetViewDesc, &this->_renderTargetViewTargetComp);
+		hr = this->_d3dDevice->CreateRenderTargetView(this->_offscreenBufferDynCockpit, &renderTargetViewDesc, &this->_renderTargetViewDynCockpit);
 		if (FAILED(hr)) goto out;
 
 		if (g_bUseSteamVR) {
@@ -1241,7 +1289,7 @@ void DeviceResources::InitPSConstantBufferBarrel(ID3D11Buffer** buffer, const fl
 	g_LastPSConstantBufferSet = PS_CONSTANT_BUFFER_BARREL;
 }
 
-void DeviceResources::InitPSConstantBufferBrightness(ID3D11Buffer** buffer, const PixelShaderCBuffer* psConstants)
+void DeviceResources::InitPSConstantBuffer3D(ID3D11Buffer** buffer, const PixelShaderCBuffer* psConstants)
 {
 	static ID3D11Buffer** currentBuffer = nullptr;
 	static PixelShaderCBuffer currentPSConstants{};

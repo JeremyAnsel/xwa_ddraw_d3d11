@@ -31,7 +31,12 @@ public:
 
 	// Textures in the cockpit that can be replaced with new textures
 	// This texture is the static targeting computer that can be replaced with the actual targeting data
-	bool is_CockpitTargetingComp;
+	bool is_DynCockpitTargetComp;
+	bool is_DynCockpitDisplay1;
+	// True for all textures that can be used as sources for the dynamic cockpit.
+	bool is_DynCockpitSrc;
+	// True for the additional textures loaded in Hi-Res mode that provide additional glow
+	bool is_DynCockpitAlphaOverlay;
 
 	Direct3DTexture(DeviceResources* deviceResources, TextureSurface* surface);
 
