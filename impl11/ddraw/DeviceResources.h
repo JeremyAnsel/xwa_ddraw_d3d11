@@ -5,6 +5,9 @@
 #pragma once
 #include "Matrices.h"
 
+// Also found in the Floating_GUI_CRCs list:
+const uint32_t DYN_COCKPIT_TARGET_COMP_SRC_CRC = 0x3b9a3741;
+
 enum RenderMainColorKeyType
 {
 	RENDERMAIN_NO_COLORKEY,

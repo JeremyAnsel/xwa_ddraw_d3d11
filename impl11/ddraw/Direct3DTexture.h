@@ -29,6 +29,7 @@ public:
 	// This flag is set to true if this is the main targeting computer (center, low)
 	bool is_TargetingComp;
 
+	// **** DYNAMIC COCKPIT MEMBERS **** //
 	// Textures in the cockpit that can be replaced with new textures
 	// This texture is the static targeting computer that can be replaced with the actual targeting data
 	bool is_DynCockpitTargetComp;
@@ -37,6 +38,12 @@ public:
 	bool is_DynCockpitSrc;
 	// True for the additional textures loaded in Hi-Res mode that provide additional glow
 	bool is_DynCockpitAlphaOverlay;
+	// True when the vertex limits in pixels for this element have been computed and stored
+	bool bBoundingBoxComputed;
+	// If bPixelLimitsComputed is true, then the following viewport will contain the limits of this
+	// element in pixels:
+	D3D11_VIEWPORT boundingBox;
+
 
 	Direct3DTexture(DeviceResources* deviceResources, TextureSurface* surface);
 

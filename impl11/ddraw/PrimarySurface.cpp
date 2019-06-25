@@ -29,6 +29,9 @@ extern bool g_bResetHeadCenter;
 extern vr::IVRSystem *g_pHMD;
 extern int g_iFreePIESlot;
 
+// The following is used when the Dynamic Cockpit is enabled to render the HUD separately
+D3DTLVERTEX g_HUDVertices[6];
+
 /*
  * Convert a rotation matrix to a normalized quaternion.
  * From: http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/
@@ -162,7 +165,7 @@ extern float g_fLensK1, g_fLensK2, g_fLensK3;
 MainShadersCBuffer g_MSCBuffer;
 extern float g_fConcourseScale, g_fConcourseAspectRatio;
 extern int g_iDraw2DCounter;
-extern bool g_bStartedGUI, g_bPrevStartedGUI, g_bIsScaleableGUIElem, g_bPrevIsScaleableGUIElem;
+extern bool g_bStartedGUI, g_bPrevStartedGUI, g_bIsScaleableGUIElem, g_bPrevIsScaleableGUIElem, g_bScaleableHUDStarted, g_bDynCockpitEnabled;
 extern bool g_bEnableVR, g_bDisableBarrelEffect;
 extern bool g_bDumpGUI;
 extern int g_iDrawCounter, g_iExecBufCounter, g_iPresentCounter, g_iNonZBufferCounter;
@@ -211,7 +214,7 @@ void *g_pSurface = NULL;
 void WaitGetPoses();
 
 // void capture()
-#ifdef DBR_VR
+//#ifdef DBR_VR
 void PrimarySurface::capture(int time_delay, ComPtr<ID3D11Texture2D> buffer, const wchar_t *filename)
 {
 	bool bDoCapture = false;
@@ -225,7 +228,7 @@ void PrimarySurface::capture(int time_delay, ComPtr<ID3D11Texture2D> buffer, con
 	else
 		log_debug("[DBG] NOT captured, hr: %d", hr);
 }
-#endif
+//#endif
 
 PrimarySurface::PrimarySurface(DeviceResources* deviceResources, bool hasBackbufferAttached)
 {
@@ -1414,7 +1417,7 @@ HRESULT PrimarySurface::Flip(
 					this->_deviceResources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
 
 			// Let's reset some frame counters and other control variables
-			g_iDrawCounter = 0; g_iExecBufCounter = 0; g_iNonZBufferCounter = 0;
+			g_iDrawCounter = 0; g_iExecBufCounter = 0; g_iNonZBufferCounter = 0; 
 			g_iFloatingGUIDrawnCounter = 0;
 			g_bTargetCompDrawn = false;
 			g_bPrevIsFloatingGUI3DObject = false;
@@ -1423,12 +1426,24 @@ HRESULT PrimarySurface::Flip(
 			g_bPrevStartedGUI = false;
 			g_bIsScaleableGUIElem = false;
 			g_bPrevIsScaleableGUIElem = false;
-			
+			g_bScaleableHUDStarted = false;
+
+			if (g_bDynCockpitEnabled) {
+				//static bool DumpedToFile = false;
+				this->_deviceResources->_d3dDeviceContext->ResolveSubresource(_deviceResources->_offscreenBufferAsInputDynCockpit,
+					0, _deviceResources->_offscreenBufferDynCockpit, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+				//if (!DumpedToFile) {
+				//	capture(0, _deviceResources->_offscreenBufferAsInputDynCockpit.Get(), L"c://temp//DynCockpit.png");
+				//	DumpedToFile = true;
+				//}
+			}
+
 			// Perform the lean left/right etc animations
 			animTickX();
 			animTickY();
 			animTickZ();
 
+			// Enable 6dof
 			if (g_bUseSteamVR) {
 				float yaw = 0.0f, pitch = 0.0f, roll = 0.0f;
 				float x = 0.0f, y = 0.0f, z = 0.0f;
@@ -1566,6 +1581,8 @@ HRESULT PrimarySurface::Flip(
 			g_bRendering3D = true;
 			// Doing Present(1, 0) limits the framerate to 30fps, without it, it can go up to 60; but usually
 			// stays around 45 in my system
+			//log_debug("[DBG] Present");
+			g_iPresentCounter++;
 			if (FAILED(hr = this->_deviceResources->_swapChain->Present(0, 0)))
 			{
 				static bool messageShown = false;

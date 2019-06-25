@@ -45,6 +45,9 @@ extern bool g_bEnableVR, g_bForceViewportChange;
 extern Matrix4 g_fullMatrixLeft, g_fullMatrixRight;
 extern VertexShaderMatrixCB g_VSMatrixCB;
 
+extern D3DTLVERTEX g_HUDVertices[6]; // 6 elements
+extern float g_fHUDDepth;
+
 // SteamVR
 #include <headers/openvr.h>
 extern bool g_bSteamVRInitialized, g_bUseSteamVR, g_bEnableVR;
@@ -298,6 +301,51 @@ HRESULT DeviceResources::Initialize()
 	return hr;
 }
 
+void BuildHUDVertexBuffer(UINT width, UINT height) {
+	D3DCOLOR color = 0xFFFFFF;
+	g_HUDVertices[0].sx = 0;
+	g_HUDVertices[0].sy = 0;
+	g_HUDVertices[0].tu = 0;
+	g_HUDVertices[0].tv = 0;
+	g_HUDVertices[0].color = color;
+	g_HUDVertices[0].sz = g_fHUDDepth;
+
+	g_HUDVertices[1].sx = (float)width;
+	g_HUDVertices[1].sy = 0;
+	g_HUDVertices[1].tu = 1;
+	g_HUDVertices[1].tv = 0;
+	g_HUDVertices[1].color = color;
+	g_HUDVertices[1].sz = g_fHUDDepth;
+
+	g_HUDVertices[2].sx = (float)width;
+	g_HUDVertices[2].sy = (float)height;
+	g_HUDVertices[2].tu = 1;
+	g_HUDVertices[2].tv = 1;
+	g_HUDVertices[2].color = color;
+	g_HUDVertices[2].sz = g_fHUDDepth;
+
+	g_HUDVertices[3].sx = (float)width;
+	g_HUDVertices[3].sy = (float)height;
+	g_HUDVertices[3].tu = 1;
+	g_HUDVertices[3].tv = 1;
+	g_HUDVertices[3].color = color;
+	g_HUDVertices[3].sz = g_fHUDDepth;
+
+	g_HUDVertices[4].sx = 0;
+	g_HUDVertices[4].sy = (float)height;
+	g_HUDVertices[4].tu = 0;
+	g_HUDVertices[4].tv = 1;
+	g_HUDVertices[4].color = color;
+	g_HUDVertices[4].sz = g_fHUDDepth;
+
+	g_HUDVertices[5].sx = 0;
+	g_HUDVertices[5].sy = 0;
+	g_HUDVertices[5].tu = 0;
+	g_HUDVertices[5].tv = 0;
+	g_HUDVertices[5].color = color;
+	g_HUDVertices[5].sz = g_fHUDDepth;
+}
+
 HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 {
 	HRESULT hr;
@@ -415,7 +463,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 				this->_swapChain->GetDesc(&sd);
 				g_FullScreenWidth = sd.BufferDesc.Width;
 				g_FullScreenHeight = sd.BufferDesc.Height;
-				log_debug("[DBG] Fullscreen size: %d, %d", g_FullScreenWidth, g_FullScreenHeight);
+				//log_debug("[DBG] Fullscreen size: %d, %d", g_FullScreenWidth, g_FullScreenHeight);
 			}
 		}
 
@@ -592,6 +640,9 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		}
 
 		LoadNewCockpitTextures(this->_d3dDevice);
+
+		// Build the HUD vertex buffer
+		BuildHUDVertexBuffer(_backbufferWidth, _backbufferHeight);
 	}
 
 	if (SUCCEEDED(hr))

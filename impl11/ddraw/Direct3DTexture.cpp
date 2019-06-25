@@ -60,13 +60,13 @@ std::vector<uint32_t> GUI_CRCs = {
 // 0x5b27f370 --> Targeting computer texture, 128x64 -- The full res version is 256x128 
 // 0xc5894992 --> Second targeting computer, 128x128 -- The full res version is 256x256
 // In high res mode, XWA loads additional "alpha" overlays to make certain elements brighter
-const uint32_t DYN_COCKPIT_TARGET_COMP_CRC_LO_RES = 0x5b27f370;
-const uint32_t DYN_COCKPIT_TARGET_COMP_CRC_HI_RES = 0x1671ea5b;
-const uint32_t DYN_COCKPIT_TARGET_COMP_CRC_ALPHA = 0xdb6a55a4;
+const uint32_t DYN_COCKPIT_XWING_TARGET_COMP_CRC_LO_RES = 0x5b27f370;
+const uint32_t DYN_COCKPIT_XWING_TARGET_COMP_CRC_HI_RES = 0x1671ea5b;
+const uint32_t DYN_COCKPIT_XWING_TARGET_COMP_CRC_ALPHA = 0xdb6a55a4;
 
-const uint32_t DYN_COCKPIT_DISPLAY_1_CRC_LO_RES = 0xc5894992;
-const uint32_t DYN_COCKPIT_DISPLAY_1_CRC_HI_RES = 0xfee7db3b;
-const uint32_t DYN_COCKPIT_DISPLAY_1_CRC_ALPHA = 0x7c66376a;
+const uint32_t DYN_COCKPIT_XWING_DISPLAY_1_CRC_LO_RES = 0xc5894992;
+const uint32_t DYN_COCKPIT_XWING_DISPLAY_1_CRC_HI_RES = 0xfee7db3b;
+const uint32_t DYN_COCKPIT_XWING_DISPLAY_1_CRC_ALPHA = 0x7c66376a;
 
 extern bool g_bDynCockpitEnabled;
 
@@ -198,6 +198,8 @@ Direct3DTexture::Direct3DTexture(DeviceResources* deviceResources, TextureSurfac
 	this->is_DynCockpitSrc = false;
 	this->is_DynCockpitTargetComp = false;
 	this->is_DynCockpitAlphaOverlay = false;
+	this->bBoundingBoxComputed = false;
+	this->boundingBox = { 0 };
 }
 
 int Direct3DTexture::GetWidth() {
@@ -518,20 +520,20 @@ HRESULT Direct3DTexture::Load(
 
 			// Compute the CRC
 			this->crc = crc32c(0, (const unsigned char *)textureData[0].pSysMem, size);
-			if (this->crc == DYN_COCKPIT_TARGET_COMP_CRC_LO_RES ||
-				this->crc == DYN_COCKPIT_TARGET_COMP_CRC_HI_RES) {
+			if (this->crc == DYN_COCKPIT_XWING_TARGET_COMP_CRC_LO_RES ||
+				this->crc == DYN_COCKPIT_XWING_TARGET_COMP_CRC_HI_RES) {
 				log_debug("[DBG] ***** FOUND DYN SRC TARGET COMP");
 				this->is_DynCockpitTargetComp = true;
 				this->is_DynCockpitSrc = true;
 			}
-			else if (this->crc == DYN_COCKPIT_DISPLAY_1_CRC_LO_RES ||
-				     this->crc == DYN_COCKPIT_DISPLAY_1_CRC_HI_RES) {
+			else if (this->crc == DYN_COCKPIT_XWING_DISPLAY_1_CRC_LO_RES ||
+				     this->crc == DYN_COCKPIT_XWING_DISPLAY_1_CRC_HI_RES) {
 				log_debug("[DBG] ***** FOUND DYN SRC DISPLAY 1");
 				this->is_DynCockpitDisplay1 = true;
 				this->is_DynCockpitSrc = true;
 			}
-			else if (this->crc == DYN_COCKPIT_TARGET_COMP_CRC_ALPHA ||
-					 this->crc == DYN_COCKPIT_DISPLAY_1_CRC_ALPHA) {
+			else if (this->crc == DYN_COCKPIT_XWING_TARGET_COMP_CRC_ALPHA ||
+					 this->crc == DYN_COCKPIT_XWING_DISPLAY_1_CRC_ALPHA) {
 				log_debug("[DBG] ***** FOUND DYN SRC ALPHA OVERLAY");
 				this->is_DynCockpitAlphaOverlay = true;
 			}

@@ -296,6 +296,7 @@ void projectSteamVR(float X, float Y, float Z, vr::EVREye eye, float &x, float &
 
 /* Vertices that will be used for the VertexBuffer. */
 D3DTLVERTEX *g_OrigVerts = NULL;
+//WORD *g_OrigIndices = NULL;
 //D3DTLVERTEX *g_3DVerts = NULL;
 //int g_iNumVertices = 0;
 
@@ -316,6 +317,7 @@ bool g_bStartedGUI = false; // Set to false at the beginning of each frame. Set 
 bool g_bPrevStartedGUI = false; // Keeps the last value of g_bStartedGUI -- helps detect when the GUI is about to be rendered.
 bool g_bIsScaleableGUIElem = false; // Set to false at the beginning of each frame. Set to true when the scaleable GUI has begun rendering.
 bool g_bPrevIsScaleableGUIElem = false; // Keeps the last value of g_bIsScaleableGUIElem -- helps detect when scaleable GUI is about to start rendering.
+bool g_bScaleableHUDStarted = false; // Becomes true as soon as the scaleable HUD is about to be rendered. Reset to false at the end of each frame
 bool g_bSkipGUI = false; // Skip non-skybox draw calls with disabled Z-Buffer
 bool g_bSkipText = false; // Skips text draw calls
 bool g_bSkipAfterTargetComp = false; // Skip all draw calls after the targetting computer has been drawn
@@ -328,6 +330,7 @@ int g_iPresentCounter = 0, g_iNonZBufferCounter = 0, g_iSkipNonZBufferDrawIdx = 
 // It's reset to false every time the backbuffer is swapped.
 //bool g_bGUIIsRendered = false;
 float g_fZBracketOverride = 65530.0f; // 65535 is probably the maximum Z value in XWA
+D3D11_VIEWPORT g_DynCockpitTargetComp = { 0 };
 extern bool g_bRendering3D; // Used to distinguish between 2D (Concourse/Menus) and 3D rendering (main in-flight game)
 
 // g_fZOverride is activated when it's greater than -0.9f, and it's used for bracket rendering so that 
@@ -1991,6 +1994,13 @@ HRESULT Direct3DDevice::CreateExecuteBuffer(
 
 		if (FAILED(device->CreateBuffer(&indexBufferDesc, nullptr, &this->_indexBuffer)))
 			return DDERR_INVALIDOBJECT;
+		/*
+		if (g_OrigIndices == NULL) {
+			log_debug("[DBG] *** Creating Aux Index buffer of size: %d (%d)", indexBufferDesc.ByteWidth,
+				indexBufferDesc.ByteWidth / sizeof(WORD));
+			g_OrigIndices = new WORD[indexBufferDesc.ByteWidth / sizeof(WORD)];
+		}
+		*/
 
 		this->_maxExecuteBufferSize = lpDesc->dwBufferSize;
 	}
@@ -2199,6 +2209,41 @@ HRESULT Direct3DDevice::QuickSetZWriteEnabled(BOOL Enabled) {
 	return hr;
 }
 
+// Should this function be inlined?
+// See:
+// xwa_ddraw_d3d11-sm4\impl11\ddraw-May-6-2019-Functionality-Complete\Direct3DDevice.cpp
+// For a working implementation of the index buffer read (spoiler alert: it's the same we have here)
+void Direct3DDevice::GetBoundingBox(LPD3DINSTRUCTION instruction, UINT curIndex, float *minX, float *minY, float *maxX, float *maxY) {
+	LPD3DTRIANGLE triangle = (LPD3DTRIANGLE)(instruction + 1);
+	WORD index;
+	//int aux_idx = curIndex;
+	float px, py;
+	*maxX = -1; *maxY = -1;
+	*minX = 1000000; *minY = 1000000;
+	for (WORD i = 0; i < instruction->wCount; i++)
+	{
+		index = triangle->v1;
+		//index = g_OrigIndices[aux_idx++];
+		px = g_OrigVerts[index].sx; py = g_OrigVerts[index].sy;
+		if (px < *minX) *minX = px; if (px > *maxX) *maxX = px;
+		if (py < *minY) *minY = py; if (py > *maxY) *maxY = py;
+
+		index = triangle->v2;
+		//index = g_OrigIndices[aux_idx++];
+		px = g_OrigVerts[index].sx; py = g_OrigVerts[index].sy;
+		if (px < *minX) *minX = px; if (px > *maxX) *maxX = px;
+		if (py < *minY) *minY = py; if (py > *maxY) *maxY = py;
+
+		index = triangle->v3;
+		//index = g_OrigIndices[aux_idx++];
+		px = g_OrigVerts[index].sx; py = g_OrigVerts[index].sy;
+		if (px < *minX) *minX = px; if (px > *maxX) *maxX = px;
+		if (py < *minY) *minY = py; if (py > *maxY) *maxY = py;
+
+		triangle++;
+	}
+}
+
 HRESULT Direct3DDevice::Execute(
 	LPDIRECT3DEXECUTEBUFFER lpDirect3DExecuteBuffer,
 	LPDIRECT3DVIEWPORT lpDirect3DViewport,
@@ -2268,18 +2313,12 @@ HRESULT Direct3DDevice::Execute(
 	// Do stereo preprocessing
 	int numVerts = executeBuffer->_executeData.dwVertexCount;
 	size_t vertsLength = sizeof(D3DTLVERTEX) * numVerts;
-	// Resize the aux buffers that store the left and right vertices
-	//ResizeStereoVertices(numVerts);
-	// Save the original vertices
-	//memcpy(g_OrigVerts, executeBuffer->_buffer, sizeof(D3DTLVERTEX) * numVerts);
 	g_OrigVerts = (D3DTLVERTEX *)executeBuffer->_buffer;
 	// Generate vertex positions for the left and right images
 	float displayWidth = (float)resources->_displayWidth;
 	float displayHeight = (float)resources->_displayHeight;
-	//if (g_bEnableVR) PreprocessVerticesStereo(displayWidth, displayHeight, numVerts);
 
 	// Copy the vertex data to the vertexbuffers
-	// Original data, no parallax
 	step = "VertexBuffer";
 	hr = context->Map(this->_vertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
 	if (SUCCEEDED(hr))
@@ -2288,23 +2327,6 @@ HRESULT Direct3DDevice::Execute(
 		context->Unmap(this->_vertexBuffer, 0);
 	}
 	resources->InitVertexBuffer(this->_vertexBuffer.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
-
-	// Copy the vertex data to the left and right VertexBuffers
-	/*
-	if (g_bEnableVR) {
-		// 3D vertices
-		step = "VertexBuffer (3D)";
-		hr = context->Map(this->_vertexBuffer3D, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
-		if (SUCCEEDED(hr))
-		{
-			memcpy(map.pData, g_3DVerts, vertsLength);
-			context->Unmap(this->_vertexBuffer3D, 0);
-		}
-
-		// Send the 3D vertices, let the shader do the projection
-		resources->InitVertexBuffer(this->_vertexBuffer3D.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
-	}
-	*/
 
 	// Constant Buffer step (and aspect ratio)
 	if (SUCCEEDED(hr))
@@ -2417,6 +2439,7 @@ HRESULT Direct3DDevice::Execute(
 			{
 				LPD3DINSTRUCTION instruction = (LPD3DINSTRUCTION)pData;
 				pData += sizeof(D3DINSTRUCTION) + instruction->bSize * instruction->wCount;
+				int aux_idx = 0;
 
 				switch (instruction->bOpcode)
 				{
@@ -2427,12 +2450,15 @@ HRESULT Direct3DDevice::Execute(
 					for (WORD i = 0; i < instruction->wCount; i++)
 					{
 						*index = triangle->v1;
+						//g_OrigIndices[aux_idx++] = *index;
 						index++;
 
 						*index = triangle->v2;
+						//g_OrigIndices[aux_idx++] = *index;
 						index++;
 
 						*index = triangle->v3;
+						//g_OrigIndices[aux_idx++] = *index;
 						index++;
 
 						triangle++;
@@ -2641,14 +2667,60 @@ HRESULT Direct3DDevice::Execute(
 				}
 				*/
 
-				if (!g_bPrevIsScaleableGUIElem && g_bIsScaleableGUIElem)
+				if (!g_bPrevIsScaleableGUIElem && g_bIsScaleableGUIElem) {
+					g_bScaleableHUDStarted = true;
 					// We're about to render the scaleable HUD, time to clear the dynamic cockpit texture
 					if (g_bDynCockpitEnabled) {
-						float bgColor[4] = { 0.1f, 0.1f, 0.4f, 0.0f };
+						float bgColor[4] = { 0.1f, 0.1f, 0.2f, 0.0f };
 						context->ClearRenderTargetView(resources->_renderTargetViewDynCockpit, bgColor);
 						context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
 					}
-				
+				}
+				bool bRenderToDynCockpitBuffer = g_bDynCockpitEnabled && lastTextureSelected != NULL && g_bScaleableHUDStarted;
+
+				// The targeting computer is rendered *after* the laser energy levels and the bounding box of the targeting
+				// computer slightly overlaps the lasers. So, we must be careful when copying image data from this area.
+				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->crc == DYN_COCKPIT_TARGET_COMP_SRC_CRC) {
+					if (!lastTextureSelected->bBoundingBoxComputed) {
+						// This is the solid targeting computer background. We need to compute its limits in pixels.
+						// We only need to do this once -- and this should be done when the first frame is rendered.
+						// We're in the D3DOP_TRIANGLE case, so the following is valid:
+						float minX, minY, maxX, maxY;
+						GetBoundingBox(instruction, currentIndexLocation, &minX, &minY, &maxX, &maxY);
+						lastTextureSelected->boundingBox.TopLeftX = minX;
+						lastTextureSelected->boundingBox.TopLeftY = minY;
+						lastTextureSelected->boundingBox.Width = maxX - minX;
+						lastTextureSelected->boundingBox.Height = maxY - minY;
+						lastTextureSelected->bBoundingBoxComputed = true;
+						g_DynCockpitTargetComp = lastTextureSelected->boundingBox;
+						
+						log_debug("[DBG] Targeting Computer limits: (%0.3f, %0.3f), [%0.3f, %0.3f]",
+							lastTextureSelected->boundingBox.TopLeftX, lastTextureSelected->boundingBox.TopLeftY,
+							lastTextureSelected->boundingBox.Width, lastTextureSelected->boundingBox.Height);
+						//log_debug("[DBG] count: %d, currentIndexLocation: %d", 3 * instruction->wCount, currentIndexLocation);
+					}
+					// Don't render this element
+					goto out;
+				}
+
+				/*
+				// Check if we're rendering anything that should be moved to the dynamic cockpit
+				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && g_bScaleableHUDStarted) {
+					float minX, minY, maxX, maxY;
+					float tx0, ty0, tx1, ty1;
+					GetBoundingBox(instruction, currentIndexLocation, &minX, &minY, &maxX, &maxY);
+					//log_debug("[DBG] Testing texture for target comp inclusion");
+					tx0 = g_DynCockpitTargetComp.TopLeftX; ty0 = g_DynCockpitTargetComp.TopLeftY;
+					tx1 = tx0 + g_DynCockpitTargetComp.Width; ty1 = ty0 + g_DynCockpitTargetComp.Height;
+
+					float w = maxX - minX;
+					float h = maxY - minY;
+					if (w > 1000)
+						goto out;
+					//log_debug("[DBG] Tested elem: (%0.3f, %0.3f) (%0.3f, %0.3f)",
+					//	minX, minY, w, h);
+				}
+				*/
 
 				//if (bIsNoZWrite && _renderStates->GetZFunc() == D3DCMP_GREATER) {
 				//	goto out;
@@ -2709,10 +2781,25 @@ HRESULT Direct3DDevice::Execute(
 					g_PSCBuffer.bShadeless = 1.0f; // Render the targeted object without the diffuse component (shadeless)
 					//if (g_NewDynCockpitTargetComp != NULL)
 					//	context->PSSetShaderResources(0, 1, g_NewDynCockpitTargetComp.GetAddressOf());
+					D3D11_BOX box;
+					box.left = (UINT )g_DynCockpitTargetComp.TopLeftX;
+					box.right = (UINT)(g_DynCockpitTargetComp.TopLeftX + g_DynCockpitTargetComp.Width);
+					box.top = (UINT)g_DynCockpitTargetComp.TopLeftY;
+					box.bottom = (UINT)(g_DynCockpitTargetComp.TopLeftY + g_DynCockpitTargetComp.Width);
+					box.front = 0;
+					box.back = 1;
+					//context->CopySubresourceRegion(dstResource, 0, 0, 0, 0,
+					//	resources->_offscreenAsInputShaderResourceViewDynCockpit.GetAddressOf, 0, &box);
 
-					// Resolve the last offscreenBufferTargetComp and use it as input to the PixelShader
-					context->ResolveSubresource(resources->_offscreenBufferAsInputDynCockpit, 0, resources->_offscreenBufferDynCockpit,
-						0, DXGI_FORMAT_B8G8R8A8_UNORM);
+					// _offscreenAsInputShaderResourceViewDynCockpit is resolved in PrimarySurface.cpp, right before we
+					// present the backbuffer. That prevents resolving the texture multiple times.
+
+					static bool bDumped = false;
+					if (g_iPresentCounter > 100 && !bDumped) {
+						hr = DirectX::SaveWICTextureToFile(_deviceResources->_d3dDeviceContext.Get(),
+							_deviceResources->_offscreenBufferAsInputDynCockpit.Get(), GUID_ContainerFormatJpeg, L"c://temp//dyncock.png");
+						bDumped = true;
+					}
 					context->PSSetShaderResources(0, 1, resources->_offscreenAsInputShaderResourceViewDynCockpit.GetAddressOf());
 				}
 
@@ -2734,16 +2821,18 @@ HRESULT Direct3DDevice::Execute(
 
 					// The original 2D vertices are already in the GPU, so just render as usual
 					// Enable the dynamic cockpit in regular non-VR mode:
-					if (g_bDynCockpitEnabled && g_bIsFloating3DObject) {
+					if (bRenderToDynCockpitBuffer)
 						// Set the targeting computer renderTargetView
 						context->OMSetRenderTargets(1, resources->_renderTargetViewDynCockpit.GetAddressOf(),
 							resources->_depthStencilViewL.Get());
-					}
-					else {
+					else
 						context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
 							resources->_depthStencilViewL.Get());
-					}
 					context->DrawIndexed(3 * instruction->wCount, currentIndexLocation, 0);
+					// Restore the normal render target
+					if (bRenderToDynCockpitBuffer)
+						context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
+							resources->_depthStencilViewL.Get());
 					goto out;
 				}
 
@@ -2857,20 +2946,13 @@ HRESULT Direct3DDevice::Execute(
 				// computation faster? On the other hand, having always 2 z-buffers makes the code
 				// easier.
 
-				// Dynamic Cockpit: Use the proper render target view
-				if (g_bDynCockpitEnabled && g_bIsFloating3DObject) {
-					// Set the targeting computer renderTargetView
-					context->OMSetRenderTargets(1, resources->_renderTargetViewDynCockpit.GetAddressOf(),
+				// Dynamic Cockpit: Set the proper render target view
+				if (g_bUseSteamVR)
+					context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
 						resources->_depthStencilViewL.Get());
-				}
-				else {
-					if (g_bUseSteamVR)
-						context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
-							resources->_depthStencilViewL.Get());
-					else
-						context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
-							resources->_depthStencilViewL.Get());
-				}
+				else
+					context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
+						resources->_depthStencilViewL.Get());
 				
 				// VIEWPORT-LEFT
 				if (g_bUseSteamVR) {
@@ -2879,33 +2961,44 @@ HRESULT Direct3DDevice::Execute(
 				else {
 					viewport.Width = (float)resources->_backbufferWidth / 2.0f;
 				}
-				// Dynamic Cockpit: the render target should have the original width
-				if (g_bDynCockpitEnabled && g_bIsFloating3DObject) {
-					viewport.Width = (float)resources->_backbufferWidth;
-				}
 				viewport.Height = (float)resources->_backbufferHeight;
 				viewport.TopLeftX = 0.0f;
 				viewport.TopLeftY = 0.0f;
 				viewport.MinDepth = D3D11_MIN_DEPTH;
 				viewport.MaxDepth = D3D11_MAX_DEPTH;
-				resources->InitViewport(&viewport);
-				// Dynamic Cockpit: Set the left projection matrix to identity (?)
-				if (g_bDynCockpitEnabled && g_bIsFloating3DObject) {
+
+				if (bRenderToDynCockpitBuffer) {
+					//viewport.TopLeftX = (float)left;
+					//viewport.TopLeftY = (float)top;
+					//viewport.Width = (float)width;
+					//viewport.Height = (float)height;
+					viewport.Width = (float)resources->_backbufferWidth;
+					//this->_deviceResources->InitVertexShader(resources->_vertexShader);
+					context->OMSetRenderTargets(1, resources->_renderTargetViewDynCockpit.GetAddressOf(),
+						resources->_depthStencilViewL.Get());
 					bModifiedViewMatrix = true;
-					g_VSMatrixCB.projEye = g_fullMatrixHead;
+					//g_VSMatrixCB.projEye = g_fullMatrixHead; 
+					g_VSMatrixCB.projEye.identity();
 					g_VSMatrixCB.viewMat.identity(); // We need to do this to prevent the dynamic cockpit from reacting to motion
 				} 
-				else
+				else {
 					g_VSMatrixCB.projEye = g_fullMatrixLeft;
-				// The viewMatrix is set at the beginning of the frame
-				resources->InitVSConstantBufferMatrix(resources->_VSMatrixBuffer.GetAddressOf(), &g_VSMatrixCB);
+					// The viewMatrix is set at the beginning of the frame
+					resources->InitVSConstantBufferMatrix(resources->_VSMatrixBuffer.GetAddressOf(), &g_VSMatrixCB);
+				}
+				resources->InitViewport(&viewport);
 				// Draw the Left Image
 				context->DrawIndexed(3 * instruction->wCount, currentIndexLocation, 0);
 
-				// HACK: Disable rendering to the right image because the floating object is now rendered to a separate render
-				// target view.
-				if (g_bDynCockpitEnabled && g_bIsFloating3DObject)
+				// Dynamic Cockpit: Disable rendering to the right image
+				if (bRenderToDynCockpitBuffer) {
+					// Restore the SBS vertex shader
+					//this->_deviceResources->InitVertexShader(resources->_sbsVertexShader);
+					// Restore the regular render target?
+					context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
+						resources->_depthStencilViewL.Get());
 					goto out;
+				}
 
 				// ****************************************************************************
 				// Render the right image
@@ -3296,6 +3389,7 @@ HRESULT Direct3DDevice::BeginScene()
 	LogText(str.str());
 #endif
 
+	//log_debug("[DBG] BeginScene");
 	if (!this->_deviceResources->_renderTargetView)
 	{
 #if LOGGER
@@ -3352,7 +3446,7 @@ HRESULT Direct3DDevice::EndScene()
 	str << this << " " << __FUNCTION__;
 	LogText(str.str());
 #endif
-
+	//log_debug("[DBG] EndScene");
 	this->_deviceResources->sceneRendered = true;
 
 	this->_deviceResources->inScene = false;
