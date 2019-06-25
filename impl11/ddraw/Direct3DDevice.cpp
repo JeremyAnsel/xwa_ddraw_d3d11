@@ -1600,17 +1600,17 @@ public:
 		switch (blend)
 		{
 		case D3DBLEND_ZERO:
-			return D3D11_BLEND_ZERO;
+			return D3D11_BLEND_ZERO; // 1
 		case D3DBLEND_ONE:
-			return D3D11_BLEND_ONE;
+			return D3D11_BLEND_ONE; // 2
 		case D3DBLEND_SRCCOLOR:
-			return D3D11_BLEND_SRC_COLOR;
+			return D3D11_BLEND_SRC_COLOR; // 3
 		case D3DBLEND_INVSRCCOLOR:
-			return D3D11_BLEND_INV_SRC_COLOR;
+			return D3D11_BLEND_INV_SRC_COLOR; // 4
 		case D3DBLEND_SRCALPHA:
-			return D3D11_BLEND_SRC_ALPHA;
+			return D3D11_BLEND_SRC_ALPHA; // 5
 		case D3DBLEND_INVSRCALPHA:
-			return D3D11_BLEND_INV_SRC_ALPHA;
+			return D3D11_BLEND_INV_SRC_ALPHA; // 6
 		case D3DBLEND_DESTALPHA:
 			return D3D11_BLEND_DEST_ALPHA;
 		case D3DBLEND_INVDESTALPHA:
@@ -1637,15 +1637,13 @@ public:
 		case D3DCMP_NEVER:
 			return D3D11_COMPARISON_NEVER;
 		case D3DCMP_LESS:
-			return D3D11_COMPARISON_LESS; // Original setting
-			//return D3D11_COMPARISON_GREATER;
+			return D3D11_COMPARISON_LESS;
 		case D3DCMP_EQUAL:
 			return D3D11_COMPARISON_EQUAL;
 		case D3DCMP_LESSEQUAL:
 			return D3D11_COMPARISON_LESS_EQUAL;
 		case D3DCMP_GREATER:
-			return D3D11_COMPARISON_GREATER; // Original setting
-			//return D3D11_COMPARISON_LESS;
+			return D3D11_COMPARISON_GREATER;
 		case D3DCMP_NOTEQUAL:
 			return D3D11_COMPARISON_NOT_EQUAL;
 		case D3DCMP_GREATEREQUAL:
@@ -1767,6 +1765,7 @@ private:
 
 	D3DTEXTUREADDRESS TextureAddress;
 
+public: // HACK: I need to read the state of the blending when rendering the HUD
 	BOOL AlphaBlendEnabled;
 	D3DTEXTUREBLEND TextureMapBlend;
 	D3DBLEND SrcBlend;
@@ -2667,12 +2666,16 @@ HRESULT Direct3DDevice::Execute(
 				}
 				*/
 
-				if (!g_bPrevIsScaleableGUIElem && g_bIsScaleableGUIElem) {
+				if (!g_bPrevIsScaleableGUIElem && g_bIsScaleableGUIElem && !g_bScaleableHUDStarted) {
 					g_bScaleableHUDStarted = true;
 					// We're about to render the scaleable HUD, time to clear the dynamic cockpit texture
 					if (g_bDynCockpitEnabled) {
-						float bgColor[4] = { 0.1f, 0.1f, 0.2f, 0.0f };
+						//float bgColor[4] = { 0.1f, 0.1f, 0.2f, 0.0f };
+						float bgColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+						//float bgColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+						//context->ClearRenderTargetView(resources->_renderTargetViewDynCockpit, resources->clearColor);
 						context->ClearRenderTargetView(resources->_renderTargetViewDynCockpit, bgColor);
+						//log_debug("[DBG] CLEARING DYN COCKPIT RTV");
 						context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
 					}
 				}
@@ -2698,6 +2701,14 @@ HRESULT Direct3DDevice::Execute(
 							lastTextureSelected->boundingBox.TopLeftX, lastTextureSelected->boundingBox.TopLeftY,
 							lastTextureSelected->boundingBox.Width, lastTextureSelected->boundingBox.Height);
 						//log_debug("[DBG] count: %d, currentIndexLocation: %d", 3 * instruction->wCount, currentIndexLocation);
+
+						static bool bDump = true;
+						if (bDump) {
+							log_debug("[DBG] TC AlphaBlendEnabled: %d, SrcBlend: 0x%x, DestBlend: 0x%x",
+								_renderStates->AlphaBlendEnabled, _renderStates->SrcBlend, _renderStates->DestBlend);
+							log_debug("[DBG] TC TextureMapBlend: 0x%x", _renderStates->TextureMapBlend);
+						}
+						bDump = false;
 					}
 					// Don't render this element
 					goto out;
@@ -2821,6 +2832,7 @@ HRESULT Direct3DDevice::Execute(
 
 					// The original 2D vertices are already in the GPU, so just render as usual
 					// Enable the dynamic cockpit in regular non-VR mode:
+					//bRenderToDynCockpitBuffer = false;
 					if (bRenderToDynCockpitBuffer)
 						// Set the targeting computer renderTargetView
 						context->OMSetRenderTargets(1, resources->_renderTargetViewDynCockpit.GetAddressOf(),

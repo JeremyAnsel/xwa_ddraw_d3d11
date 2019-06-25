@@ -1432,6 +1432,8 @@ HRESULT PrimarySurface::Flip(
 				//static bool DumpedToFile = false;
 				this->_deviceResources->_d3dDeviceContext->ResolveSubresource(_deviceResources->_offscreenBufferAsInputDynCockpit,
 					0, _deviceResources->_offscreenBufferDynCockpit, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+				//this->_deviceResources->_d3dDeviceContext->ClearRenderTargetView(this->_deviceResources->_renderTargetViewDynCockpit, 
+				//	this->_deviceResources->clearColor);
 				//if (!DumpedToFile) {
 				//	capture(0, _deviceResources->_offscreenBufferAsInputDynCockpit.Get(), L"c://temp//DynCockpit.png");
 				//	DumpedToFile = true;
