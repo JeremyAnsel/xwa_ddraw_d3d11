@@ -4,8 +4,20 @@
 
 cbuffer ConstantBuffer : register(b0)
 {
+	// Only vpScale and bFullTransform are used in this shader
 	float3 vpScale;
+	//float aspect_ratio, cockpit_threshold, z_override, sz_override;
+	//float mult_z_override, bPreventTransform, bFullTransform;
 };
+
+/*
+cbuffer ConstantBuffer : register(b1)
+{
+	matrix projEyeMatrix;
+	matrix viewMatrix;
+	matrix fullViewMatrix;
+};
+*/
 
 struct VertexShaderInput
 {

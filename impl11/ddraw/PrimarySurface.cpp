@@ -1455,10 +1455,21 @@ HRESULT PrimarySurface::Flip(
 				Vector3 headPosFromKeyboard(g_HeadPos.x, g_HeadPos.y, g_HeadPos.z);
 
 				GetSteamVRPositionalData(&yaw, &pitch, &roll, &x, &y, &z, &rotMatrix);
+				yaw *= RAD_TO_DEG; // g_fYawMultiplier
+				pitch *= RAD_TO_DEG; // g_fPitchMultiplier
 				roll *= RAD_TO_DEG * g_fRollMultiplier;
 
 				pos.set(x, y, z);
 				headPos = -pos;
+
+				// Compute the full rotation
+				Matrix4 rotMatrixFull, rotMatrixYaw, rotMatrixPitch, rotMatrixRoll;
+				rotMatrixFull.identity();
+				rotMatrixYaw.identity();   rotMatrixYaw.rotateY(-yaw);
+				rotMatrixPitch.identity(); rotMatrixPitch.rotateX(-pitch);
+				rotMatrixRoll.identity();  rotMatrixRoll.rotateZ(roll);
+				rotMatrixFull = rotMatrixRoll * rotMatrixPitch * rotMatrixYaw;
+				//rotMatrixFull.invert();
 
 				// Adding headPosFromKeyboard is only to allow the keys to move the cockpit.
 				// g_HeadPos can be removed once positional tracking has been fixed... or 
@@ -1490,11 +1501,17 @@ HRESULT PrimarySurface::Flip(
 				g_viewMatrix[12] = headPos[0]; 
 				g_viewMatrix[13] = headPos[1];
 				g_viewMatrix[14] = headPos[2];
+				rotMatrixFull[12] = headPos[0];
+				rotMatrixFull[13] = headPos[1];
+				rotMatrixFull[14] = headPos[2];
+				// viewMat is not a full transform matrix: it's only RotZ + Translation
+				// because the cockpit hook already applies the yaw/pitch rotation
 				g_VSMatrixCB.viewMat = g_viewMatrix;
+				g_VSMatrixCB.fullViewMat = rotMatrixFull;
 			}
 			else if (g_bEnableVR) { // DirectSBS mode, read the roll and position (?) from FreePIE
 				//float pitch, yaw, roll, pitchSign = -1.0f;
-				float roll;
+				float yaw, pitch, roll;
 				static Vector4 headCenter(0, 0, 0, 0);
 				Vector4 headPos(0,0,0,1);
 				//Vector3 headPosFromKeyboard(0, 0, 0);
@@ -1510,9 +1527,9 @@ HRESULT PrimarySurface::Flip(
 						g_bResetHeadCenter = false;
 					}
 					Vector4 pos(g_FreePIEData.x, g_FreePIEData.y, g_FreePIEData.z, 1.0f);
-					//yaw = (g_FreePIEData.yaw + 180.0f) * g_fYawMultiplier;
-					//pitch = g_FreePIEData.pitch * g_fPitchMultiplier;
-					roll = g_fRollMultiplier * g_FreePIEData.roll;
+					yaw =   g_FreePIEData.yaw + 180; // FIX THE HARD-CODED 180 LATER * g_fYawMultiplier;
+					pitch = g_FreePIEData.pitch; // * g_fPitchMultiplier;
+					roll =  g_FreePIEData.roll * g_fRollMultiplier;
 					headPos = (pos - headCenter);
 				}
 
@@ -1531,11 +1548,18 @@ HRESULT PrimarySurface::Flip(
 				if (headPos[2] > g_fMaxPositionZ) headPos[2] = g_fMaxPositionZ;
 				//if (-headPos[2] > g_fMaxPositionZ) headPos[2] = -g_fMaxPositionZ;
 
-				Matrix4 rotMatrixYaw, rotMatrixPitch;
+				Matrix4 rotMatrixFull, rotMatrixYaw, rotMatrixPitch, rotMatrixRoll;
+				rotMatrixFull.identity();
 				//rotMatrixYaw.identity(); rotMatrixYaw.rotateY(g_FreePIEData.yaw);
-				rotMatrixYaw.identity(); rotMatrixYaw.rotateY(-g_FreePIEData.yaw);
-				rotMatrixPitch.identity(); rotMatrixPitch.rotateX(g_FreePIEData.pitch);
-				rotMatrixYaw = rotMatrixPitch * rotMatrixYaw;
+				rotMatrixYaw.identity();   rotMatrixYaw.rotateY(-yaw);
+				rotMatrixPitch.identity(); rotMatrixPitch.rotateX(pitch);
+				rotMatrixRoll.identity();  rotMatrixRoll.rotateZ(roll);
+
+				// For the fixed GUI, yaw has to be like this:
+				rotMatrixFull.rotateY(yaw);
+				rotMatrixFull = rotMatrixRoll * rotMatrixPitch * rotMatrixFull;
+				// But the matrix to compensate for the translation uses -yaw:
+				rotMatrixYaw  = rotMatrixPitch * rotMatrixYaw;
 				// Can we avoid computing the matrix inverse?
 				rotMatrixYaw.invert();
 				headPos = rotMatrixYaw * headPos;
@@ -1545,7 +1569,13 @@ HRESULT PrimarySurface::Flip(
 				g_viewMatrix[12] = headPos[0];
 				g_viewMatrix[13] = headPos[1];
 				g_viewMatrix[14] = headPos[2];
+				rotMatrixFull[12] = headPos[0];
+				rotMatrixFull[13] = headPos[1];
+				rotMatrixFull[14] = headPos[2];
+				// viewMat is not a full transform matrix: it's only RotZ + Translation
+				// because the cockpit hook already applies the yaw/pitch rotation
 				g_VSMatrixCB.viewMat = g_viewMatrix;
+				g_VSMatrixCB.fullViewMat = rotMatrixFull;
 			}
 
 #ifdef DBG_VR

@@ -202,6 +202,7 @@ const float MAX_BRIGHTNESS = 1.0f;
 const bool DEFAULT_FLOATING_AIMING_HUD = true;
 const bool DEFAULT_NATURAL_CONCOURSE_ANIM = true;
 const bool DEFAULT_DYNAMIC_TARGET_COMP = false;
+const bool DEFAULT_FIXED_GUI_STATE = true;
 // 6dof
 const int DEFAULT_FREEPIE_SLOT = 0;
 const float DEFAULT_ROLL_MULTIPLIER =  -1.0f;
@@ -243,6 +244,7 @@ const char *INVERSE_TRANSPOSE_VRPARAM = "alternate_steamvr_eye_inverse";
 const char *FLOATING_AIMING_HUD_VRPARAM = "floating_aiming_HUD";
 const char *NATURAL_CONCOURSE_ANIM_VRPARAM = "concourse_animations_at_25fps";
 const char *DYNAMIC_COCKPIT_TARGET_COMP_VRPARAM = "dynamic_cockpit_enabled";
+const char *FIXED_GUI_VRPARAM = "fixed_GUI";
 // 6dof vrparams
 const char *FREEPIE_SLOT_VRPARAM = "freepie_slot";
 const char *ROLL_MULTIPLIER_VRPARAM = "roll_multiplier";
@@ -368,6 +370,7 @@ bool g_bZoomOutInitialState = DEFAULT_ZOOM_OUT_INITIAL_STATE;
 float g_fBrightness = DEFAULT_BRIGHTNESS;
 float g_fGUIElemsScale = DEFAULT_GLOBAL_SCALE; // Used to reduce the size of all the GUI elements
 int g_iFreePIESlot = DEFAULT_FREEPIE_SLOT;
+bool g_bFixedGUI = DEFAULT_FIXED_GUI_STATE;
 bool g_bDirectSBSInitialized = false;
 
 VertexShaderMatrixCB g_VSMatrixCB;
@@ -658,6 +661,8 @@ void ResetVRParams() {
 
 	g_bDisableBarrelEffect = g_bUseSteamVR ? !DEFAULT_BARREL_EFFECT_STATE_STEAMVR : !DEFAULT_BARREL_EFFECT_STATE;
 
+	g_bFixedGUI = DEFAULT_FIXED_GUI_STATE;
+
 	g_iFreePIESlot = DEFAULT_FREEPIE_SLOT;
 	g_fRollMultiplier = DEFAULT_ROLL_MULTIPLIER;
 	g_fPosXMultiplier = DEFAULT_POS_X_MULTIPLIER;
@@ -766,6 +771,7 @@ void SaveVRParams() {
 	fprintf(file, "; controls towards you. Objects in the tech library are obviously scaled by XWA, because there's\n");
 	fprintf(file, "; otherwise no way to visualize both a Star Destroyer and an A-Wing in the same volume.\n");
 	fprintf(file, "%s = %0.3f\n", TECH_LIB_PARALLAX_VRPARAM, g_fTechLibraryParallax);
+	fprintf(file, "%s = %d\n", FIXED_GUI_VRPARAM, g_bFixedGUI);
 
 	fprintf(file, "\n");
 	fprintf(file, "; Set the following parameter to lower the brightness of the text,\n");
@@ -938,6 +944,9 @@ void LoadVRParams() {
 			}
 			else if (_stricmp(param, DYNAMIC_COCKPIT_TARGET_COMP_VRPARAM) == 0) {
 				g_bDynCockpitEnabled = (bool)value;
+			}
+			else if (_stricmp(param, FIXED_GUI_VRPARAM) == 0) {
+				g_bFixedGUI = (bool)value;
 			}
 
 			// 6dof parameters
@@ -1765,7 +1774,6 @@ private:
 
 	D3DTEXTUREADDRESS TextureAddress;
 
-public: // HACK: I need to read the state of the blending when rendering the HUD
 	BOOL AlphaBlendEnabled;
 	D3DTEXTUREBLEND TextureMapBlend;
 	D3DBLEND SrcBlend;
@@ -2289,6 +2297,7 @@ HRESULT Direct3DDevice::Execute(
 	g_VSCBuffer.mult_z_override = -1.0f;
 	g_VSCBuffer.cockpit_threshold = g_fGUIElemPZThreshold;
 	g_VSCBuffer.bPreventTransform = 0.0f;
+	g_VSCBuffer.bFullTransform = 0.0f;
 
 	g_PSCBuffer.brightness = MAX_BRIGHTNESS;
 	g_PSCBuffer.bShadeless = 0.0f;
@@ -2449,15 +2458,12 @@ HRESULT Direct3DDevice::Execute(
 					for (WORD i = 0; i < instruction->wCount; i++)
 					{
 						*index = triangle->v1;
-						//g_OrigIndices[aux_idx++] = *index;
 						index++;
 
 						*index = triangle->v2;
-						//g_OrigIndices[aux_idx++] = *index;
 						index++;
 
 						*index = triangle->v3;
-						//g_OrigIndices[aux_idx++] = *index;
 						index++;
 
 						triangle++;
@@ -2681,6 +2687,7 @@ HRESULT Direct3DDevice::Execute(
 				}
 				bool bRenderToDynCockpitBuffer = g_bDynCockpitEnabled && lastTextureSelected != NULL && g_bScaleableHUDStarted;
 
+				// Get the bounds of the targeting computer texture
 				// The targeting computer is rendered *after* the laser energy levels and the bounding box of the targeting
 				// computer slightly overlaps the lasers. So, we must be careful when copying image data from this area.
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->crc == DYN_COCKPIT_TARGET_COMP_SRC_CRC) {
@@ -2700,15 +2707,6 @@ HRESULT Direct3DDevice::Execute(
 						log_debug("[DBG] Targeting Computer limits: (%0.3f, %0.3f), [%0.3f, %0.3f]",
 							lastTextureSelected->boundingBox.TopLeftX, lastTextureSelected->boundingBox.TopLeftY,
 							lastTextureSelected->boundingBox.Width, lastTextureSelected->boundingBox.Height);
-						//log_debug("[DBG] count: %d, currentIndexLocation: %d", 3 * instruction->wCount, currentIndexLocation);
-
-						static bool bDump = true;
-						if (bDump) {
-							log_debug("[DBG] TC AlphaBlendEnabled: %d, SrcBlend: 0x%x, DestBlend: 0x%x",
-								_renderStates->AlphaBlendEnabled, _renderStates->SrcBlend, _renderStates->DestBlend);
-							log_debug("[DBG] TC TextureMapBlend: 0x%x", _renderStates->TextureMapBlend);
-						}
-						bDump = false;
 					}
 					// Don't render this element
 					goto out;
@@ -2881,6 +2879,9 @@ HRESULT Direct3DDevice::Execute(
 				if (g_bIsScaleableGUIElem) {
 					bModifiedShaders = true;
 					g_VSCBuffer.viewportScale[3] = g_fGUIElemsScale;
+					// Enable the fixed GUI
+					if (g_bFixedGUI)
+						g_VSCBuffer.bFullTransform = 1.0f;
 				}
 
 				// Dim all the GUI elements
@@ -2921,7 +2922,7 @@ HRESULT Direct3DDevice::Execute(
 					g_VSCBuffer.z_override = g_fTextDepth;
 				}
 
-				// Add extra parallax to Floating GUI elements, left image
+				// Add extra depth to Floating GUI elements, left image
 				if (bIsFloatingGUI || g_bIsFloating3DObject || g_bIsScaleableGUIElem) {
 					bModifiedShaders = true;
 					if (!bIsBracket)
@@ -2931,7 +2932,7 @@ HRESULT Direct3DDevice::Execute(
 					}
 				}
 
-				// Add an extra parallax to Text elements, left image
+				// Add an extra depth to Text elements, left image
 				if (bIsText) { // This is now a common setting
 					bModifiedShaders = true;
 					g_VSCBuffer.z_override = g_fTextDepth;
@@ -2979,6 +2980,7 @@ HRESULT Direct3DDevice::Execute(
 				viewport.MinDepth = D3D11_MIN_DEPTH;
 				viewport.MaxDepth = D3D11_MAX_DEPTH;
 
+				// VR case
 				if (bRenderToDynCockpitBuffer) {
 					//viewport.TopLeftX = (float)left;
 					//viewport.TopLeftY = (float)top;
@@ -3042,8 +3044,6 @@ HRESULT Direct3DDevice::Execute(
 				resources->InitViewport(&viewport);
 				// Set the right projection matrix
 				g_VSMatrixCB.projEye = g_fullMatrixRight;
-				// TEMPORARY SWAP OF LEFT-RIGHT TO TEST ISSUES SEEN IN THE FIELD
-				//g_VSMatrixCB.projEye = g_fullMatrixLeft;
 				resources->InitVSConstantBufferMatrix(resources->_VSMatrixBuffer.GetAddressOf(), &g_VSMatrixCB);
 				// Draw the Right Image
 				context->DrawIndexed(3 * instruction->wCount, currentIndexLocation, 0);
@@ -3082,6 +3082,7 @@ HRESULT Direct3DDevice::Execute(
 					g_VSCBuffer.sz_override = -1.0f;
 					g_VSCBuffer.mult_z_override = -1.0f;
 					g_VSCBuffer.bPreventTransform = 0.0f;
+					g_VSCBuffer.bFullTransform = 0.0f;
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 					resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 				}
