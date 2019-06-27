@@ -3411,7 +3411,7 @@ HRESULT Direct3DDevice::BeginScene()
 
 		return D3DERR_SCENE_BEGIN_FAILED;
 	}
-
+	
 	this->_deviceResources->inScene = true;
 	this->_deviceResources->inSceneBackbufferLocked = false;
 

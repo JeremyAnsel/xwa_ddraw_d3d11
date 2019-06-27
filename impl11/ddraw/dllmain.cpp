@@ -311,10 +311,9 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 				g_bDownKeyDownShift = false;
 				return 0;
 			case VK_OEM_PERIOD:
-				if (g_bUseSteamVR) {
+				if (g_bUseSteamVR)
 					g_pHMD->ResetSeatedZeroPose();
-					g_bResetHeadCenter = true;
-				}
+				g_bResetHeadCenter = true;
 				break;
 			}
 		}

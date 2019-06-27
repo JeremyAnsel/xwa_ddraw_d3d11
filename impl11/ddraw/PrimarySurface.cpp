@@ -1495,17 +1495,25 @@ HRESULT PrimarySurface::Flip(
 			else if (g_bEnableVR) { // DirectSBS mode, read the roll and position (?) from FreePIE
 				//float pitch, yaw, roll, pitchSign = -1.0f;
 				float roll;
+				static Vector4 headCenter(0, 0, 0, 0);
 				Vector4 headPos(0,0,0,1);
 				//Vector3 headPosFromKeyboard(0, 0, 0);
 				Vector3 headPosFromKeyboard(g_HeadPos.x, g_HeadPos.y, g_HeadPos.z); // Regular keyboard functionality
 				//Vector3 headPosFromKeyboard(-g_HeadPos.x, g_HeadPos.y, -g_HeadPos.z);
 				
 				if (ReadFreePIE(g_iFreePIESlot)) {
+					if (g_bResetHeadCenter) {
+						headCenter[0] = g_FreePIEData.x;
+						headCenter[1] = g_FreePIEData.y;
+						headCenter[2] = g_FreePIEData.z;
+						log_debug("[DBG] New Head Center: (%0.3f, %0.3f, %0.3f)", headCenter[0], headCenter[1], headCenter[2]);
+						g_bResetHeadCenter = false;
+					}
 					Vector4 pos(g_FreePIEData.x, g_FreePIEData.y, g_FreePIEData.z, 1.0f);
 					//yaw = (g_FreePIEData.yaw + 180.0f) * g_fYawMultiplier;
 					//pitch = g_FreePIEData.pitch * g_fPitchMultiplier;
 					roll = g_fRollMultiplier * g_FreePIEData.roll;
-					headPos = -pos;
+					headPos = (pos - headCenter);
 				}
 
 				headPos[0] = headPos[0] * g_fPosXMultiplier + headPosFromKeyboard[0];
@@ -1524,8 +1532,8 @@ HRESULT PrimarySurface::Flip(
 				//if (-headPos[2] > g_fMaxPositionZ) headPos[2] = -g_fMaxPositionZ;
 
 				Matrix4 rotMatrixYaw, rotMatrixPitch;
-				rotMatrixYaw.identity(); rotMatrixYaw.rotateY(g_FreePIEData.yaw);
-				//rotMatrixYaw.identity(); rotMatrixYaw.rotateY(-g_FreePIEData.yaw);
+				//rotMatrixYaw.identity(); rotMatrixYaw.rotateY(g_FreePIEData.yaw);
+				rotMatrixYaw.identity(); rotMatrixYaw.rotateY(-g_FreePIEData.yaw);
 				rotMatrixPitch.identity(); rotMatrixPitch.rotateX(g_FreePIEData.pitch);
 				rotMatrixYaw = rotMatrixPitch * rotMatrixYaw;
 				// Can we avoid computing the matrix inverse?
