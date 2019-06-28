@@ -332,7 +332,7 @@ int g_iPresentCounter = 0, g_iNonZBufferCounter = 0, g_iSkipNonZBufferDrawIdx = 
 // It's reset to false every time the backbuffer is swapped.
 //bool g_bGUIIsRendered = false;
 float g_fZBracketOverride = 65530.0f; // 65535 is probably the maximum Z value in XWA
-D3D11_VIEWPORT g_DynCockpitTargetComp = { 0 };
+Box g_DynCockpitTargetComp = { 0 };
 extern bool g_bRendering3D; // Used to distinguish between 2D (Concourse/Menus) and 3D rendering (main in-flight game)
 
 // g_fZOverride is activated when it's greater than -0.9f, and it's used for bracket rendering so that 
@@ -2285,6 +2285,7 @@ HRESULT Direct3DDevice::Execute(
 
 	HRESULT hr = S_OK;
 	UINT width, height, left, top;
+	float scale;
 	UINT vertexBufferStride = sizeof(D3DTLVERTEX), vertexBufferOffset = 0;
 	D3D11_VIEWPORT viewport;
 	D3D11_MAPPED_SUBRESOURCE map;
@@ -2377,8 +2378,6 @@ HRESULT Direct3DDevice::Execute(
 
 		left = (this->_deviceResources->_backbufferWidth - width) / 2;
 		top = (this->_deviceResources->_backbufferHeight - height) / 2;
-
-		float scale;
 
 		if (this->_deviceResources->_frontbufferSurface == nullptr)
 		{
@@ -2661,9 +2660,7 @@ HRESULT Direct3DDevice::Execute(
 				
 				// lastTextureSelected can be NULL. This happens when drawing the square
 				// brackets around the currently-selected object (and maybe other situations)
-				/*************************************************************************
-					State management ends here
-				 *************************************************************************/
+				
 
 				/*
 				if (!g_bPrevStartedGUI && g_bStartedGUI) {
@@ -2685,7 +2682,12 @@ HRESULT Direct3DDevice::Execute(
 						context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
 					}
 				}
-				bool bRenderToDynCockpitBuffer = g_bDynCockpitEnabled && lastTextureSelected != NULL && g_bScaleableHUDStarted;
+				bool bRenderToDynCockpitBuffer = g_bDynCockpitEnabled && lastTextureSelected != NULL &&
+					g_bScaleableHUDStarted && g_bIsScaleableGUIElem;
+
+				/*************************************************************************
+					State management ends here
+				 *************************************************************************/
 
 				// Get the bounds of the targeting computer texture
 				// The targeting computer is rendered *after* the laser energy levels and the bounding box of the targeting
@@ -2697,16 +2699,21 @@ HRESULT Direct3DDevice::Execute(
 						// We're in the D3DOP_TRIANGLE case, so the following is valid:
 						float minX, minY, maxX, maxY;
 						GetBoundingBox(instruction, currentIndexLocation, &minX, &minY, &maxX, &maxY);
-						lastTextureSelected->boundingBox.TopLeftX = minX;
-						lastTextureSelected->boundingBox.TopLeftY = minY;
-						lastTextureSelected->boundingBox.Width = maxX - minX;
-						lastTextureSelected->boundingBox.Height = maxY - minY;
+						lastTextureSelected->boundingBox.left = minX;
+						lastTextureSelected->boundingBox.top = minY;
+						lastTextureSelected->boundingBox.right = maxX + 1;
+						lastTextureSelected->boundingBox.bottom = maxY + 1;
 						lastTextureSelected->bBoundingBoxComputed = true;
 						g_DynCockpitTargetComp = lastTextureSelected->boundingBox;
 						
-						log_debug("[DBG] Targeting Computer limits: (%0.3f, %0.3f), [%0.3f, %0.3f]",
-							lastTextureSelected->boundingBox.TopLeftX, lastTextureSelected->boundingBox.TopLeftY,
-							lastTextureSelected->boundingBox.Width, lastTextureSelected->boundingBox.Height);
+						log_debug("[DBG] Targeting Computer limits: (%0.3f, %0.3f)-(%0.3f, %0.3f)",
+							lastTextureSelected->boundingBox.left, lastTextureSelected->boundingBox.top,
+							lastTextureSelected->boundingBox.right, lastTextureSelected->boundingBox.bottom);
+						log_debug("[DBG] width, height: (%d, %d)", width, height);
+						log_debug("[DBG] top: %d, left: %d", top, left);
+						log_debug("[DBG] displayWidth,Height: (%0.1f, %0.1f)", displayWidth, displayHeight);
+						log_debug("[DBG] backBuffer Width,Height: %d, %d", _deviceResources->_backbufferWidth,
+							_deviceResources->_backbufferHeight);
 					}
 					// Don't render this element
 					goto out;
@@ -2791,28 +2798,65 @@ HRESULT Direct3DDevice::Execute(
 					//if (g_NewDynCockpitTargetComp != NULL)
 					//	context->PSSetShaderResources(0, 1, g_NewDynCockpitTargetComp.GetAddressOf());
 					D3D11_BOX box;
-					box.left = (UINT )g_DynCockpitTargetComp.TopLeftX;
-					box.right = (UINT)(g_DynCockpitTargetComp.TopLeftX + g_DynCockpitTargetComp.Width);
-					box.top = (UINT)g_DynCockpitTargetComp.TopLeftY;
-					box.bottom = (UINT)(g_DynCockpitTargetComp.TopLeftY + g_DynCockpitTargetComp.Width);
-					box.front = 0;
-					box.back = 1;
-					//context->CopySubresourceRegion(dstResource, 0, 0, 0, 0,
-					//	resources->_offscreenAsInputShaderResourceViewDynCockpit.GetAddressOf, 0, &box);
+					box.left   = left + (UINT)(g_DynCockpitTargetComp.left   / displayWidth * width);
+					box.right  = left + (UINT)(g_DynCockpitTargetComp.right  / displayWidth * width);
+					box.top    = top  + (UINT)(g_DynCockpitTargetComp.top    / displayHeight * height);
+					box.bottom = top  + (UINT)(g_DynCockpitTargetComp.bottom / displayHeight * height);
+					box.front  = 0;
+					box.back   = 1;
+					//log_debug("[DBG] TC size: (%d-%d), (%d-%d)", box.left, box.top, box.right, box.bottom);
+					context->CopySubresourceRegion(resources->_dynCockpitAuxBuffer.Get(), 0, 0, 0, 0,
+						resources->_offscreenBufferAsInputDynCockpit.Get(), 0, &box);
 
 					// _offscreenAsInputShaderResourceViewDynCockpit is resolved in PrimarySurface.cpp, right before we
 					// present the backbuffer. That prevents resolving the texture multiple times.
-
+					/*
 					static bool bDumped = false;
 					if (g_iPresentCounter > 100 && !bDumped) {
 						hr = DirectX::SaveWICTextureToFile(_deviceResources->_d3dDeviceContext.Get(),
-							_deviceResources->_offscreenBufferAsInputDynCockpit.Get(), GUID_ContainerFormatJpeg, L"c://temp//dyncock.png");
+							_deviceResources->_dynCockpitAuxBuffer.Get(), GUID_ContainerFormatJpeg, L"c://temp//dyncock.jpg");
+						//hr = DirectX::SaveWICTextureToFile(_deviceResources->_d3dDeviceContext.Get(),
+						//	_deviceResources->_offscreenBufferAsInputDynCockpit.Get(), GUID_ContainerFormatJpeg, L"c://temp//dyncock.jpg");
 						bDumped = true;
 					}
-					context->PSSetShaderResources(0, 1, resources->_offscreenAsInputShaderResourceViewDynCockpit.GetAddressOf());
+					*/
+					//context->PSSetShaderResources(0, 1, resources->_offscreenAsInputShaderResourceViewDynCockpit.GetAddressOf());
+					context->PSSetShaderResources(0, 1, resources->_dynCockpitAuxSRV.GetAddressOf());
 				}
 
-				// Early exit: if we're not in VR mode, we only need the state; but not the extra
+				// Early exit 1: Render to the Dynamic Cockpit RTV
+				if (bRenderToDynCockpitBuffer) {
+					// Restore the non-VR dimensions:
+					g_VSCBuffer.viewportScale[0] =  2.0f / displayWidth;
+					g_VSCBuffer.viewportScale[1] = -2.0f / displayHeight;
+					g_VSCBuffer.viewportScale[2] = scale;
+					// Apply the brightness settings to the pixel shader
+					g_PSCBuffer.brightness = g_fBrightness;
+
+					viewport.TopLeftX = (float)left;
+					viewport.TopLeftY = (float)top;
+					viewport.Width = (float)width;
+					viewport.Height = (float)height;
+					viewport.MinDepth = D3D11_MIN_DEPTH;
+					viewport.MaxDepth = D3D11_MAX_DEPTH;
+					resources->InitViewport(&viewport);
+
+					resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
+					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
+					// Set the original vertex buffer and dynamic cockpit RTV:
+					resources->InitVertexShader(resources->_vertexShader);
+					context->OMSetRenderTargets(1, resources->_renderTargetViewDynCockpit.GetAddressOf(),
+						resources->_depthStencilViewL.Get());
+					// Render
+					context->DrawIndexed(3 * instruction->wCount, currentIndexLocation, 0);
+					// Restore the regular RTV and vertex shader:
+					resources->InitVertexShader(resources->_sbsVertexShader);
+					context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
+						resources->_depthStencilViewL.Get());
+					goto out;
+				}
+
+				// Early exit 2: if we're not in VR mode, we only need the state; but not the extra
 				// processing. (The state will be used later to do post-processing like Bloom and AO.
 				if (!g_bEnableVR) {
 					viewport.TopLeftX = (float)left;
@@ -2829,26 +2873,19 @@ HRESULT Direct3DDevice::Execute(
 					}
 
 					// The original 2D vertices are already in the GPU, so just render as usual
-					// Enable the dynamic cockpit in regular non-VR mode:
-					//bRenderToDynCockpitBuffer = false;
-					if (bRenderToDynCockpitBuffer)
-						// Set the targeting computer renderTargetView
-						context->OMSetRenderTargets(1, resources->_renderTargetViewDynCockpit.GetAddressOf(),
-							resources->_depthStencilViewL.Get());
-					else
-						context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
-							resources->_depthStencilViewL.Get());
+					context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
+						resources->_depthStencilViewL.Get());
 					context->DrawIndexed(3 * instruction->wCount, currentIndexLocation, 0);
-					// Restore the normal render target
-					if (bRenderToDynCockpitBuffer)
-						context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
-							resources->_depthStencilViewL.Get());
 					goto out;
 				}
 
 				/********************************************************************
 				   Modify the state of the render for VR
 				 ********************************************************************/
+
+				/* if (bRenderToDynCockpitBuffer) {
+					goto apply_constant_buffers;
+				} */
 
 				// Elements that are drawn with ZBuffer disabled:
 				// * All GUI HUD elements except for the targetting computer (why?)
@@ -2857,6 +2894,21 @@ HRESULT Direct3DDevice::Execute(
 				// * Glasses on other cockpits and engine glow <-- Good candidate for bloom!
 				// * Maybe explosions and other animations? I think explosions are actually rendered at depth (?)
 				// * Cockpit sparks?
+
+				// Reduce the scale for GUI elements, except for the HUD
+				if (g_bIsScaleableGUIElem) {
+					bModifiedShaders = true;
+					g_VSCBuffer.viewportScale[3] = g_fGUIElemsScale;
+					// Enable the fixed GUI
+					if (g_bFixedGUI)
+						g_VSCBuffer.bFullTransform = 1.0f;
+				}
+
+				// Dim all the GUI elements
+				if (g_bStartedGUI && !g_bIsFloating3DObject) {
+					bModifiedShaders = true;
+					g_PSCBuffer.brightness = g_fBrightness;
+				}
 
 				// The game renders brackets with ZWrite disabled; but we need to enable it temporarily so that we
 				// can place the brackets at infinity and avoid visual contention
@@ -2874,21 +2926,6 @@ HRESULT Direct3DDevice::Execute(
 					context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewR, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
 				}
 				*/
-
-				// Reduce the scale for GUI elements, except for the HUD
-				if (g_bIsScaleableGUIElem) {
-					bModifiedShaders = true;
-					g_VSCBuffer.viewportScale[3] = g_fGUIElemsScale;
-					// Enable the fixed GUI
-					if (g_bFixedGUI)
-						g_VSCBuffer.bFullTransform = 1.0f;
-				}
-
-				// Dim all the GUI elements
-				if (g_bStartedGUI && !g_bIsFloating3DObject) {
-					bModifiedShaders = true;
-					g_PSCBuffer.brightness = g_fBrightness;
-				}
 
 				if (bIsSkyBox) {
 					bModifiedShaders = true;
@@ -2938,6 +2975,7 @@ HRESULT Direct3DDevice::Execute(
 					g_VSCBuffer.z_override = g_fTextDepth;
 				}
 
+			//apply_constant_buffers:
 				if (bModifiedShaders) {
 					resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
@@ -2979,40 +3017,13 @@ HRESULT Direct3DDevice::Execute(
 				viewport.TopLeftY = 0.0f;
 				viewport.MinDepth = D3D11_MIN_DEPTH;
 				viewport.MaxDepth = D3D11_MAX_DEPTH;
-
-				// VR case
-				if (bRenderToDynCockpitBuffer) {
-					//viewport.TopLeftX = (float)left;
-					//viewport.TopLeftY = (float)top;
-					//viewport.Width = (float)width;
-					//viewport.Height = (float)height;
-					viewport.Width = (float)resources->_backbufferWidth;
-					//this->_deviceResources->InitVertexShader(resources->_vertexShader);
-					context->OMSetRenderTargets(1, resources->_renderTargetViewDynCockpit.GetAddressOf(),
-						resources->_depthStencilViewL.Get());
-					bModifiedViewMatrix = true;
-					//g_VSMatrixCB.projEye = g_fullMatrixHead; 
-					g_VSMatrixCB.projEye.identity();
-					g_VSMatrixCB.viewMat.identity(); // We need to do this to prevent the dynamic cockpit from reacting to motion
-				} 
-				else {
-					g_VSMatrixCB.projEye = g_fullMatrixLeft;
-					// The viewMatrix is set at the beginning of the frame
-					resources->InitVSConstantBufferMatrix(resources->_VSMatrixBuffer.GetAddressOf(), &g_VSMatrixCB);
-				}
 				resources->InitViewport(&viewport);
+				// Set the left projection matrix
+				g_VSMatrixCB.projEye = g_fullMatrixLeft;
+				// The viewMatrix is set at the beginning of the frame
+				resources->InitVSConstantBufferMatrix(resources->_VSMatrixBuffer.GetAddressOf(), &g_VSMatrixCB);
 				// Draw the Left Image
 				context->DrawIndexed(3 * instruction->wCount, currentIndexLocation, 0);
-
-				// Dynamic Cockpit: Disable rendering to the right image
-				if (bRenderToDynCockpitBuffer) {
-					// Restore the SBS vertex shader
-					//this->_deviceResources->InitVertexShader(resources->_sbsVertexShader);
-					// Restore the regular render target?
-					context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
-						resources->_depthStencilViewL.Get());
-					goto out;
-				}
 
 				// ****************************************************************************
 				// Render the right image

@@ -8,6 +8,11 @@
 // Also found in the Floating_GUI_CRCs list:
 const uint32_t DYN_COCKPIT_TARGET_COMP_SRC_CRC = 0x3b9a3741;
 
+typedef struct Box_struct {
+	float left, right;
+	float top, bottom;
+} Box;
+
 enum RenderMainColorKeyType
 {
 	RENDERMAIN_NO_COLORKEY,
@@ -114,6 +119,7 @@ public:
 	ComPtr<ID3D11Texture2D> _offscreenBufferAsInput;
 	ComPtr<ID3D11Texture2D> _offscreenBufferAsInputR; // When SteamVR is used, this is the right eye as input buffer
 	ComPtr<ID3D11Texture2D> _offscreenBufferAsInputDynCockpit;
+	ComPtr<ID3D11Texture2D> _dynCockpitAuxBuffer; // Aux Texture to copy portions of _offscreenBufferAsInputDynCockpit
 	ComPtr<ID3D11Texture2D> _offscreenBufferPost; // This is the output of the barrel effect
 	ComPtr<ID3D11Texture2D> _offscreenBufferPostR; // This is the output of the barrel effect for the right image when using SteamVR
 	ComPtr<ID3D11Texture2D> _steamVRPresentBuffer; // This is the buffer that will be presented for SteamVR
@@ -126,6 +132,7 @@ public:
 	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputShaderResourceView;
 	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputShaderResourceViewR; // When SteamVR is enabled, this is the SRV for the right eye
 	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputShaderResourceViewDynCockpit;
+	ComPtr<ID3D11ShaderResourceView> _dynCockpitAuxSRV; // Aux SRV used to copy portions of the _offscreenAsInputShaderResourceViewDynCockpit
 	ComPtr<ID3D11Texture2D> _depthStencilL;
 	ComPtr<ID3D11Texture2D> _depthStencilR;
 	ComPtr<ID3D11DepthStencilView> _depthStencilViewL;

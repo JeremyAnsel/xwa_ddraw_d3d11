@@ -42,7 +42,7 @@ public:
 	bool bBoundingBoxComputed;
 	// If bPixelLimitsComputed is true, then the following viewport will contain the limits of this
 	// element in pixels:
-	D3D11_VIEWPORT boundingBox;
+	Box boundingBox;
 
 
 	Direct3DTexture(DeviceResources* deviceResources, TextureSurface* surface);

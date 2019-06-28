@@ -373,11 +373,13 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 	this->_renderTargetViewDynCockpit.Release();
 	this->_offscreenAsInputShaderResourceView.Release();
 	this->_offscreenAsInputShaderResourceViewDynCockpit.Release();
+	this->_dynCockpitAuxSRV.Release();
 	this->_offscreenBuffer.Release();
 	this->_offscreenBufferAsInput.Release();
 	this->_offscreenBufferPost.Release();
 	this->_offscreenBufferDynCockpit.Release();
 	this->_offscreenBufferAsInputDynCockpit.Release();
+	this->_dynCockpitAuxBuffer.Release();
 	if (g_bUseSteamVR) {
 		this->_offscreenBufferR.Release();
 		this->_offscreenBufferAsInputR.Release();
@@ -582,8 +584,15 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			goto out;
 		}
 
-		// _offscreenBufferTargetCompAsInput should have the same properties as _offscreenBufferAsInput
+		// _offscreenBufferAsInputDynCockpit should have the same properties as _offscreenBufferAsInput
 		hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBufferAsInputDynCockpit);
+		if (FAILED(hr)) {
+			log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
+			log_err_desc(step, hWnd, hr, desc);
+			goto out;
+		}
+
+		hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_dynCockpitAuxBuffer);
 		if (FAILED(hr)) {
 			log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
 			log_err_desc(step, hWnd, hr, desc);
@@ -621,6 +630,15 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		step = "offscreenTargetCompAsInputShaderResourceView";
 		hr = this->_d3dDevice->CreateShaderResourceView(this->_offscreenBufferAsInputDynCockpit,
 			&shaderResourceViewDesc, &this->_offscreenAsInputShaderResourceViewDynCockpit);
+		if (FAILED(hr)) {
+			log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
+			log_shaderres_view(step, hWnd, hr, shaderResourceViewDesc);
+			goto out;
+		}
+
+		step = "_dynCockpitAuxSRV";
+		hr = this->_d3dDevice->CreateShaderResourceView(this->_dynCockpitAuxBuffer,
+			&shaderResourceViewDesc, &this->_dynCockpitAuxSRV);
 		if (FAILED(hr)) {
 			log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
 			log_shaderres_view(step, hWnd, hr, shaderResourceViewDesc);
