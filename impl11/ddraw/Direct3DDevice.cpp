@@ -2660,7 +2660,6 @@ HRESULT Direct3DDevice::Execute(
 				
 				// lastTextureSelected can be NULL. This happens when drawing the square
 				// brackets around the currently-selected object (and maybe other situations)
-				
 
 				/*
 				if (!g_bPrevStartedGUI && g_bStartedGUI) {
@@ -2689,7 +2688,7 @@ HRESULT Direct3DDevice::Execute(
 					State management ends here
 				 *************************************************************************/
 
-				// Get the bounds of the targeting computer texture
+				// Capture the bounds of the targeting computer texture
 				// The targeting computer is rendered *after* the laser energy levels and the bounding box of the targeting
 				// computer slightly overlaps the lasers. So, we must be careful when copying image data from this area.
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->crc == DYN_COCKPIT_TARGET_COMP_SRC_CRC) {
@@ -2699,8 +2698,13 @@ HRESULT Direct3DDevice::Execute(
 						// We're in the D3DOP_TRIANGLE case, so the following is valid:
 						float minX, minY, maxX, maxY;
 						GetBoundingBox(instruction, currentIndexLocation, &minX, &minY, &maxX, &maxY);
+						// The bounding box for the targeting computer intersects the laser charge by a little bit, so
+						// let's fix that in pixels; but computed in relative height (so, let's move the top of the box
+						// by 7% of the height downwards:
+						float tcHeight = maxY - minY + 1;
+						float top_margin = 0.07f * tcHeight;
 						lastTextureSelected->boundingBox.left = minX;
-						lastTextureSelected->boundingBox.top = minY;
+						lastTextureSelected->boundingBox.top = minY + top_margin; // Avoid capturing the laser charge display
 						lastTextureSelected->boundingBox.right = maxX + 1;
 						lastTextureSelected->boundingBox.bottom = maxY + 1;
 						lastTextureSelected->bBoundingBoxComputed = true;
@@ -2709,11 +2713,11 @@ HRESULT Direct3DDevice::Execute(
 						log_debug("[DBG] Targeting Computer limits: (%0.3f, %0.3f)-(%0.3f, %0.3f)",
 							lastTextureSelected->boundingBox.left, lastTextureSelected->boundingBox.top,
 							lastTextureSelected->boundingBox.right, lastTextureSelected->boundingBox.bottom);
-						log_debug("[DBG] width, height: (%d, %d)", width, height);
-						log_debug("[DBG] top: %d, left: %d", top, left);
-						log_debug("[DBG] displayWidth,Height: (%0.1f, %0.1f)", displayWidth, displayHeight);
-						log_debug("[DBG] backBuffer Width,Height: %d, %d", _deviceResources->_backbufferWidth,
-							_deviceResources->_backbufferHeight);
+						//log_debug("[DBG] width, height: (%d, %d)", width, height);
+						//log_debug("[DBG] top: %d, left: %d", top, left);
+						//log_debug("[DBG] displayWidth,Height: (%0.1f, %0.1f)", displayWidth, displayHeight);
+						//log_debug("[DBG] backBuffer Width,Height: %d, %d", _deviceResources->_backbufferWidth,
+						//	_deviceResources->_backbufferHeight);
 					}
 					// Don't render this element
 					goto out;
@@ -2809,7 +2813,9 @@ HRESULT Direct3DDevice::Execute(
 						resources->_offscreenBufferAsInputDynCockpit.Get(), 0, &box);
 
 					// _offscreenAsInputShaderResourceViewDynCockpit is resolved in PrimarySurface.cpp, right before we
-					// present the backbuffer. That prevents resolving the texture multiple times.
+					// present the backbuffer. That prevents resolving the texture multiple times (and we also don't
+					// have to resolve it here).
+					
 					/*
 					static bool bDumped = false;
 					if (g_iPresentCounter > 100 && !bDumped) {
@@ -2820,6 +2826,7 @@ HRESULT Direct3DDevice::Execute(
 						bDumped = true;
 					}
 					*/
+					
 					//context->PSSetShaderResources(0, 1, resources->_offscreenAsInputShaderResourceViewDynCockpit.GetAddressOf());
 					context->PSSetShaderResources(0, 1, resources->_dynCockpitAuxSRV.GetAddressOf());
 				}
@@ -2829,18 +2836,16 @@ HRESULT Direct3DDevice::Execute(
 					// Restore the non-VR dimensions:
 					g_VSCBuffer.viewportScale[0] =  2.0f / displayWidth;
 					g_VSCBuffer.viewportScale[1] = -2.0f / displayHeight;
-					g_VSCBuffer.viewportScale[2] = scale;
 					// Apply the brightness settings to the pixel shader
 					g_PSCBuffer.brightness = g_fBrightness;
 
 					viewport.TopLeftX = (float)left;
 					viewport.TopLeftY = (float)top;
-					viewport.Width = (float)width;
-					viewport.Height = (float)height;
+					viewport.Width    = (float)width;
+					viewport.Height   = (float)height;
 					viewport.MinDepth = D3D11_MIN_DEPTH;
 					viewport.MaxDepth = D3D11_MAX_DEPTH;
 					resources->InitViewport(&viewport);
-
 					resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 					// Set the original vertex buffer and dynamic cockpit RTV:
@@ -2849,10 +2854,21 @@ HRESULT Direct3DDevice::Execute(
 						resources->_depthStencilViewL.Get());
 					// Render
 					context->DrawIndexed(3 * instruction->wCount, currentIndexLocation, 0);
-					// Restore the regular RTV and vertex shader:
-					resources->InitVertexShader(resources->_sbsVertexShader);
+					// Restore the regular texture, RTV and vertex shader:
+					context->PSSetShaderResources(0, 1, lastTextureSelected->_textureView.GetAddressOf());
 					context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
 						resources->_depthStencilViewL.Get());
+					if (g_bEnableVR) {
+						resources->InitVertexShader(resources->_sbsVertexShader);
+						// Restore the right constants in case we're doing VR rendering
+						g_VSCBuffer.viewportScale[0] = 1.0f / displayWidth;
+						g_VSCBuffer.viewportScale[1] = 1.0f / displayHeight;
+						resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
+					} else {
+						resources->InitVertexShader(resources->_vertexShader);
+					}
+					g_PSCBuffer.brightness = MAX_BRIGHTNESS;
+					resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 					goto out;
 				}
 
