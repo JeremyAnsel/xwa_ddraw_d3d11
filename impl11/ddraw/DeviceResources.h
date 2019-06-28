@@ -46,6 +46,7 @@ typedef struct VertexShaderCBStruct {
 typedef struct PixelShaderCBStruct {
 	float brightness; // Used to control the brightness of some elements -- mostly for ReShade compatibility
 	float bShadeless; // Ignore the diffuse component, used for the dynamic cockpit
+	float uv_scale[2]; // uv_scale when rendering this element
 } PixelShaderCBuffer;
 
 typedef struct VertexShaderMatrixCBStruct

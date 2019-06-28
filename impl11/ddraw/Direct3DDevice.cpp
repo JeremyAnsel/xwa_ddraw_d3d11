@@ -425,7 +425,7 @@ float centeredSigmoid(float x) {
 
 HeadPos g_HeadPosAnim = { 0 }, g_HeadPos = { 0 };
 bool g_bLeftKeyDown, g_bRightKeyDown, g_bUpKeyDown, g_bDownKeyDown, g_bUpKeyDownShift, g_bDownKeyDownShift;
-const float ANIM_INCR = 0.1f, MAX_LEAN_X = 0.75f, MAX_LEAN_Y = 0.75f, MAX_LEAN_Z = 1.0f;
+const float ANIM_INCR = 0.1f, MAX_LEAN_X = 0.75f, MAX_LEAN_Y = 0.75f, MAX_LEAN_Z = 1.1f;
 // The MAX_LEAN values will be clamped by the limits from vrparams.cfg
 
 void animTickX() {
@@ -2302,6 +2302,8 @@ HRESULT Direct3DDevice::Execute(
 
 	g_PSCBuffer.brightness = MAX_BRIGHTNESS;
 	g_PSCBuffer.bShadeless = 0.0f;
+	g_PSCBuffer.uv_scale[0] = 1.0f;
+	g_PSCBuffer.uv_scale[1] = 1.0f;
 
 	// Save the current viewMatrix: if the Dynamic Cockpit is enabled, we'll need it later to restore the transform
 	Matrix4 currentViewMat = g_VSMatrixCB.viewMat;
@@ -2799,6 +2801,8 @@ HRESULT Direct3DDevice::Execute(
 					//if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitSrc) {
 					bModifiedShaders = true;
 					g_PSCBuffer.bShadeless = 1.0f; // Render the targeted object without the diffuse component (shadeless)
+					g_PSCBuffer.uv_scale[0] = 0.325f;
+					g_PSCBuffer.uv_scale[1] = 0.325f;
 					//if (g_NewDynCockpitTargetComp != NULL)
 					//	context->PSSetShaderResources(0, 1, g_NewDynCockpitTargetComp.GetAddressOf());
 					D3D11_BOX box;
@@ -2846,8 +2850,8 @@ HRESULT Direct3DDevice::Execute(
 					viewport.MinDepth = D3D11_MIN_DEPTH;
 					viewport.MaxDepth = D3D11_MAX_DEPTH;
 					resources->InitViewport(&viewport);
-					resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
+					resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 					// Set the original vertex buffer and dynamic cockpit RTV:
 					resources->InitVertexShader(resources->_vertexShader);
 					context->OMSetRenderTargets(1, resources->_renderTargetViewDynCockpit.GetAddressOf(),
@@ -2867,6 +2871,7 @@ HRESULT Direct3DDevice::Execute(
 					} else {
 						resources->InitVertexShader(resources->_vertexShader);
 					}
+					// Restore the Pixel Shader constant buffer:
 					g_PSCBuffer.brightness = MAX_BRIGHTNESS;
 					resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 					goto out;
@@ -3110,6 +3115,8 @@ HRESULT Direct3DDevice::Execute(
 					g_VSCBuffer.mult_z_override = -1.0f;
 					g_VSCBuffer.bPreventTransform = 0.0f;
 					g_VSCBuffer.bFullTransform = 0.0f;
+					g_PSCBuffer.uv_scale[0] = 1.0f;
+					g_PSCBuffer.uv_scale[1] = 1.0f;
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 					resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 				}

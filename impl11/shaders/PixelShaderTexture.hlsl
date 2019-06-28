@@ -9,6 +9,7 @@ cbuffer ConstantBuffer : register(b0)
 {
 	float brightness; // Used to dim some elements to prevent the Bloom effect -- mostly for ReShade compatibility
 	float bShadeless; // Ignore diffuse component. Used to render the dynamic cockpit.
+	float2 uv_scale; // Scale the UVs by this much
 };
 
 struct PixelShaderInput
@@ -20,7 +21,7 @@ struct PixelShaderInput
 
 float4 main(PixelShaderInput input) : SV_TARGET
 {
-	float4 texelColor = texture0.Sample(sampler0, input.tex);
+	float4 texelColor = texture0.Sample(sampler0, uv_scale * input.tex);
 
 	if (bShadeless > 0.5)
 		return float4(brightness * texelColor.xyz, texelColor.w);
