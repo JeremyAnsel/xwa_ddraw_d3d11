@@ -2300,10 +2300,11 @@ HRESULT Direct3DDevice::Execute(
 	g_VSCBuffer.bPreventTransform = 0.0f;
 	g_VSCBuffer.bFullTransform = 0.0f;
 
-	g_PSCBuffer.brightness = MAX_BRIGHTNESS;
-	g_PSCBuffer.bShadeless = 0.0f;
-	g_PSCBuffer.uv_scale[0] = 1.0f;
-	g_PSCBuffer.uv_scale[1] = 1.0f;
+	g_PSCBuffer.brightness   = MAX_BRIGHTNESS;
+	g_PSCBuffer.bShadeless   = 0.0f;
+	g_PSCBuffer.uv_scale[0]  = g_PSCBuffer.uv_scale[1]  = 1.0f;
+	g_PSCBuffer.uv_offset[0] = g_PSCBuffer.uv_offset[1] = 0.0f;
+	g_PSCBuffer.bUseBGColor  = 0.0f;
 
 	// Save the current viewMatrix: if the Dynamic Cockpit is enabled, we'll need it later to restore the transform
 	Matrix4 currentViewMat = g_VSMatrixCB.viewMat;
@@ -2798,11 +2799,16 @@ HRESULT Direct3DDevice::Execute(
 
 				// Replace the targeting computer texture with our own at run-time:
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitTargetComp) {
+					float bgColor[4] = { 0.1f, 0.1f, 0.3f, 0.0f };
 					//if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitSrc) {
 					bModifiedShaders = true;
 					g_PSCBuffer.bShadeless = 1.0f; // Render the targeted object without the diffuse component (shadeless)
-					g_PSCBuffer.uv_scale[0] = 0.325f;
-					g_PSCBuffer.uv_scale[1] = 0.325f;
+					g_PSCBuffer.uv_scale[0]  = 0.325f;
+					g_PSCBuffer.uv_scale[1]  = 0.325f;
+					g_PSCBuffer.uv_offset[0] = -0.01f; // Move the texture a bit to the right and down.
+					g_PSCBuffer.uv_offset[1] = -0.04f;
+					g_PSCBuffer.bUseBGColor  = 1.0f;
+					memcpy(g_PSCBuffer.bgColor, bgColor, 4 * sizeof(float));
 					//if (g_NewDynCockpitTargetComp != NULL)
 					//	context->PSSetShaderResources(0, 1, g_NewDynCockpitTargetComp.GetAddressOf());
 					D3D11_BOX box;
@@ -3115,8 +3121,9 @@ HRESULT Direct3DDevice::Execute(
 					g_VSCBuffer.mult_z_override = -1.0f;
 					g_VSCBuffer.bPreventTransform = 0.0f;
 					g_VSCBuffer.bFullTransform = 0.0f;
-					g_PSCBuffer.uv_scale[0] = 1.0f;
-					g_PSCBuffer.uv_scale[1] = 1.0f;
+					g_PSCBuffer.uv_scale[0]  = g_PSCBuffer.uv_scale[1]  = 1.0f;
+					g_PSCBuffer.uv_offset[0] = g_PSCBuffer.uv_offset[1] = 0.0f;
+					g_PSCBuffer.bUseBGColor = 0.0f;
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 					resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 				}
