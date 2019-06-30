@@ -48,9 +48,9 @@ typedef struct PixelShaderCBStruct {
 	float bShadeless;   // Ignore the diffuse component, used for the dynamic cockpit
 	float uv_scale[2];  // uv_scale is used when rendering this element (dynamic cockpit)
 
-	float uv_offset[2]; // uv_ofs used to place the texture (dynamic cockpit)
-	float bUseBGColor;  // Use the background color (dynamic cockpit)
-	float dummy;
+	float uv_offset[2];   // uv_ofs used to place the texture (dynamic cockpit)
+	float bUseBGColor;    // Use the background color (dynamic cockpit)
+	float bUseDynCockpit; // Enable the second texture slot for the dynamic cockpit
 
 	float bgColor[4];   // Background color (dynamic cockpit)
 } PixelShaderCBuffer;
@@ -117,7 +117,9 @@ public:
 	D3D_DRIVER_TYPE _d3dDriverType;
 	D3D_FEATURE_LEVEL _d3dFeatureLevel;
 	ComPtr<ID3D11Device> _d3dDevice;
+	//ComPtr<ID3D11Device1> _d3dDevice1;
 	ComPtr<ID3D11DeviceContext> _d3dDeviceContext;
+	//ComPtr<ID3D11DeviceContext1> _d3dDeviceContext1;
 	ComPtr<IDXGISwapChain> _swapChain;
 	ComPtr<ID3D11Texture2D> _backBuffer;
 	ComPtr<ID3D11Texture2D> _offscreenBuffer;
@@ -132,13 +134,14 @@ public:
 	ComPtr<ID3D11Texture2D> _steamVRPresentBuffer; // This is the buffer that will be presented for SteamVR
 	ComPtr<ID3D11RenderTargetView> _renderTargetView;
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewR; // When SteamVR is used, _renderTargetView is the left eye, and this one is the right eye
-	ComPtr<ID3D11RenderTargetView> _renderTargetViewDynCockpit; // Used to render the targeting computer dynamically
+	ComPtr<ID3D11RenderTargetView> _renderTargetViewDynCockpit; // Used to render the HUD to an offscreen buffer
+	ComPtr<ID3D11RenderTargetView> _renderTargetViewDynCockpitAsInput; // RTV that can be used to modify _offscreenBufferAsInputDynCockpit directly
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewPost; // Used for the barrel effect
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewPostR; // Used for the barrel effect (right image) when SteamVR is used.
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewSteamVRResize; // Used for the barrel effect
 	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputShaderResourceView;
 	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputShaderResourceViewR; // When SteamVR is enabled, this is the SRV for the right eye
-	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputShaderResourceViewDynCockpit;
+	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputSRVDynCockpit;
 	ComPtr<ID3D11ShaderResourceView> _dynCockpitAuxSRV; // Aux SRV used to copy portions of the _offscreenAsInputShaderResourceViewDynCockpit
 	ComPtr<ID3D11Texture2D> _depthStencilL;
 	ComPtr<ID3D11Texture2D> _depthStencilR;

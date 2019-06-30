@@ -208,6 +208,7 @@ extern "C" HRESULT WINAPI DirectDrawEnumerateExA(
 	}
 
 	ComPtr<IDXGIFactory> factory;
+	//ComPtr<IDXGIFactory1> factory;
 
 	if (FAILED(CreateDXGIFactory(IID_PPV_ARGS(&factory))))
 	{

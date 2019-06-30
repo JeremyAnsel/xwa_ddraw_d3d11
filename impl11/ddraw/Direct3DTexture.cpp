@@ -198,7 +198,7 @@ Direct3DTexture::Direct3DTexture(DeviceResources* deviceResources, TextureSurfac
 	this->is_DynCockpitSrc = false;
 	this->is_DynCockpitTargetComp = false;
 	this->is_DynCockpitAlphaOverlay = false;
-	this->bBoundingBoxComputed = false;
+	//this->bBoundingBoxComputed = false;
 	this->boundingBox = { 0 };
 }
 
@@ -460,6 +460,11 @@ HRESULT Direct3DTexture::Load(
 	// This is where the various textures are created from data already loaded into RAM
 	ComPtr<ID3D11Texture2D> texture;
 	HRESULT hr = this->_deviceResources->_d3dDevice->CreateTexture2D(&textureDesc, textureData, &texture);
+	if (FAILED(hr)) {
+		log_debug("[DBG] Failed when calling CreateTexture2D, reason: 0x%x",
+			this->_deviceResources->_d3dDevice->GetDeviceRemovedReason());
+		goto out;
+	}
 
 	if (surface->_mipmapCount == 1) {
 		if (surface->_width == 8 || surface->_width == 16 || surface->_width == 32 || surface->_width == 64 ||
@@ -565,6 +570,7 @@ HRESULT Direct3DTexture::Load(
 		}
 	}
 
+out:
 	if (useBuffers)
 	{
 		for (DWORD i = 0; i < textureDesc.MipLevels; i++)

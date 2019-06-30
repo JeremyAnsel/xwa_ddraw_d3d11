@@ -333,6 +333,7 @@ int g_iPresentCounter = 0, g_iNonZBufferCounter = 0, g_iSkipNonZBufferDrawIdx = 
 //bool g_bGUIIsRendered = false;
 float g_fZBracketOverride = 65530.0f; // 65535 is probably the maximum Z value in XWA
 Box g_DynCockpitTargetComp = { 0 };
+bool g_bDynCockpitTargetCompBoxComputed = false;
 extern bool g_bRendering3D; // Used to distinguish between 2D (Concourse/Menus) and 3D rendering (main in-flight game)
 
 // g_fZOverride is activated when it's greater than -0.9f, and it's used for bracket rendering so that 
@@ -2282,6 +2283,7 @@ HRESULT Direct3DDevice::Execute(
 	auto& resources = this->_deviceResources;
 	auto& device = resources->_d3dDevice;
 	auto& context = resources->_d3dDeviceContext;
+	//auto& context1 = resources->_d3dDeviceContext1;
 
 	HRESULT hr = S_OK;
 	UINT width, height, left, top;
@@ -2304,7 +2306,8 @@ HRESULT Direct3DDevice::Execute(
 	g_PSCBuffer.bShadeless   = 0.0f;
 	g_PSCBuffer.uv_scale[0]  = g_PSCBuffer.uv_scale[1]  = 1.0f;
 	g_PSCBuffer.uv_offset[0] = g_PSCBuffer.uv_offset[1] = 0.0f;
-	g_PSCBuffer.bUseBGColor  = 0.0f;
+	g_PSCBuffer.bUseBGColor    = 0.0f;
+	g_PSCBuffer.bUseDynCockpit = 0.0f;
 
 	// Save the current viewMatrix: if the Dynamic Cockpit is enabled, we'll need it later to restore the transform
 	Matrix4 currentViewMat = g_VSMatrixCB.viewMat;
@@ -2579,8 +2582,12 @@ HRESULT Direct3DDevice::Execute(
 
 				step = "BlendState";
 				D3D11_BLEND_DESC blendDesc = this->_renderStates->GetBlendDesc();
-				if (FAILED(hr = this->_deviceResources->InitBlendState(nullptr, &blendDesc)))
+				if (FAILED(hr = this->_deviceResources->InitBlendState(nullptr, &blendDesc))) {
+					log_debug("[DBG] Caught error at Execute:BlendState");
+					hr = device->GetDeviceRemovedReason();
+					log_debug("[DBG] Reason: 0x%x", hr);
 					break;
+				}
 
 				step = "DepthStencilState";
 				D3D11_DEPTH_STENCIL_DESC depthDesc = this->_renderStates->GetDepthStencilDesc();
@@ -2695,7 +2702,7 @@ HRESULT Direct3DDevice::Execute(
 				// The targeting computer is rendered *after* the laser energy levels and the bounding box of the targeting
 				// computer slightly overlaps the lasers. So, we must be careful when copying image data from this area.
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->crc == DYN_COCKPIT_TARGET_COMP_SRC_CRC) {
-					if (!lastTextureSelected->bBoundingBoxComputed) {
+					if (!g_bDynCockpitTargetCompBoxComputed) {
 						// This is the solid targeting computer background. We need to compute its limits in pixels.
 						// We only need to do this once -- and this should be done when the first frame is rendered.
 						// We're in the D3DOP_TRIANGLE case, so the following is valid:
@@ -2710,8 +2717,9 @@ HRESULT Direct3DDevice::Execute(
 						lastTextureSelected->boundingBox.top = minY + top_margin; // Avoid capturing the laser charge display
 						lastTextureSelected->boundingBox.right = maxX + 1;
 						lastTextureSelected->boundingBox.bottom = maxY + 1;
-						lastTextureSelected->bBoundingBoxComputed = true;
+						//lastTextureSelected->bBoundingBoxComputed = true;
 						g_DynCockpitTargetComp = lastTextureSelected->boundingBox;
+						g_bDynCockpitTargetCompBoxComputed = true;
 						
 						log_debug("[DBG] Targeting Computer limits: (%0.3f, %0.3f)-(%0.3f, %0.3f)",
 							lastTextureSelected->boundingBox.left, lastTextureSelected->boundingBox.top,
@@ -2798,16 +2806,19 @@ HRESULT Direct3DDevice::Execute(
 				//}
 
 				// Replace the targeting computer texture with our own at run-time:
-				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitTargetComp) {
-					float bgColor[4] = { 0.1f, 0.1f, 0.3f, 0.0f };
+				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitTargetComp &&
+					g_bDynCockpitTargetCompBoxComputed) {
+					float bgColor[4] = { 0.07f, 0.07f, 0.2f, 0.0f };
+					float black[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 					//if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitSrc) {
 					bModifiedShaders = true;
-					g_PSCBuffer.bShadeless = 1.0f; // Render the targeted object without the diffuse component (shadeless)
-					g_PSCBuffer.uv_scale[0]  = 0.325f;
-					g_PSCBuffer.uv_scale[1]  = 0.325f;
-					g_PSCBuffer.uv_offset[0] = -0.01f; // Move the texture a bit to the right and down.
-					g_PSCBuffer.uv_offset[1] = -0.04f;
-					g_PSCBuffer.bUseBGColor  = 1.0f;
+					g_PSCBuffer.bShadeless     =  1.0f; // Render the targeted object without the diffuse component (shadeless)
+					g_PSCBuffer.uv_scale[0]    =  0.325f;
+					g_PSCBuffer.uv_scale[1]    =  0.325f;
+					g_PSCBuffer.uv_offset[0]   = -0.01f; // Move the texture a bit to the right and down.
+					g_PSCBuffer.uv_offset[1]   = -0.04f;
+					g_PSCBuffer.bUseBGColor    =  1.0f;
+					g_PSCBuffer.bUseDynCockpit =  1.0f;
 					memcpy(g_PSCBuffer.bgColor, bgColor, 4 * sizeof(float));
 					//if (g_NewDynCockpitTargetComp != NULL)
 					//	context->PSSetShaderResources(0, 1, g_NewDynCockpitTargetComp.GetAddressOf());
@@ -2818,27 +2829,33 @@ HRESULT Direct3DDevice::Execute(
 					box.bottom = top  + (UINT)(g_DynCockpitTargetComp.bottom / displayHeight * height);
 					box.front  = 0;
 					box.back   = 1;
-					//log_debug("[DBG] TC size: (%d-%d), (%d-%d)", box.left, box.top, box.right, box.bottom);
+
+					// _offscreenAsInputSRVDynCockpit is resolved in PrimarySurface.cpp, right before we
+					// present the backbuffer. That prevents resolving the texture multiple times (and we
+					// also don't have to resolve it here).
+
+					// Copy the targeting computer from the offscreenBuffer to the auxiliary dynCockpit buffer:
 					context->CopySubresourceRegion(resources->_dynCockpitAuxBuffer.Get(), 0, 0, 0, 0,
 						resources->_offscreenBufferAsInputDynCockpit.Get(), 0, &box);
 
-					// _offscreenAsInputShaderResourceViewDynCockpit is resolved in PrimarySurface.cpp, right before we
-					// present the backbuffer. That prevents resolving the texture multiple times (and we also don't
-					// have to resolve it here).
-					
-					/*
+					// Erase this same area in the dynamic cockpit texture
+					D3D11_RECT rect;
+					rect.left = box.left; rect.right = box.right;
+					rect.top = box.top; rect.bottom = box.bottom;
+					//context1->ClearView(resources->_renderTargetViewDynCockpitAsInput.Get(), black, &rect, 1);
+
 					static bool bDumped = false;
 					if (g_iPresentCounter > 100 && !bDumped) {
-						hr = DirectX::SaveWICTextureToFile(_deviceResources->_d3dDeviceContext.Get(),
-							_deviceResources->_dynCockpitAuxBuffer.Get(), GUID_ContainerFormatJpeg, L"c://temp//dyncock.jpg");
+						hr = DirectX::SaveWICTextureToFile(context.Get(),
+							resources->_offscreenBufferAsInputDynCockpit.Get(), GUID_ContainerFormatJpeg, L"c://temp//dyncock.jpg");
 						//hr = DirectX::SaveWICTextureToFile(_deviceResources->_d3dDeviceContext.Get(),
 						//	_deviceResources->_offscreenBufferAsInputDynCockpit.Get(), GUID_ContainerFormatJpeg, L"c://temp//dyncock.jpg");
+						log_debug("[DBG] Dumping offscreenBufferDynCockpit");
 						bDumped = true;
 					}
-					*/
 					
-					//context->PSSetShaderResources(0, 1, resources->_offscreenAsInputShaderResourceViewDynCockpit.GetAddressOf());
-					context->PSSetShaderResources(0, 1, resources->_dynCockpitAuxSRV.GetAddressOf());
+					//context->PSSetShaderResources(1, 1, resources->_offscreenAsInputSRVDynCockpit.GetAddressOf());
+					context->PSSetShaderResources(1, 1, resources->_dynCockpitAuxSRV.GetAddressOf());
 				}
 
 				// Early exit 1: Render to the Dynamic Cockpit RTV
@@ -3124,6 +3141,7 @@ HRESULT Direct3DDevice::Execute(
 					g_PSCBuffer.uv_scale[0]  = g_PSCBuffer.uv_scale[1]  = 1.0f;
 					g_PSCBuffer.uv_offset[0] = g_PSCBuffer.uv_offset[1] = 0.0f;
 					g_PSCBuffer.bUseBGColor = 0.0f;
+					g_PSCBuffer.bUseDynCockpit = 0.0f;
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 					resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 				}

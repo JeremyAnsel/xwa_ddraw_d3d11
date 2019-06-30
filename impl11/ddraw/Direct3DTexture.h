@@ -39,7 +39,7 @@ public:
 	// True for the additional textures loaded in Hi-Res mode that provide additional glow
 	bool is_DynCockpitAlphaOverlay;
 	// True when the vertex limits in pixels for this element have been computed and stored
-	bool bBoundingBoxComputed;
+	//bool bBoundingBoxComputed;
 	// If bPixelLimitsComputed is true, then the following viewport will contain the limits of this
 	// element in pixels:
 	Box boundingBox;
