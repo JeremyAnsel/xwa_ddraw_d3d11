@@ -33,6 +33,8 @@ public:
 	// Textures in the cockpit that can be replaced with new textures
 	// This texture is the static targeting computer that can be replaced with the actual targeting data
 	bool is_DynCockpitTargetComp;
+	// This texture is the left panel that can be used for the left radar
+	bool is_DynCockpitLeftRadar;
 	bool is_DynCockpitDisplay1;
 	// True for all textures that can be used as sources for the dynamic cockpit.
 	bool is_DynCockpitSrc;

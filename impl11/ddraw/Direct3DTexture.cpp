@@ -31,7 +31,7 @@ std::vector<uint32_t> HUD_CRCs = {
 
 std::vector<uint32_t> Text_CRCs = {
 	0x201b794e, // 128x128 (master branch)
-	0xfcf50e34, // 256x256 (master branch)
+	0xfcf50e34, // 256x256 (master branch) This is the font that is actually used pretty much everywhere
 	0x42654667  // 256x256 (master branch)
 };
 
@@ -67,6 +67,10 @@ const uint32_t DYN_COCKPIT_XWING_TARGET_COMP_CRC_ALPHA = 0xdb6a55a4;
 const uint32_t DYN_COCKPIT_XWING_DISPLAY_1_CRC_LO_RES = 0xc5894992;
 const uint32_t DYN_COCKPIT_XWING_DISPLAY_1_CRC_HI_RES = 0xfee7db3b;
 const uint32_t DYN_COCKPIT_XWING_DISPLAY_1_CRC_ALPHA = 0x7c66376a;
+
+const uint32_t DYN_COCKPIT_XWING_LEFT_PANEL_CRC_LO_RES = 0xbe3c6620;
+const uint32_t DYN_COCKPIT_XWING_LEFT_PANEL_CRC_HI_RES = 0x58993346;
+const uint32_t DYN_COCKPIT_XWING_LEFT_PANEL_CRC_ALPHA = 0x90ac07f;
 
 extern bool g_bDynCockpitEnabled;
 
@@ -537,12 +541,18 @@ HRESULT Direct3DTexture::Load(
 				this->is_DynCockpitDisplay1 = true;
 				this->is_DynCockpitSrc = true;
 			}
+			else if (this->crc == DYN_COCKPIT_XWING_LEFT_PANEL_CRC_LO_RES ||
+				this->crc == DYN_COCKPIT_XWING_LEFT_PANEL_CRC_HI_RES) {
+				log_debug("[DBG] ***** FOUND DYN SRC LEFT PANEL");
+				this->is_DynCockpitLeftRadar = true;
+			}
 			else if (this->crc == DYN_COCKPIT_XWING_TARGET_COMP_CRC_ALPHA ||
-					 this->crc == DYN_COCKPIT_XWING_DISPLAY_1_CRC_ALPHA) {
+					 this->crc == DYN_COCKPIT_XWING_DISPLAY_1_CRC_ALPHA ||
+					 this->crc == DYN_COCKPIT_XWING_LEFT_PANEL_CRC_ALPHA) {
 				log_debug("[DBG] ***** FOUND DYN SRC ALPHA OVERLAY");
 				this->is_DynCockpitAlphaOverlay = true;
 			}
-
+			
 
 #ifdef DBG_VR
 			// Capture the textures

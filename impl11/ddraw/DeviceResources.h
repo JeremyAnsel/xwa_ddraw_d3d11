@@ -7,11 +7,21 @@
 
 // Also found in the Floating_GUI_CRCs list:
 const uint32_t DYN_COCKPIT_TARGET_COMP_SRC_CRC = 0x3b9a3741;
+const uint32_t DYN_COCKPIT_LEFT_RADAR_SRC_CRC = 0x75b9e062;
+const uint32_t DYN_COCKPIT_RIGHT_RADAR_SRC_CRC = 0x1ec963a9;
+const uint32_t DYN_COCKPIT_SHIELDS_SRC_CRC = 0x3188119f;
 
 typedef struct Box_struct {
 	float left, right;
 	float top, bottom;
 } Box;
+
+typedef struct DynCockpitBoxesComputedStruct {
+	bool TargetComp = false;
+	bool LeftRadar = false;
+	bool RightRadar = false;
+	bool Shields = false;
+} DynCockpitBoxesComputed;
 
 enum RenderMainColorKeyType
 {

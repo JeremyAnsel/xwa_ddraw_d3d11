@@ -39,13 +39,15 @@ bool ReplaceWindowProc(HWND ThisWindow);
 extern MainShadersCBuffer g_MSCBuffer;
 extern BarrelPixelShaderCBuffer g_BPSCBuffer;
 extern float g_fConcourseScale, g_fConcourseAspectRatio, g_fTechLibraryParallax, g_fBrightness;
-extern bool /* g_bRendering3D, */ g_bDumpDebug, g_bOverrideAspectRatio, g_bDynCockpitTargetCompBoxComputed;
+extern bool /* g_bRendering3D, */ g_bDumpDebug, g_bOverrideAspectRatio;
 int g_iDraw2DCounter = 0;
 extern bool g_bEnableVR, g_bForceViewportChange;
 extern Matrix4 g_fullMatrixLeft, g_fullMatrixRight;
 extern VertexShaderMatrixCB g_VSMatrixCB;
 
-extern D3DTLVERTEX g_HUDVertices[6]; // 6 elements
+extern DynCockpitBoxesComputed g_bDynCockpitBoxesComputed;
+
+extern D3DTLVERTEX g_HUDVertices[6]; // 6 vertices
 extern float g_fHUDDepth;
 
 // SteamVR
@@ -75,6 +77,7 @@ PSConstantBufferType g_LastPSConstantBufferSet = PS_CONSTANT_BUFFER_NONE;
 extern bool g_bDynCockpitEnabled;
 bool g_bNewCockpitTexturesLoaded = false;
 ComPtr<ID3D11ShaderResourceView> g_NewDynCockpitTargetComp = NULL;
+ComPtr<ID3D11ShaderResourceView> g_NewDynCockpitLeftRadar = NULL;
 
 FILE *g_DebugFile = NULL;
 
@@ -158,9 +161,7 @@ struct MainVertex
 	}
 };
 
-
 bool LoadNewCockpitTextures(ID3D11Device *device) {
-	goto out;
 	if (!g_bDynCockpitEnabled) {
 		log_debug("[DBG] [Dyn] Dynamic Cockpit is disabled. Will not load new textures");
 		g_bNewCockpitTexturesLoaded = false;
@@ -177,11 +178,22 @@ bool LoadNewCockpitTextures(ID3D11Device *device) {
 		HRESULT res = DirectX::CreateWICTextureFromFile(device, L"./NewTextures/x-wing-targeting-comp-full-res.png",
 			NULL, &g_NewDynCockpitTargetComp);
 		if (FAILED(res)) {
-			log_debug("[DBG] [Dyn] Failed to load NEW texture: 0x%x", res);
+			log_debug("[DBG] [Dyn] Failed to load new targeting comp texture: 0x%x", res);
 			g_NewDynCockpitTargetComp = NULL;
 		} else
 			g_bNewCockpitTexturesLoaded = true;
 	}
+
+	if (g_NewDynCockpitLeftRadar == NULL) {
+		log_debug("[DBG] [Dyn] >>>>> Loading new Left Radar");
+		HRESULT res = DirectX::CreateWICTextureFromFile(device, L"./NewTextures/Left-Radar-Round.png",
+			NULL, &g_NewDynCockpitLeftRadar);
+		if (FAILED(res)) {
+			log_debug("[DBG] [Dyn] Failed to load new Left Radar texture: 0x%x", res);
+			g_NewDynCockpitLeftRadar = NULL;
+		}
+	}
+	g_bNewCockpitTexturesLoaded = (g_NewDynCockpitTargetComp != NULL) && (g_NewDynCockpitLeftRadar != NULL);
 
 	log_debug("[DBG} [Dyn] New cockpit textures loaded: %d", g_bNewCockpitTexturesLoaded);
 out:
@@ -189,15 +201,19 @@ out:
 }
 
 void UnloadNewCockpitTextures() {
-	return;
 	if (!g_bDynCockpitEnabled || !g_bNewCockpitTexturesLoaded)
 		return;
+
+	log_debug("[DBG] [Dyn] >>>>> Releasing textures");
 	if (g_NewDynCockpitTargetComp != NULL) {
-		log_debug("[DBG] [Dyn] >>>>> Releasing textures");
 		g_NewDynCockpitTargetComp.Release();
 		g_NewDynCockpitTargetComp = NULL;
-		g_bNewCockpitTexturesLoaded = false;
 	}
+	if (g_NewDynCockpitLeftRadar != NULL) {
+		g_NewDynCockpitLeftRadar.Release();
+		g_NewDynCockpitLeftRadar = NULL;
+	}
+	g_bNewCockpitTexturesLoaded = false;
 }
 
 DeviceResources::DeviceResources()
@@ -409,7 +425,11 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		this->_renderTargetViewSteamVRResize.Release();
 	}
 	if (g_bDynCockpitEnabled) {
-		g_bDynCockpitTargetCompBoxComputed = false; // Re-compute the Dynamic cockpit limits
+		// Re-compute the Dynamic cockpit limits for all source images:
+		g_bDynCockpitBoxesComputed.TargetComp = false;
+		g_bDynCockpitBoxesComputed.LeftRadar = false;
+		g_bDynCockpitBoxesComputed.RightRadar = false;
+		g_bDynCockpitBoxesComputed.Shields = false;
 		this->_renderTargetViewDynCockpit.Release();
 		this->_renderTargetViewDynCockpitAsInput.Release();
 		this->_offscreenBufferDynCockpit.Release();
@@ -639,11 +659,18 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			step = "_offscreenBufferAsInputDynCockpit";
 			UINT curFlags = desc.BindFlags;
 			desc.BindFlags |= D3D11_BIND_RENDER_TARGET;
+			log_err("_offscreenBufferAsInputDynCockpit: Added D3D11_BIND_RENDER_TARGET flag\n");
+			log_err("Flags: 0x%x\n", desc.BindFlags);
 			hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBufferAsInputDynCockpit);
 			if (FAILED(hr)) {
+				log_err("Failed to create _offscreenBufferAsInputDynCockpit, error: 0x%x\n", hr);
+				log_err("GetDeviceRemovedReason: 0x%x\n", this->_d3dDevice->GetDeviceRemovedReason());
 				log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
 				log_err_desc(step, hWnd, hr, desc);
 				goto out;
+			}
+			else {
+				log_err("Successfully created _offscreenBufferAsInputDynCockpit with combined flags\n");
 			}
 			// Restore the previous bind flags, just in case there is a dependency on these later on
 			desc.BindFlags = curFlags;
