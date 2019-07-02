@@ -2376,7 +2376,7 @@ HRESULT Direct3DDevice::Execute(
 
 	// Save the current viewMatrix: if the Dynamic Cockpit is enabled, we'll need it later to restore the transform
 	Matrix4 currentViewMat = g_VSMatrixCB.viewMat;
-	bool bModifiedViewMatrix = false;
+	//bool bModifiedViewMatrix = false;
 	
 	char* step = "";
 
@@ -2901,7 +2901,6 @@ HRESULT Direct3DDevice::Execute(
 				// shaders are already set by this point; but if we modify them, we'll set bModifiedShaders to true
 				// so that we can restore the state at the end of the draw call.
 				bModifiedShaders = false;
-				bModifiedViewMatrix = false;
 
 				// Dynamic Cockpit: Remove all the alpha overlays in hi-res mode
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitAlphaOverlay)
@@ -3220,7 +3219,6 @@ HRESULT Direct3DDevice::Execute(
 					g_VSCBuffer.z_override = g_fTextDepth;
 				}
 
-			//apply_constant_buffers:
 				if (bModifiedShaders) {
 					resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
@@ -3242,7 +3240,6 @@ HRESULT Direct3DDevice::Execute(
 				// computation faster? On the other hand, having always 2 z-buffers makes the code
 				// easier.
 
-				// Dynamic Cockpit: Set the proper render target view
 				if (g_bUseSteamVR)
 					context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
 						resources->_depthStencilViewL.Get());
@@ -3253,8 +3250,7 @@ HRESULT Direct3DDevice::Execute(
 				// VIEWPORT-LEFT
 				if (g_bUseSteamVR) {
 					viewport.Width = (float)resources->_backbufferWidth;
-				}
-				else {
+				} else {
 					viewport.Width = (float)resources->_backbufferWidth / 2.0f;
 				}
 				viewport.Height = (float)resources->_backbufferHeight;
@@ -3288,8 +3284,7 @@ HRESULT Direct3DDevice::Execute(
 				if (g_bUseSteamVR) {
 					viewport.Width = (float)resources->_backbufferWidth;
 					viewport.TopLeftX = 0.0f;
-				}
-				else {
+				} else {
 					viewport.Width = (float)resources->_backbufferWidth / 2.0f;
 					viewport.TopLeftX = 0.0f + viewport.Width;
 				}
@@ -3323,26 +3318,22 @@ HRESULT Direct3DDevice::Execute(
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 				}
 
-				if (g_bDynCockpitEnabled && bModifiedViewMatrix) {
-					bModifiedViewMatrix = false;
-					g_VSMatrixCB.viewMat = currentViewMat;
-				}
-
 				// Restore the normal state of the render (currently this only means restore the original Vertex/Pixel
 				// constant buffers); but only if we altered it previously.
 				if (bModifiedShaders) {
-					g_VSCBuffer.viewportScale[3] = g_fGlobalScale;
-					g_PSCBuffer.brightness = MAX_BRIGHTNESS;
-					g_PSCBuffer.bShadeless = 0.0f;
-					g_VSCBuffer.z_override = -1.0f;
-					g_VSCBuffer.sz_override = -1.0f;
-					g_VSCBuffer.mult_z_override = -1.0f;
+					g_VSCBuffer.viewportScale[3]  = g_fGlobalScale;
+					g_VSCBuffer.z_override        = -1.0f;
+					g_VSCBuffer.sz_override       = -1.0f;
+					g_VSCBuffer.mult_z_override   = -1.0f;
 					g_VSCBuffer.bPreventTransform = 0.0f;
-					g_VSCBuffer.bFullTransform = 0.0f;
-					g_PSCBuffer.uv_scale[0]  = g_PSCBuffer.uv_scale[1]  = 1.0f;
-					g_PSCBuffer.uv_offset[0] = g_PSCBuffer.uv_offset[1] = 0.0f;
+					g_VSCBuffer.bFullTransform    = 0.0f;
+
+					g_PSCBuffer.brightness       = MAX_BRIGHTNESS;
+					g_PSCBuffer.bShadeless       = 0.0f;
+					g_PSCBuffer.uv_scale[0]      = g_PSCBuffer.uv_scale[1]  = 1.0f;
+					g_PSCBuffer.uv_offset[0]     = g_PSCBuffer.uv_offset[1] = 0.0f;
 					g_PSCBuffer.bUseCoverTexture = 0.0f;
-					g_PSCBuffer.bUseDynCockpit = 0.0f;
+					g_PSCBuffer.bUseDynCockpit   = 0.0f;
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 					resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 				}
