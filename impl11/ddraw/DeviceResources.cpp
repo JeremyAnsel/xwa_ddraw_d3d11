@@ -45,7 +45,7 @@ extern bool g_bEnableVR, g_bForceViewportChange;
 extern Matrix4 g_fullMatrixLeft, g_fullMatrixRight;
 extern VertexShaderMatrixCB g_VSMatrixCB;
 
-extern DynCockpitBoxesComputed g_bDynCockpitBoxesComputed;
+extern DynCockpitBoxes g_DynCockpitBoxes;
 
 extern D3DTLVERTEX g_HUDVertices[6]; // 6 vertices
 extern float g_fHUDDepth;
@@ -220,7 +220,7 @@ bool LoadNewCockpitTextures(ID3D11Device *device) {
 
 	if (g_NewDynCockpitRightRadarCover == NULL) {
 		log_debug("[DBG] [Dyn] >>>>> Loading new Right Radar Cover");
-		HRESULT res = DirectX::CreateWICTextureFromFile(device, L"./DynamicCockpit/x-wing-left-radar-cover.png",
+		HRESULT res = DirectX::CreateWICTextureFromFile(device, L"./DynamicCockpit/x-wing-right-radar-cover.png",
 			NULL, &g_NewDynCockpitRightRadarCover);
 		if (FAILED(res)) {
 			log_debug("[DBG] [Dyn] Failed to load new Right Radar Cover texture: 0x%x", res);
@@ -474,10 +474,11 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 	}
 	if (g_bDynCockpitEnabled) {
 		// Re-compute the Dynamic cockpit limits for all source images:
-		g_bDynCockpitBoxesComputed.TargetComp = false;
-		g_bDynCockpitBoxesComputed.LeftRadar = false;
-		g_bDynCockpitBoxesComputed.RightRadar = false;
-		g_bDynCockpitBoxesComputed.Shields = false;
+		g_DynCockpitBoxes.TargetComp = false;
+		g_DynCockpitBoxes.LeftRadar = false;
+		g_DynCockpitBoxes.RightRadar = false;
+		g_DynCockpitBoxes.Shields = false;
+		// No need to zero-out the boxes: the booleans above state whether the boxes are valid or not.
 		this->_renderTargetViewDynCockpit.Release();
 		this->_renderTargetViewDynCockpitAsInput.Release();
 		this->_offscreenBufferDynCockpit.Release();

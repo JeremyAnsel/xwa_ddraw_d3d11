@@ -70,7 +70,11 @@ const uint32_t DYN_COCKPIT_XWING_DISPLAY_1_CRC_ALPHA = 0x7c66376a;
 
 const uint32_t DYN_COCKPIT_XWING_LEFT_PANEL_CRC_LO_RES = 0xbe3c6620;
 const uint32_t DYN_COCKPIT_XWING_LEFT_PANEL_CRC_HI_RES = 0x58993346;
-const uint32_t DYN_COCKPIT_XWING_LEFT_PANEL_CRC_ALPHA = 0x90ac07f;
+const uint32_t DYN_COCKPIT_XWING_LEFT_PANEL_CRC_ALPHA  = 0x90ac07f;
+
+const uint32_t DYN_COCKPIT_XWING_RIGHT_PANEL_CRC_LO_RES = 0xdb210014;
+const uint32_t DYN_COCKPIT_XWING_RIGHT_PANEL_CRC_HI_RES = 0xc1538ae7;
+const uint32_t DYN_COCKPIT_XWING_RIGHT_PANEL_CRC_ALPHA  = 0x3d328022;
 
 extern bool g_bDynCockpitEnabled;
 
@@ -544,11 +548,17 @@ HRESULT Direct3DTexture::Load(
 			else if (this->crc == DYN_COCKPIT_XWING_LEFT_PANEL_CRC_LO_RES ||
 				this->crc == DYN_COCKPIT_XWING_LEFT_PANEL_CRC_HI_RES) {
 				log_debug("[DBG] ***** FOUND DYN SRC LEFT PANEL");
-				this->is_DynCockpitLeftRadar = true;
+				this->is_DynCockpitLeftRadarPanel = true;
+			}
+			else if (this->crc == DYN_COCKPIT_XWING_RIGHT_PANEL_CRC_LO_RES ||
+				this->crc == DYN_COCKPIT_XWING_RIGHT_PANEL_CRC_HI_RES) {
+				log_debug("[DBG] ***** FOUND DYN SRC RIGHT PANEL");
+				this->is_DynCockpitRightRadarPanel = true;
 			}
 			else if (this->crc == DYN_COCKPIT_XWING_TARGET_COMP_CRC_ALPHA ||
 					 this->crc == DYN_COCKPIT_XWING_DISPLAY_1_CRC_ALPHA ||
-					 this->crc == DYN_COCKPIT_XWING_LEFT_PANEL_CRC_ALPHA) {
+					 this->crc == DYN_COCKPIT_XWING_LEFT_PANEL_CRC_ALPHA ||
+					 this->crc == DYN_COCKPIT_XWING_RIGHT_PANEL_CRC_ALPHA) {
 				log_debug("[DBG] ***** FOUND DYN SRC ALPHA OVERLAY");
 				this->is_DynCockpitAlphaOverlay = true;
 			}

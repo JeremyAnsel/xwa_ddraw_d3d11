@@ -49,6 +49,7 @@ float4 main(PixelShaderInput input) : SV_TARGET
 				diffuse = input.color.xyz;
 		} else {
 			float4 dc_texelColor = texture1.Sample(sampler1, dyn_uvs); // "dc" is for "dynamic cockpit"
+			//return dc_texelColor + texelColor; // DEBUG DEBUG DEBUG!!! Remove this later! This helps position the elements easily
 			float alpha = texelColor.w;
 			float dc_alpha = dc_texelColor.w;
 			// Add the background color to the dynamic cockpit display

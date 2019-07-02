@@ -34,7 +34,10 @@ public:
 	// This texture is the static targeting computer that can be replaced with the actual targeting data
 	bool is_DynCockpitTargetComp;
 	// This texture is the left panel that can be used for the left radar
-	bool is_DynCockpitLeftRadar;
+	bool is_DynCockpitLeftRadarPanel;
+	// This texture is the right panel that can be used for the left radar
+	bool is_DynCockpitRightRadarPanel;
+	// This texture is the panel right in the middle of the X-Wing. I don't have a better name for now...
 	bool is_DynCockpitDisplay1;
 	// True for all textures that can be used as sources for the dynamic cockpit.
 	bool is_DynCockpitSrc;

@@ -21,7 +21,10 @@ typedef struct DynCockpitBoxesComputedStruct {
 	bool LeftRadar = false;
 	bool RightRadar = false;
 	bool Shields = false;
-} DynCockpitBoxesComputed;
+	Box TargetCompBox = { 0 };
+	Box LeftRadarBox = { 0 };
+	Box RightRadarBox = { 0 };
+} DynCockpitBoxes;
 
 enum RenderMainColorKeyType
 {
