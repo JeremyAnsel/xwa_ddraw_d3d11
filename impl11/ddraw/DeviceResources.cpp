@@ -76,8 +76,11 @@ PSConstantBufferType g_LastPSConstantBufferSet = PS_CONSTANT_BUFFER_NONE;
 
 extern bool g_bDynCockpitEnabled;
 bool g_bNewCockpitTexturesLoaded = false;
-ComPtr<ID3D11ShaderResourceView> g_NewDynCockpitTargetComp = NULL;
+ComPtr<ID3D11ShaderResourceView> g_NewDynCockpitTargetCompCover = NULL;
 ComPtr<ID3D11ShaderResourceView> g_NewDynCockpitLeftRadar = NULL;
+ComPtr<ID3D11ShaderResourceView> g_NewDynCockpitRightRadar = NULL;
+ComPtr<ID3D11ShaderResourceView> g_NewDynCockpitLeftRadarCover = NULL;
+ComPtr<ID3D11ShaderResourceView> g_NewDynCockpitRightRadarCover = NULL;
 
 FILE *g_DebugFile = NULL;
 
@@ -173,27 +176,60 @@ bool LoadNewCockpitTextures(ID3D11Device *device) {
 		return true;
 	}
 
-	if (g_NewDynCockpitTargetComp == NULL) {
+	if (g_NewDynCockpitTargetCompCover == NULL) {
 		log_debug("[DBG] [Dyn] >>>>> Loading new Cockpit Targeting Computer");
-		HRESULT res = DirectX::CreateWICTextureFromFile(device, L"./NewTextures/x-wing-targeting-comp-full-res.png",
-			NULL, &g_NewDynCockpitTargetComp);
+		HRESULT res = DirectX::CreateWICTextureFromFile(device, L"./DynamicCockpit/x-wing-targeting-comp-cover.png",
+			NULL, &g_NewDynCockpitTargetCompCover);
 		if (FAILED(res)) {
 			log_debug("[DBG] [Dyn] Failed to load new targeting comp texture: 0x%x", res);
-			g_NewDynCockpitTargetComp = NULL;
+			g_NewDynCockpitTargetCompCover = NULL;
 		} else
 			g_bNewCockpitTexturesLoaded = true;
 	}
 
 	if (g_NewDynCockpitLeftRadar == NULL) {
 		log_debug("[DBG] [Dyn] >>>>> Loading new Left Radar");
-		HRESULT res = DirectX::CreateWICTextureFromFile(device, L"./NewTextures/Left-Radar-Round.png",
+		HRESULT res = DirectX::CreateWICTextureFromFile(device, L"./DynamicCockpit/Left-Radar-Round.png",
 			NULL, &g_NewDynCockpitLeftRadar);
 		if (FAILED(res)) {
 			log_debug("[DBG] [Dyn] Failed to load new Left Radar texture: 0x%x", res);
 			g_NewDynCockpitLeftRadar = NULL;
 		}
 	}
-	g_bNewCockpitTexturesLoaded = (g_NewDynCockpitTargetComp != NULL) && (g_NewDynCockpitLeftRadar != NULL);
+
+	if (g_NewDynCockpitLeftRadarCover == NULL) {
+		log_debug("[DBG] [Dyn] >>>>> Loading new Left Radar Cover");
+		HRESULT res = DirectX::CreateWICTextureFromFile(device, L"./DynamicCockpit/x-wing-left-radar-cover.png",
+			NULL, &g_NewDynCockpitLeftRadarCover);
+		if (FAILED(res)) {
+			log_debug("[DBG] [Dyn] Failed to load new Left Radar Cover texture: 0x%x", res);
+			g_NewDynCockpitLeftRadarCover = NULL;
+		}
+	}
+
+
+	if (g_NewDynCockpitRightRadar == NULL) {
+		log_debug("[DBG] [Dyn] >>>>> Loading new Right Radar");
+		HRESULT res = DirectX::CreateWICTextureFromFile(device, L"./DynamicCockpit/Right-Radar-Round.png",
+			NULL, &g_NewDynCockpitRightRadar);
+		if (FAILED(res)) {
+			log_debug("[DBG] [Dyn] Failed to load new Right Radar texture: 0x%x", res);
+			g_NewDynCockpitRightRadar = NULL;
+		}
+	}
+
+	if (g_NewDynCockpitRightRadarCover == NULL) {
+		log_debug("[DBG] [Dyn] >>>>> Loading new Right Radar Cover");
+		HRESULT res = DirectX::CreateWICTextureFromFile(device, L"./DynamicCockpit/x-wing-left-radar-cover.png",
+			NULL, &g_NewDynCockpitRightRadarCover);
+		if (FAILED(res)) {
+			log_debug("[DBG] [Dyn] Failed to load new Right Radar Cover texture: 0x%x", res);
+			g_NewDynCockpitRightRadarCover = NULL;
+		}
+	}
+
+	g_bNewCockpitTexturesLoaded = (g_NewDynCockpitTargetCompCover != NULL) || (g_NewDynCockpitLeftRadar != NULL) ||
+		(g_NewDynCockpitRightRadar != NULL) || (g_NewDynCockpitRightRadarCover != NULL);
 
 	log_debug("[DBG} [Dyn] New cockpit textures loaded: %d", g_bNewCockpitTexturesLoaded);
 out:
@@ -205,13 +241,25 @@ void UnloadNewCockpitTextures() {
 		return;
 
 	log_debug("[DBG] [Dyn] >>>>> Releasing textures");
-	if (g_NewDynCockpitTargetComp != NULL) {
-		g_NewDynCockpitTargetComp.Release();
-		g_NewDynCockpitTargetComp = NULL;
+	if (g_NewDynCockpitTargetCompCover != NULL) {
+		g_NewDynCockpitTargetCompCover.Release();
+		g_NewDynCockpitTargetCompCover = NULL;
 	}
 	if (g_NewDynCockpitLeftRadar != NULL) {
 		g_NewDynCockpitLeftRadar.Release();
 		g_NewDynCockpitLeftRadar = NULL;
+	}
+	if (g_NewDynCockpitRightRadar != NULL) {
+		g_NewDynCockpitRightRadar.Release();
+		g_NewDynCockpitRightRadar = NULL;
+	}
+	if (g_NewDynCockpitLeftRadarCover != NULL) {
+		g_NewDynCockpitLeftRadarCover.Release();
+		g_NewDynCockpitLeftRadarCover = NULL;
+	}
+	if (g_NewDynCockpitRightRadarCover != NULL) {
+		g_NewDynCockpitRightRadarCover.Release();
+		g_NewDynCockpitRightRadarCover = NULL;
 	}
 	g_bNewCockpitTexturesLoaded = false;
 }

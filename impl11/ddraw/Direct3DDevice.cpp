@@ -405,8 +405,11 @@ float g_fFocalDist = DEFAULT_FOCAL_DIST;
 /*
  * New Cockpit Textures
  */
-extern ComPtr<ID3D11ShaderResourceView> g_NewDynCockpitTargetComp;
+extern ComPtr<ID3D11ShaderResourceView> g_NewDynCockpitTargetCompCover;
 extern ComPtr<ID3D11ShaderResourceView> g_NewDynCockpitLeftRadar;
+extern ComPtr<ID3D11ShaderResourceView> g_NewDynCockpitRightRadar;
+extern ComPtr<ID3D11ShaderResourceView> g_NewDynCockpitLeftRadarCover;
+extern ComPtr<ID3D11ShaderResourceView> g_NewDynCockpitRightRadarCover;
 
 /*
  * Control/Debug variables
@@ -424,7 +427,6 @@ int g_iDumpGUICounter = 0, g_iHUDCounter = 0;
 /* Reloads all the CRCs. */
 bool ReloadCRCs();
 bool isInVector(uint32_t crc, std::vector<uint32_t> &vector);
-void DeleteStereoVertices();
 bool InitDirectSBS();
 bool LoadNewCockpitTextures(ID3D11Device *device);
 void UnloadNewCockpitTextures();
@@ -2348,7 +2350,7 @@ HRESULT Direct3DDevice::Execute(
 	g_PSCBuffer.bShadeless   = 0.0f;
 	g_PSCBuffer.uv_scale[0]  = g_PSCBuffer.uv_scale[1]  = 1.0f;
 	g_PSCBuffer.uv_offset[0] = g_PSCBuffer.uv_offset[1] = 0.0f;
-	g_PSCBuffer.bUseBGColor    = 0.0f;
+	g_PSCBuffer.bUseCoverTexture    = 0.0f;
 	g_PSCBuffer.bUseDynCockpit = 0.0f;
 
 	// Save the current viewMatrix: if the Dynamic Cockpit is enabled, we'll need it later to restore the transform
@@ -2770,7 +2772,7 @@ HRESULT Direct3DDevice::Execute(
 					goto out;
 				}
 
-				// Get the bounding box for the left radar:
+				// Capture the bounds for the left radar:
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->crc == DYN_COCKPIT_LEFT_RADAR_SRC_CRC) {
 					if (!g_bDynCockpitBoxesComputed.LeftRadar) {
 						float minX, minY, maxX, maxY;
@@ -2781,10 +2783,6 @@ HRESULT Direct3DDevice::Execute(
 						lastTextureSelected->boundingBox.bottom = maxY + 1;
 						g_DynCockpitLeftRadar = lastTextureSelected->boundingBox;
 						g_bDynCockpitBoxesComputed.LeftRadar = true;
-
-						D3D11_BLEND_DESC desc = this->_renderStates->GetBlendDesc();
-						log_debug("[DBG] Left Radar: BlendEnable: %d, BlendOp: %d",
-							desc.RenderTarget->BlendEnable, desc.RenderTarget->BlendOp);
 
 						log_debug("[DBG] Left Radar limits: (%0.3f, %0.3f)-(%0.3f, %0.3f)",
 							lastTextureSelected->boundingBox.left, lastTextureSelected->boundingBox.top,
@@ -2876,26 +2874,24 @@ HRESULT Direct3DDevice::Execute(
 
 				// Replace the targeting computer texture with our own at run-time:
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitTargetComp &&
-					g_bDynCockpitBoxesComputed.TargetComp) {
+					g_bDynCockpitBoxesComputed.TargetComp && g_NewDynCockpitTargetCompCover != NULL) {
 					float bgColor[4] = { 0.07f, 0.07f, 0.2f, 0.0f };
 					float black[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 					bModifiedShaders = true;
-					g_PSCBuffer.bShadeless     =  1.0f; // Render the targeted object without the diffuse component (shadeless)
-					g_PSCBuffer.uv_scale[0]    =  0.325f;
-					g_PSCBuffer.uv_scale[1]    =  0.325f;
-					g_PSCBuffer.uv_offset[0]   = -0.01f; // Move the texture a bit to the right and down.
-					g_PSCBuffer.uv_offset[1]   = -0.04f;
-					g_PSCBuffer.bUseBGColor    =  1.0f;
-					g_PSCBuffer.bUseDynCockpit =  1.0f;
+					g_PSCBuffer.bShadeless       =  1.0f; // Render the targeted object without the diffuse component (shadeless)
+					g_PSCBuffer.uv_scale[0]      =  0.325f;
+					g_PSCBuffer.uv_scale[1]      =  0.325f;
+					g_PSCBuffer.uv_offset[0]     = -0.01f; // Move the texture a bit to the right and down.
+					g_PSCBuffer.uv_offset[1]     = -0.04f;
+					g_PSCBuffer.bUseCoverTexture =  1.0f;
+					g_PSCBuffer.bUseDynCockpit   =  1.0f;
 					memcpy(g_PSCBuffer.bgColor, bgColor, 4 * sizeof(float));
 
 					D3D11_BOX box;
 					box.left   = left + (UINT)(g_DynCockpitTargetComp.left   / displayWidth * width);
-					//box.right  = left + (UINT)(g_DynCockpitTargetComp.right  / displayWidth * width);
-					box.right = left + width;
+					box.right  = left + (UINT)(g_DynCockpitTargetComp.right  / displayWidth * width);
 					box.top    = top  + (UINT)(g_DynCockpitTargetComp.top    / displayHeight * height);
-					//box.bottom = top  + (UINT)(g_DynCockpitTargetComp.bottom / displayHeight * height);
-					box.bottom = top + height;
+					box.bottom = top  + (UINT)(g_DynCockpitTargetComp.bottom / displayHeight * height);
 					box.front  = 0;
 					box.back   = 1;
 
@@ -2924,32 +2920,30 @@ HRESULT Direct3DDevice::Execute(
 						bDumped = true;
 					}
 					*/
-					//context->PSSetShaderResources(1, 1, resources->_offscreenAsInputSRVDynCockpit.GetAddressOf());
+					context->PSSetShaderResources(0, 1, g_NewDynCockpitTargetCompCover.GetAddressOf());
 					context->PSSetShaderResources(1, 1, resources->_dynCockpitAuxSRV.GetAddressOf());
 				}
 
 				// Replace the left radar texture with our own at run-time:
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitLeftRadar &&
-					g_bDynCockpitBoxesComputed.LeftRadar) {
+					g_bDynCockpitBoxesComputed.LeftRadar && g_NewDynCockpitLeftRadarCover != NULL) {
 					float bgColor[4] = { 0.07f, 0.07f, 0.2f, 0.0f };
 					float black[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 					bModifiedShaders = true;
 					g_PSCBuffer.bShadeless = 1.0f;
-					g_PSCBuffer.uv_scale[0]  = g_DynCockpitLeftRadarUVCoords.uv_scale[0];
-					g_PSCBuffer.uv_scale[1]  = g_DynCockpitLeftRadarUVCoords.uv_scale[1];
-					g_PSCBuffer.uv_offset[0] = g_DynCockpitLeftRadarUVCoords.uv_offset[0];
-					g_PSCBuffer.uv_offset[1] = g_DynCockpitLeftRadarUVCoords.uv_offset[1];
-					g_PSCBuffer.bUseBGColor  =  0.0f;
-					g_PSCBuffer.bUseDynCockpit = 1.0f;
+					g_PSCBuffer.uv_scale[0]      = g_DynCockpitLeftRadarUVCoords.uv_scale[0];
+					g_PSCBuffer.uv_scale[1]      = g_DynCockpitLeftRadarUVCoords.uv_scale[1];
+					g_PSCBuffer.uv_offset[0]     = g_DynCockpitLeftRadarUVCoords.uv_offset[0];
+					g_PSCBuffer.uv_offset[1]     = g_DynCockpitLeftRadarUVCoords.uv_offset[1];
+					g_PSCBuffer.bUseCoverTexture = 1.0f;
+					g_PSCBuffer.bUseDynCockpit   = 1.0f;
 					memcpy(g_PSCBuffer.bgColor, bgColor, 4 * sizeof(float));
 
 					D3D11_BOX box;
 					box.left   = left + (UINT)(g_DynCockpitLeftRadar.left   / displayWidth  * width);
-					//box.right  = left + (UINT)(g_DynCockpitLeftRadar.right  / displayWidth  * width);
-					box.right = left + width;
+					box.right  = left + (UINT)(g_DynCockpitLeftRadar.right  / displayWidth  * width);
 					box.top    = top  + (UINT)(g_DynCockpitLeftRadar.top    / displayHeight * height);
-					//box.bottom = top  + (UINT)(g_DynCockpitLeftRadar.bottom / displayHeight * height);
-					box.bottom = top + height;
+					box.bottom = top  + (UINT)(g_DynCockpitLeftRadar.bottom / displayHeight * height);
 					box.front  = 0;
 					box.back   = 1;
 
@@ -2976,7 +2970,7 @@ HRESULT Direct3DDevice::Execute(
 					rect.top = box.top; rect.bottom = box.bottom;
 					//context1->ClearView(resources->_renderTargetViewDynCockpitAsInput.Get(), black, &rect, 1);
 
-					//context->PSSetShaderResources(1, 1, resources->_offscreenAsInputSRVDynCockpit.GetAddressOf());
+					context->PSSetShaderResources(0, 1, g_NewDynCockpitLeftRadarCover.GetAddressOf());
 					context->PSSetShaderResources(1, 1, resources->_dynCockpitAuxSRV.GetAddressOf());
 				}
 
@@ -3263,7 +3257,7 @@ HRESULT Direct3DDevice::Execute(
 					g_VSCBuffer.bFullTransform = 0.0f;
 					g_PSCBuffer.uv_scale[0]  = g_PSCBuffer.uv_scale[1]  = 1.0f;
 					g_PSCBuffer.uv_offset[0] = g_PSCBuffer.uv_offset[1] = 0.0f;
-					g_PSCBuffer.bUseBGColor = 0.0f;
+					g_PSCBuffer.bUseCoverTexture = 0.0f;
 					g_PSCBuffer.bUseDynCockpit = 0.0f;
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 					resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
