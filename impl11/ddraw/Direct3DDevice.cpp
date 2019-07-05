@@ -5,141 +5,6 @@
 // Shaders by Marty McFly (used with permission from the author)
 // https://github.com/martymcmodding/qUINT/tree/master/Shaders
 
-/*
-
-Chimpsky: (0.9.7)
-
-Driver: oculus
-Display: WMHD314A300N88
-
-eyeLeft:
-1.000000, 0.000000, 0.000000, -0.034100
-0.000000, 1.000000, 0.000000, 0.000000
-0.000000, 0.000000, 1.000000, 0.000000
-
-eyeRight:
-1.000000, 0.000000, 0.000000, -0.034100 (my mistake, I was writting the left matrix to disk twice)
-0.000000, 1.000000, 0.000000, 0.000000
-0.000000, 0.000000, 1.000000, 0.000000
-
-projLeft:
-1.190342, 0.000000, -0.148592, 0.000000
-0.000000, 0.999788, -0.110690, 0.000000
-0.000000, 0.000000, -1.000000, -0.001000
-0.000000, 0.000000, -1.000000, 0.000000
-
-projRight:
-1.190342, 0.000000, 0.148592, 0.000000
-0.000000, 0.999788, -0.110690, 0.000000
-0.000000, 0.000000, -1.000000, -0.001000
-0.000000, 0.000000, -1.000000, 0.000000
-
-Raw data (Left eye):
-Left: -0.964926, Right: 0.715264, Top: -1.110925, Bottom: 0.889498
-Raw data (Right eye):
-Left: -0.715264, Right: 0.964926, Top: -1.110925, Bottom: 0.889498
-
-
-Trevor: (0.9.6)
-
-Driver: oculus
-Display: 20B06R03EVHM
-
-eyeLeft:
-1.000000, 0.000000, 0.000000, -0.031750
-0.000000, 1.000000, 0.000000, 0.000000
-0.000000, 0.000000, 1.000000, 0.000000
-
-eyeRight:
-1.000000, 0.000000, 0.000000, 0.031750
-0.000000, 1.000000, 0.000000, 0.000000
-0.000000, 0.000000, 1.000000, 0.000000
-
-projLeft:
-0.929789, 0.000000, 0.015672, 0.000000
-0.000000, 0.750974, 0.000000, 0.000000
-0.000000, 0.000000, -1.010101, -0.505050
-0.000000, 0.000000, -1.000000, 0.000000
-
-projRight:
-0.929789, 0.000000, -0.015672, 0.000000
-0.000000, 0.750974, 0.000000, 0.000000
-0.000000, 0.000000, -1.010101, -0.505050
-0.000000, 0.000000, -1.000000, 0.000000
-
-Raw data (Left eye):
-Left: -1.058658, Right: 1.092368, Top: -1.331603, Bottom: 1.331603
-Raw data (Right eye):
-Left: -1.092368, Right: 1.058658, Top: -1.331603, Bottom: 1.331603
-
-
-FullBody:
-
-Driver: lighthouse
-Display: LHR-3395DDAF
-
-eyeLeft:
-1.000000, 0.000000, 0.000000, -0.033050
-0.000000, 1.000000, 0.000000, 0.000000
-0.000000, 0.000000, 1.000000, 0.015000
-
-eyeRight:
-1.000000, 0.000000, 0.000000, 0.033050
-0.000000, 1.000000, 0.000000, 0.000000
-0.000000, 0.000000, 1.000000, 0.015000
-
-projLeft:
-0.756668, 0.000000, -0.056751, 0.000000
-0.000000, 0.681272, -0.001673, 0.000000
-0.000000, 0.000000, -1.010101, -0.505050
-0.000000, 0.000000, -1.000000, 0.000000
-
-projRight:
-0.757176, 0.000000, 0.056972, 0.000000
-0.000000, 0.681598, -0.005991, 0.000000
-0.000000, 0.000000, -1.010101, -0.505050
-0.000000, 0.000000, -1.000000, 0.000000
-
-Raw data (Left eye):
-Left: -1.396584, Right: 1.246583, Top: -1.470297, Bottom: 1.465387
-Raw data (Right eye):
-Left: -1.245455, Right: 1.395940, Top: -1.475930, Bottom: 1.458352
-
-
-Chee:
-
-Driver: aapvr
-Display: Pimax 5K Plus
-
-eyeLeft:
-0.984808, 0.000000, 0.173648, -0.033236
-0.000000, 1.000000, 0.000000, 0.000000
--0.173648, 0.000000, 0.984808, 0.000000
-
-eyeRight:
-0.984808, -0.000000, -0.173648, 0.033236
-0.000000, 1.000000, -0.000000, 0.000000
-0.173648, 0.000000, 0.984808, 0.000000
-
-projLeft:
-0.647594, 0.000000, -0.128239, 0.000000
-0.000000, 0.787500, 0.000000, 0.000000
-0.000000, 0.000000, -1.010101, -0.505050
-0.000000, 0.000000, -1.000000, 0.000000
-
-projRight:
-0.647594, 0.000000, 0.128239, 0.000000
-0.000000, 0.787500, 0.000000, 0.000000
-0.000000, 0.000000, -1.010101, -0.505050
-0.000000, 0.000000, -1.000000, 0.000000
-
-Raw data (Left eye):
-Left: -1.742203, Right: 1.346154, Top: -1.269841, Bottom: 1.269841
-Raw data (Right eye):
-Left: -1.346154, Right: 1.742203, Top: -1.269841, Bottom: 1.269841
-
-*/
-
 #include "common.h"
 #include "DeviceResources.h"
 #include "Direct3DDevice.h"
@@ -163,12 +28,7 @@ FILE *g_HackFile = NULL;
 const float DEFAULT_FOCAL_DIST = 0.5f;
 //const float DEFAULT_FOCAL_DIST_STEAMVR = 0.6f;
 const float DEFAULT_IPD = 6.5f; // Ignored in SteamVR mode.
-/*
-const float DEFAULT_HUD_PARALLAX = 12.5f;
-const float DEFAULT_TEXT_PARALLAX = 40.0f;
-const float DEFAULT_FLOATING_GUI_PARALLAX = 34.5f;
-const float DEFAULT_FLOATING_OBJ_PARALLAX = 3.0f;
-*/
+
 const float DEFAULT_HUD_PARALLAX = 1.7f;
 const float DEFAULT_TEXT_PARALLAX = 0.45f;
 const float DEFAULT_FLOATING_GUI_PARALLAX = 0.495f;
@@ -215,6 +75,7 @@ const float DEFAULT_MIN_POS_Y = -0.15f;
 const float DEFAULT_MAX_POS_Y =  0.5f;
 const float DEFAULT_MIN_POS_Z = -0.15f;
 const float DEFAULT_MAX_POS_Z =  0.75f;
+const bool DEFAULT_STEAMVR_POS_FROM_FREEPIE = false;
 
 const char *FOCAL_DIST_VRPARAM = "focal_dist";
 const char *STEREOSCOPY_STRENGTH_VRPARAM = "IPD";
@@ -257,6 +118,8 @@ const char *MIN_POSITIONAL_Y_VRPARAM = "min_positional_track_y";
 const char *MAX_POSITIONAL_Y_VRPARAM = "max_positional_track_y";
 const char *MIN_POSITIONAL_Z_VRPARAM = "min_positional_track_z";
 const char *MAX_POSITIONAL_Z_VRPARAM = "max_positional_track_z";
+const char *STEAMVR_POS_FROM_FREEPIE_VRPARAM = "steamvr_pos_from_freepie";
+
 // Dynamic Cockpit vrparams
 /*
 dc_target_comp_uv_coords = 0.275, 0.28, -0.01, -0.03
@@ -388,6 +251,7 @@ float g_fBrightness = DEFAULT_BRIGHTNESS;
 float g_fGUIElemsScale = DEFAULT_GLOBAL_SCALE; // Used to reduce the size of all the GUI elements
 int g_iFreePIESlot = DEFAULT_FREEPIE_SLOT;
 bool g_bFixedGUI = DEFAULT_FIXED_GUI_STATE;
+bool g_bSteamVRPosFromFreePIE = DEFAULT_STEAMVR_POS_FROM_FREEPIE;
 bool g_bDirectSBSInitialized = false;
 
 VertexShaderMatrixCB g_VSMatrixCB;
@@ -834,6 +698,10 @@ void SaveVRParams() {
 	fprintf(file, "; The following setting only applies when using FreePIE for 6dof:\n");
 	fprintf(file, "%s = %d\n", FREEPIE_SLOT_VRPARAM, g_iFreePIESlot);
 
+	// STEAMVR_POS_FROM_FREEPIE_VRPARAM is not saved because it's kind of a hack -- I'm only
+	// using it because the PSMoveServiceSteamVRBridge is a bit tricky to setup and why would
+	// I do that when my current FreePIEBridgeLite is working properly -- and faster.
+
 	fclose(file);
 	log_debug("[DBG] vrparams.cfg saved");
 }
@@ -1011,6 +879,9 @@ void LoadVRParams() {
 			}
 			else if (_stricmp(param, MAX_POSITIONAL_Z_VRPARAM) == 0) {
 				g_fMaxPositionZ = value;
+			}
+			else if (_stricmp(param, STEAMVR_POS_FROM_FREEPIE_VRPARAM) == 0) {
+				g_bSteamVRPosFromFreePIE = (bool)value;
 			}
 
 			// Dynamic Cockpit params
@@ -1460,6 +1331,10 @@ bool InitSteamVR()
 	ShowMatrix4(g_EyeMatrixRightInv, "g_EyeMatrixRightInv");
 	ShowMatrix4(g_projRight, "g_projRight");
 	
+	// Initialize FreePIE if we're going to use it to read the position.
+	if (g_bSteamVRPosFromFreePIE)
+		InitFreePIE();
+
 	// Dump information about the view matrices
 	if (file_error == 0) {
 		Matrix4 eye, test;
@@ -1544,6 +1419,13 @@ out:
 }
 
 void ShutDownSteamVR() {
+	// If the user sets g_bSteamVRPosFromFreePIE when XWA is starting, they may
+	// also reload the vrparams and then unset this flag. In that case, we won't
+	// shut FreePIE down. Well, this is a private hack, so I'm not going to care
+	// about that case.
+	if (g_bSteamVRPosFromFreePIE)
+		ShutdownFreePIE();
+
 	// We can't shut down SteamVR twice, we either shut it down here or in the cockpit look hook.
 	// It looks like the right order is to shut SteamVR down in the cockpit look hook
 	return;

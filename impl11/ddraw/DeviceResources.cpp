@@ -47,8 +47,8 @@ extern VertexShaderMatrixCB g_VSMatrixCB;
 
 extern DynCockpitBoxes g_DynCockpitBoxes;
 
-extern D3DTLVERTEX g_HUDVertices[6]; // 6 vertices
-extern float g_fHUDDepth;
+//extern D3DTLVERTEX g_HUDVertices[6]; // 6 vertices
+//extern float g_fHUDDepth;
 
 // SteamVR
 #include <headers/openvr.h>
@@ -389,6 +389,7 @@ HRESULT DeviceResources::Initialize()
 	return hr;
 }
 
+/*
 void BuildHUDVertexBuffer(UINT width, UINT height) {
 	D3DCOLOR color = 0xFFFFFF;
 	g_HUDVertices[0].sx = 0;
@@ -433,6 +434,7 @@ void BuildHUDVertexBuffer(UINT width, UINT height) {
 	g_HUDVertices[5].color = color;
 	g_HUDVertices[5].sz = g_fHUDDepth;
 }
+*/
 
 HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 {
@@ -779,7 +781,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		LoadNewCockpitTextures(this->_d3dDevice);
 
 		// Build the HUD vertex buffer
-		BuildHUDVertexBuffer(_backbufferWidth, _backbufferHeight);
+		//BuildHUDVertexBuffer(_backbufferWidth, _backbufferHeight);
 	}
 
 	if (SUCCEEDED(hr))

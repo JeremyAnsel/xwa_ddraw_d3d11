@@ -188,25 +188,25 @@ float BLOOM_TONEMAP_COMPRESSION = 4.0;
 static const int BloomTex7_LowestMip = int(log(BUFFER_HEIGHT/128) / log(2)) + 1;
 //static const int BloomTex7_LowestMip = CONST_LOG2(BUFFER_HEIGHT/128); // <-- This was the original value
 
-texture2D MXBLOOM_BloomTexSource 	{ Width = BUFFER_WIDTH/2; 	Height = BUFFER_HEIGHT/2;    Format = RGBA16F;};
-texture2D MXBLOOM_BloomTex1 		{ Width = BUFFER_WIDTH/2; 	Height = BUFFER_HEIGHT/2;    Format = RGBA16F;};
+texture2D MXBLOOM_BloomTexSource		{ Width = BUFFER_WIDTH/2; 	Height = BUFFER_HEIGHT/2;    Format = RGBA16F;};
+texture2D MXBLOOM_BloomTex1 			{ Width = BUFFER_WIDTH/2; 	Height = BUFFER_HEIGHT/2;    Format = RGBA16F;};
 texture2D MXBLOOM_BloomTex2			{ Width = BUFFER_WIDTH/4;  	Height = BUFFER_HEIGHT/4;    Format = RGBA16F;};
-texture2D MXBLOOM_BloomTex3 		{ Width = BUFFER_WIDTH/8;  	Height = BUFFER_HEIGHT/8;    Format = RGBA16F;};
-texture2D MXBLOOM_BloomTex4 		{ Width = BUFFER_WIDTH/16;  Height = BUFFER_HEIGHT/16;   Format = RGBA16F;};
-texture2D MXBLOOM_BloomTex5 		{ Width = BUFFER_WIDTH/32;  Height = BUFFER_HEIGHT/32;   Format = RGBA16F;};
-texture2D MXBLOOM_BloomTex6 		{ Width = BUFFER_WIDTH/64;  Height = BUFFER_HEIGHT/64;   Format = RGBA16F;};
-texture2D MXBLOOM_BloomTex7 		{ Width = BUFFER_WIDTH/128; Height = BUFFER_HEIGHT/128;  Format = RGBA16F; MipLevels = BloomTex7_LowestMip;};
+texture2D MXBLOOM_BloomTex3 			{ Width = BUFFER_WIDTH/8;  	Height = BUFFER_HEIGHT/8;    Format = RGBA16F;};
+texture2D MXBLOOM_BloomTex4 			{ Width = BUFFER_WIDTH/16;  Height = BUFFER_HEIGHT/16;   Format = RGBA16F;};
+texture2D MXBLOOM_BloomTex5 			{ Width = BUFFER_WIDTH/32;  Height = BUFFER_HEIGHT/32;   Format = RGBA16F;};
+texture2D MXBLOOM_BloomTex6 			{ Width = BUFFER_WIDTH/64;  Height = BUFFER_HEIGHT/64;   Format = RGBA16F;};
+texture2D MXBLOOM_BloomTex7 			{ Width = BUFFER_WIDTH/128; Height = BUFFER_HEIGHT/128;  Format = RGBA16F; MipLevels = BloomTex7_LowestMip;};
 texture2D MXBLOOM_BloomTexAdapt		{ Format = R16F; };
 
 sampler2D sMXBLOOM_BloomTexSource	{ Texture = MXBLOOM_BloomTexSource;	};
-sampler2D sMXBLOOM_BloomTex1		{ Texture = MXBLOOM_BloomTex1;		};
-sampler2D sMXBLOOM_BloomTex2		{ Texture = MXBLOOM_BloomTex2;		};
-sampler2D sMXBLOOM_BloomTex3		{ Texture = MXBLOOM_BloomTex3;		};
-sampler2D sMXBLOOM_BloomTex4		{ Texture = MXBLOOM_BloomTex4;		};
-sampler2D sMXBLOOM_BloomTex5		{ Texture = MXBLOOM_BloomTex5;		};
-sampler2D sMXBLOOM_BloomTex6		{ Texture = MXBLOOM_BloomTex6;		};
-sampler2D sMXBLOOM_BloomTex7		{ Texture = MXBLOOM_BloomTex7;		};
-sampler2D sMXBLOOM_BloomTexAdapt	{ Texture = MXBLOOM_BloomTexAdapt;	};
+sampler2D sMXBLOOM_BloomTex1			{ Texture = MXBLOOM_BloomTex1;		};
+sampler2D sMXBLOOM_BloomTex2			{ Texture = MXBLOOM_BloomTex2;		};
+sampler2D sMXBLOOM_BloomTex3			{ Texture = MXBLOOM_BloomTex3;		};
+sampler2D sMXBLOOM_BloomTex4			{ Texture = MXBLOOM_BloomTex4;		};
+sampler2D sMXBLOOM_BloomTex5			{ Texture = MXBLOOM_BloomTex5;		};
+sampler2D sMXBLOOM_BloomTex6			{ Texture = MXBLOOM_BloomTex6;		};
+sampler2D sMXBLOOM_BloomTex7			{ Texture = MXBLOOM_BloomTex7;		};
+sampler2D sMXBLOOM_BloomTexAdapt		{ Texture = MXBLOOM_BloomTexAdapt;	};
 
 /*=============================================================================
 	Functions
@@ -359,23 +359,29 @@ void PS_AdaptStoreLast(in float4 pos : SV_Position, in float2 uv : TEXCOORD0, ou
 
 void PS_Upsample1(in float4 pos : SV_Position, in float2 uv : TEXCOORD0, out float4 bloom : SV_Target0)
 {	
-	bloom = float4(Upsample(sMXBLOOM_BloomTex7, ldexp(qUINT::PIXEL_SIZE, 7.0), uv) * BLOOM_LAYER_MULT_7, BLOOM_LAYER_MULT_6);}
+	bloom = float4(Upsample(sMXBLOOM_BloomTex7, ldexp(qUINT::PIXEL_SIZE, 7.0), uv) * BLOOM_LAYER_MULT_7, BLOOM_LAYER_MULT_6);
+}
+
 void PS_Upsample2(in float4 pos : SV_Position, in float2 uv : TEXCOORD0, out float4 bloom : SV_Target0)
 {	
 	bloom = float4(Upsample(sMXBLOOM_BloomTex6, ldexp(qUINT::PIXEL_SIZE, 6.0), uv), BLOOM_LAYER_MULT_5);
 }
+
 void PS_Upsample3(in float4 pos : SV_Position, in float2 uv : TEXCOORD0, out float4 bloom : SV_Target0)
 {	
 	bloom = float4(Upsample(sMXBLOOM_BloomTex5, ldexp(qUINT::PIXEL_SIZE, 5.0), uv), BLOOM_LAYER_MULT_4);
 }
+
 void PS_Upsample4(in float4 pos : SV_Position, in float2 uv : TEXCOORD0, out float4 bloom : SV_Target0)
 {	
 	bloom = float4(Upsample(sMXBLOOM_BloomTex4, ldexp(qUINT::PIXEL_SIZE, 4.0), uv), BLOOM_LAYER_MULT_3);
 }
+
 void PS_Upsample5(in float4 pos : SV_Position, in float2 uv : TEXCOORD0, out float4 bloom : SV_Target0)
 {	
 	bloom = float4(Upsample(sMXBLOOM_BloomTex3, ldexp(qUINT::PIXEL_SIZE, 3.0), uv), BLOOM_LAYER_MULT_2);
 }
+
 void PS_Upsample6(in float4 pos : SV_Position, in float2 uv : TEXCOORD0, out float4 bloom : SV_Target0)
 {	
 	bloom = float4(Upsample(sMXBLOOM_BloomTex2, ldexp(qUINT::PIXEL_SIZE, 2.0), uv), BLOOM_LAYER_MULT_1);

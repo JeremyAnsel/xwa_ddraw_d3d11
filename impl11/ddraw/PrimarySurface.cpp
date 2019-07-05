@@ -25,12 +25,12 @@ extern float g_fMinPositionX, g_fMaxPositionX;
 extern float g_fMinPositionY, g_fMaxPositionY;
 extern float g_fMinPositionZ, g_fMaxPositionZ;
 extern Vector3 g_headCenter;
-extern bool g_bResetHeadCenter;
+extern bool g_bResetHeadCenter, g_bSteamVRPosFromFreePIE;
 extern vr::IVRSystem *g_pHMD;
 extern int g_iFreePIESlot;
 
 // The following is used when the Dynamic Cockpit is enabled to render the HUD separately
-D3DTLVERTEX g_HUDVertices[6] = { 0 };
+//D3DTLVERTEX g_HUDVertices[6] = { 0 };
 
 /*
  * Convert a rotation matrix to a normalized quaternion.
@@ -142,9 +142,6 @@ void GetSteamVRPositionalData(float *yaw, float *pitch, float *roll, float *x, f
 		*z = poseMatrix.m[2][3];
 		*rotMatrix = HmdMatrix34toMatrix3(poseMatrix);
 	}
-	//else {
-	//	log_debug("[DBG] Could not get positional data");
-	//}
 }
 
 struct MainVertex
@@ -1430,15 +1427,10 @@ HRESULT PrimarySurface::Flip(
 			g_bScaleableHUDStarted = false;
 
 			if (g_bDynCockpitEnabled) {
-				//static bool DumpedToFile = false;
 				this->_deviceResources->_d3dDeviceContext->ResolveSubresource(_deviceResources->_offscreenBufferAsInputDynCockpit,
 					0, _deviceResources->_offscreenBufferDynCockpit, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
 				//this->_deviceResources->_d3dDeviceContext->ClearRenderTargetView(this->_deviceResources->_renderTargetViewDynCockpit, 
 				//	this->_deviceResources->clearColor);
-				//if (!DumpedToFile) {
-				//	capture(0, _deviceResources->_offscreenBufferAsInputDynCockpit.Get(), L"c://temp//DynCockpit.png");
-				//	DumpedToFile = true;
-				//}
 			}
 
 			// Perform the lean left/right etc animations
@@ -1456,10 +1448,21 @@ HRESULT PrimarySurface::Flip(
 				Vector3 headPosFromKeyboard(g_HeadPos.x, g_HeadPos.y, g_HeadPos.z);
 
 				GetSteamVRPositionalData(&yaw, &pitch, &roll, &x, &y, &z, &rotMatrix);
-				yaw *= RAD_TO_DEG; // g_fYawMultiplier
+				yaw   *= RAD_TO_DEG; // g_fYawMultiplier
 				pitch *= RAD_TO_DEG; // g_fPitchMultiplier
-				roll *= RAD_TO_DEG * g_fRollMultiplier;
+				roll  *= RAD_TO_DEG * g_fRollMultiplier;
 
+				// HACK ALERT: I'm reading the positional tracking data from FreePIE when
+				// running SteamVR because setting up the PSMoveServiceSteamVRBridge is kind
+				// of tricky... and I'm not going to bother right now since PSMoveService
+				// already works very well for me.
+				// Read the positional data from FreePIE if the right flag is set
+				if (g_bSteamVRPosFromFreePIE) {
+					ReadFreePIE(g_iFreePIESlot);
+					x = g_FreePIEData.x;
+					y = g_FreePIEData.y;
+					z = g_FreePIEData.z;
+				}
 				pos.set(x, y, z);
 				headPos = -pos;
 
