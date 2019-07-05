@@ -1007,8 +1007,9 @@ void PrimarySurface::resizeForSteamVR(int iteration, bool is_2D) {
 	float scale = (scale_x + scale_y);
 	if (!is_2D)
 		scale *= 0.5f;
-		//scale *= 0.75f; // HACK: Use 0.5f when not using Trinus SteamVR 
-	//float newWidth = g_steamVRWidth * scale * 0.5f; // HACK: This 0.5f is only to compensate when running under Trinus SteamVR
+		//scale *= 0.75f; // HACK: Use this for Trinus PSVR
+	
+	//float newWidth = g_steamVRWidth * scale * 0.5f; // HACK: Use this for Trinus PSVR
 	float newWidth = g_steamVRWidth * scale; // Use this when not running Trinus
 	float newHeight = g_steamVRHeight * scale;
 
