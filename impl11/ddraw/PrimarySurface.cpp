@@ -30,7 +30,7 @@ extern vr::IVRSystem *g_pHMD;
 extern int g_iFreePIESlot;
 
 // The following is used when the Dynamic Cockpit is enabled to render the HUD separately
-D3DTLVERTEX g_HUDVertices[6];
+D3DTLVERTEX g_HUDVertices[6] = { 0 };
 
 /*
  * Convert a rotation matrix to a normalized quaternion.

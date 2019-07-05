@@ -258,7 +258,13 @@ const char *MAX_POSITIONAL_Y_VRPARAM = "max_positional_track_y";
 const char *MIN_POSITIONAL_Z_VRPARAM = "min_positional_track_z";
 const char *MAX_POSITIONAL_Z_VRPARAM = "max_positional_track_z";
 // Dynamic Cockpit vrparams
-const char *DC_LEFT_RADAR_UV_COORDS_VRPARAM = "dc_left_radar_uv_coords";
+/*
+dc_target_comp_uv_coords = 0.275, 0.28, -0.01, -0.03
+dc_left_radar_uv_coords  = 0.39, 0.49, -0.045, -0.052
+dc_right_radar_uv_coords = 0.39, 0.49, -0.213, -0.052
+*/
+const char *DC_TARGET_COMP_UV_COORDS_VRPARAM = "dc_target_comp_uv_coords";
+const char *DC_LEFT_RADAR_UV_COORDS_VRPARAM  = "dc_left_radar_uv_coords";
 const char *DC_RIGHT_RADAR_UV_COORDS_VRPARAM = "dc_right_radar_uv_coords";
 
 /*
@@ -340,6 +346,7 @@ typedef struct uv_coords_struct {
 	float uv_scale[2];
 	float uv_offset[2];
 } uv_coords;
+uv_coords g_DynCockpitTargetCompUVCoords = { 0.325f, 0.325f, -0.01f, -0.04f };
 uv_coords g_DynCockpitLeftRadarUVCoords = { 0.5f, 0.5f, -0.06f, -0.05f };
 uv_coords g_DynCockpitRightRadarUVCoords = { 0.5f, 0.5f, -0.275f, -0.05f };
 
@@ -438,7 +445,7 @@ float centeredSigmoid(float x) {
 
 HeadPos g_HeadPosAnim = { 0 }, g_HeadPos = { 0 };
 bool g_bLeftKeyDown, g_bRightKeyDown, g_bUpKeyDown, g_bDownKeyDown, g_bUpKeyDownShift, g_bDownKeyDownShift;
-const float ANIM_INCR = 0.1f, MAX_LEAN_X = 0.75f, MAX_LEAN_Y = 0.75f, MAX_LEAN_Z = 1.1f;
+const float ANIM_INCR = 0.1f, MAX_LEAN_X = 1.5f, MAX_LEAN_Y = 1.5f, MAX_LEAN_Z = 1.5f;
 // The MAX_LEAN values will be clamped by the limits from vrparams.cfg
 
 void animTickX() {
@@ -1007,6 +1014,25 @@ void LoadVRParams() {
 			}
 
 			// Dynamic Cockpit params
+			else if (_stricmp(param, DC_TARGET_COMP_UV_COORDS_VRPARAM) == 0) {
+				float sx = 0.325f, sy = 0.325f, x = 0.0f, y = 0.0f;
+				int res = 0;
+				char *c = NULL;
+				c = strchr(buf, '=');
+				if (c != NULL) {
+					c += 1;
+					try {
+						res = sscanf_s(c, "%f, %f, %f, %f", &sx, &sy, &x, &y);
+						g_DynCockpitTargetCompUVCoords.uv_scale[0] = sx;
+						g_DynCockpitTargetCompUVCoords.uv_scale[1] = sy;
+						g_DynCockpitTargetCompUVCoords.uv_offset[0] = x;
+						g_DynCockpitTargetCompUVCoords.uv_offset[1] = y;
+					}
+					catch (...) {
+						log_debug("[DBG] Could not read uv coords for the targeting computer");
+					}
+				}
+			}
 			else if (_stricmp(param, DC_LEFT_RADAR_UV_COORDS_VRPARAM) == 0) {
 				float sx = 0.5f, sy = 0.5f, x = 0.0f, y = 0.0f;
 				int res = 0;
@@ -1017,39 +1043,39 @@ void LoadVRParams() {
 					//log_debug("[DBG] Reading %s from [%s]", param, c);
 					try {
 						res = sscanf_s(c, "%f, %f, %f, %f", &sx, &sy, &x, &y);
+						g_DynCockpitLeftRadarUVCoords.uv_scale[0] = sx;
+						g_DynCockpitLeftRadarUVCoords.uv_scale[1] = sy;
+						g_DynCockpitLeftRadarUVCoords.uv_offset[0] = x;
+						g_DynCockpitLeftRadarUVCoords.uv_offset[1] = y;
 					}
 					catch (...) {
 						log_debug("[DBG] Could not read uv coords for the left radar");
 					}
 					//log_debug("[DBG] Left Radar (%d) uvcoords: %0.3f, %0.3f, %0.3f, %0.3f",
 					//	res, sx, sy, x, y);
-					g_DynCockpitLeftRadarUVCoords.uv_scale[0] = sx;
-					g_DynCockpitLeftRadarUVCoords.uv_scale[1] = sy;
-					g_DynCockpitLeftRadarUVCoords.uv_offset[0] = x;
-					g_DynCockpitLeftRadarUVCoords.uv_offset[1] = y;
 				}
 			}
 			else if (_stricmp(param, DC_RIGHT_RADAR_UV_COORDS_VRPARAM) == 0) {
-			float sx = 0.5f, sy = 0.5f, x = 0.0f, y = 0.0f;
-			int res = 0;
-			char *c = NULL;
-			c = strchr(buf, '=');
-			if (c != NULL) {
-				c += 1;
-				//log_debug("[DBG] Reading %s from [%s]", param, c);
-				try {
-					res = sscanf_s(c, "%f, %f, %f, %f", &sx, &sy, &x, &y);
+				float sx = 0.5f, sy = 0.5f, x = 0.0f, y = 0.0f;
+				int res = 0;
+				char *c = NULL;
+				c = strchr(buf, '=');
+				if (c != NULL) {
+					c += 1;
+					//log_debug("[DBG] Reading %s from [%s]", param, c);
+					try {
+						res = sscanf_s(c, "%f, %f, %f, %f", &sx, &sy, &x, &y);
+						g_DynCockpitRightRadarUVCoords.uv_scale[0] = sx;
+						g_DynCockpitRightRadarUVCoords.uv_scale[1] = sy;
+						g_DynCockpitRightRadarUVCoords.uv_offset[0] = x;
+						g_DynCockpitRightRadarUVCoords.uv_offset[1] = y;
+					}
+					catch (...) {
+						log_debug("[DBG] Could not read uv coords for the left radar");
+					}
+					//log_debug("[DBG] Right Radar (%d) uvcoords: %0.3f, %0.3f, %0.3f, %0.3f",
+					//	res, sx, sy, x, y);	
 				}
-				catch (...) {
-					log_debug("[DBG] Could not read uv coords for the left radar");
-				}
-				//log_debug("[DBG] Right Radar (%d) uvcoords: %0.3f, %0.3f, %0.3f, %0.3f",
-				//	res, sx, sy, x, y);
-				g_DynCockpitRightRadarUVCoords.uv_scale[0] = sx;
-				g_DynCockpitRightRadarUVCoords.uv_scale[1] = sy;
-				g_DynCockpitRightRadarUVCoords.uv_offset[0] = x;
-				g_DynCockpitRightRadarUVCoords.uv_offset[1] = y;
-			}
 			}
 			param_read_count++;
 		}
@@ -2918,15 +2944,14 @@ HRESULT Direct3DDevice::Execute(
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitTargetComp &&
 					g_DynCockpitBoxes.TargetComp && g_NewDynCockpitTargetCompCover != NULL) {
 					float bgColor[4] = { 0.07f, 0.07f, 0.2f, 0.0f };
-					float black[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 					bModifiedShaders = true;
-					g_PSCBuffer.bShadeless       =  1.0f; // Render the targeted object without the diffuse component (shadeless)
-					g_PSCBuffer.uv_scale[0]      =  0.325f;
-					g_PSCBuffer.uv_scale[1]      =  0.325f;
-					g_PSCBuffer.uv_offset[0]     = -0.01f; // Move the texture a bit to the right and down.
-					g_PSCBuffer.uv_offset[1]     = -0.04f;
-					g_PSCBuffer.bUseCoverTexture =  1.0f;
-					g_PSCBuffer.bUseDynCockpit   =  1.0f;
+					g_PSCBuffer.bShadeless       = 1.0f; // Render the targeted object without the diffuse component (shadeless)
+					g_PSCBuffer.uv_scale[0]      = g_DynCockpitTargetCompUVCoords.uv_scale[0];
+					g_PSCBuffer.uv_scale[1]      = g_DynCockpitTargetCompUVCoords.uv_scale[1];
+					g_PSCBuffer.uv_offset[0]     = g_DynCockpitTargetCompUVCoords.uv_offset[0];
+					g_PSCBuffer.uv_offset[1]     = g_DynCockpitTargetCompUVCoords.uv_offset[1];
+					g_PSCBuffer.bUseCoverTexture = 1.0f;
+					g_PSCBuffer.bUseDynCockpit   = 1.0f;
 					memcpy(g_PSCBuffer.bgColor, bgColor, 4 * sizeof(float));
 
 					D3D11_BOX box;
