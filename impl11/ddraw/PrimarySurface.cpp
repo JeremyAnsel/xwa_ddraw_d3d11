@@ -25,7 +25,7 @@ extern float g_fMinPositionX, g_fMaxPositionX;
 extern float g_fMinPositionY, g_fMaxPositionY;
 extern float g_fMinPositionZ, g_fMaxPositionZ;
 extern Vector3 g_headCenter;
-extern bool g_bResetHeadCenter, g_bSteamVRPosFromFreePIE, g_bReshadeEnabled;
+extern bool g_bResetHeadCenter, g_bSteamVRPosFromFreePIE, g_bReshadeEnabled, g_bBloomEnabled;
 extern vr::IVRSystem *g_pHMD;
 extern int g_iFreePIESlot;
 
@@ -724,12 +724,6 @@ void PrimarySurface::barrelEffect3D() {
 	context->ResolveSubresource(resources->_offscreenBufferAsInput, 0, resources->_offscreenBuffer,
 		0, DXGI_FORMAT_B8G8R8A8_UNORM);
 
-	static bool bDump = false;
-	if (!bDump && g_iPresentCounter == 30) {
-		capture(0, resources->_offscreenBuffer, L"C:\\Temp\\OffscreenFromBarrel.jpg");
-		bDump = true;
-	}
-
 	resources->InitVSConstantBuffer2D(resources->_mainShadersConstantBuffer.GetAddressOf(), 0.0f, 1.0f, 1.0f, 1.0f, 0.0f); // Do not use 3D projection matrices
 	resources->InitVertexShader(resources->_mainVertexShader);
 	resources->InitPixelShader(resources->_barrelPixelShader);
@@ -1095,6 +1089,114 @@ void PrimarySurface::resizeForSteamVR(int iteration, bool is_2D) {
 		resources->_depthStencilViewL.Get());
 }
 
+
+/*
+ * Applies the bloom effect on the 3D window.
+ * Input: an already-resolved _offscreenBufferAsInputReshade
+ * Renders to _offscreenBufferPost
+ */
+void PrimarySurface::bloom() {
+	auto& resources = this->_deviceResources;
+	auto& device = resources->_d3dDevice;
+	auto& context = resources->_d3dDeviceContext;
+
+	// Create the VertexBuffer if necessary
+	if (g_BarrelEffectVertBuffer == NULL) {
+		D3D11_BUFFER_DESC vertexBufferDesc;
+		ZeroMemory(&vertexBufferDesc, sizeof(vertexBufferDesc));
+
+		vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+		vertexBufferDesc.ByteWidth = sizeof(MainVertex) * ARRAYSIZE(g_BarrelEffectVertices);
+		vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		vertexBufferDesc.CPUAccessFlags = 0;
+		vertexBufferDesc.MiscFlags = 0;
+
+		D3D11_SUBRESOURCE_DATA vertexBufferData;
+
+		ZeroMemory(&vertexBufferData, sizeof(vertexBufferData));
+		vertexBufferData.pSysMem = g_BarrelEffectVertices;
+		device->CreateBuffer(&vertexBufferDesc, &vertexBufferData, &g_BarrelEffectVertBuffer);
+	}
+	// Set the vertex buffer... we probably need another vertex buffer here
+	UINT stride = sizeof(MainVertex);
+	UINT offset = 0;
+	resources->InitVertexBuffer(&g_BarrelEffectVertBuffer, &stride, &offset);
+
+	// Set Primitive Topology
+	// Opportunity for optimization? Make all draw calls use the same topology?
+	resources->InitTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	resources->InitInputLayout(resources->_mainInputLayout);
+
+	// Temporarily disable ZWrite: we won't need it for the barrel effect
+	D3D11_DEPTH_STENCIL_DESC desc;
+	ComPtr<ID3D11DepthStencilState> depthState;
+	desc.DepthEnable = FALSE;
+	desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+	desc.DepthFunc = D3D11_COMPARISON_ALWAYS;
+	desc.StencilEnable = FALSE;
+	resources->InitDepthStencilState(depthState, &desc);
+
+	// Create a new viewport to render the offscreen buffer as a texture
+	D3D11_VIEWPORT viewport{};
+	float screen_res_x = (float)resources->_backbufferWidth / 2.0f;
+	float screen_res_y = (float)resources->_backbufferHeight / 2.0f;
+	float bgColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+	viewport.TopLeftX = (float)0;
+	viewport.TopLeftY = (float)0;
+	viewport.Width = (float)screen_res_x;
+	viewport.Height = (float)screen_res_y;
+	viewport.MaxDepth = D3D11_MAX_DEPTH;
+	viewport.MinDepth = D3D11_MIN_DEPTH;
+
+	// The input texture must be resolved already
+
+	resources->InitVertexShader(resources->_mainVertexShader);
+	resources->InitPixelShader(resources->_bloomPrepassPS);
+
+	context->PSSetShaderResources(0, 1, resources->_offscreenAsInputReshadeSRV.GetAddressOf());
+	// Set the constant buffers
+	resources->InitVSConstantBuffer2D(resources->_mainShadersConstantBuffer.GetAddressOf(), 0.0f, 1.0f, 1.0f, 1.0f, 0.0f); // Do not use 3D projection matrices
+	//resources->InitPSConstantBufferBarrel(resources->_barrelConstantBuffer.GetAddressOf(), g_fLensK1, g_fLensK2, g_fLensK3);
+
+	// Clear the depth stencil
+	// Maybe I should be using resources->clearDepth instead of 1.0f:
+	context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	// Clear the render target
+	context->ClearRenderTargetView(resources->_renderTargetViewReshade, bgColor);
+	context->OMSetRenderTargets(1, resources->_renderTargetViewReshade.GetAddressOf(),
+		this->_deviceResources->_depthStencilViewL.Get());
+	resources->InitViewport(&viewport);
+	context->IASetInputLayout(resources->_mainInputLayout);
+	context->Draw(6, 0);
+
+#ifdef DBG_VR
+	if (g_bCapture2DOffscreenBuffer) {
+		static int frame = 0;
+		wchar_t filename[120];
+
+		swprintf_s(filename, 120, L"c:\\temp\\offscreenBuf-%d.jpg", frame);
+		capture(0, this->_deviceResources->_offscreenBuffer, filename);
+
+		swprintf_s(filename, 120, L"c:\\temp\\offscreenBuf2-%d.jpg", frame);
+		capture(0, this->_deviceResources->_offscreenBuffer2, filename);
+
+		swprintf_s(filename, 120, L"c:\\temp\\offscreenBuf3-%d.jpg", frame);
+		capture(0, this->_deviceResources->_offscreenBuffer3, filename);
+
+		frame++;
+		if (frame >= 5)
+			g_bCapture2DOffscreenBuffer = false;
+	}
+#endif
+
+	// Restore previous rendertarget, etc
+	resources->InitInputLayout(resources->_inputLayout);
+	context->OMSetRenderTargets(1, this->_deviceResources->_renderTargetView.GetAddressOf(),
+		this->_deviceResources->_depthStencilViewL.Get());
+}
+
+
 /* Convenience function to call WaitGetPoses() */
 inline void WaitGetPoses() {
 	// We need to call WaitGetPoses so that SteamVR gets the focus, otherwise we'll just get
@@ -1395,14 +1497,16 @@ HRESULT PrimarySurface::Flip(
 
 			// Re-shade the contents of _offscreenBufferAsInputReshade
 			if (g_bReshadeEnabled) {
+				if (g_bBloomEnabled) {
+					bloom();
+				}
+
 				static bool bDump = false;
 				if (!bDump && g_iPresentCounter == 30) {
 					// _offscreenBufferAsInputReshade is resolved during Execute() -- right before any GUI is rendered
-					capture(0, resources->_offscreenBufferAsInputReshade, L"C:\\Temp\\ReshadeInput.jpg");
-					log_debug("[DBG] offscreenBuffer dumped");
+					capture(0, resources->_offscreenBufferPost, L"C:\\Temp\\bloomPrePass.jpg");
 					bDump = true;
 				}
-				
 			}
 
 			// In the original code, the offscreenBuffer is resolved to the backBuffer

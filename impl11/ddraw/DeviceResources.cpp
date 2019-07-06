@@ -495,6 +495,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 	if (g_bReshadeEnabled) {
 		this->_offscreenBufferAsInputReshade.Release();
 		this->_offscreenAsInputReshadeSRV.Release();
+		this->_renderTargetViewReshade.Release();
 	}
 
 	this->_backBuffer.Release();
@@ -849,6 +850,12 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			// This RTV writes to a non-MSAA texture
 			hr = this->_d3dDevice->CreateRenderTargetView(this->_offscreenBufferAsInputDynCockpit, &renderTargetViewDescNoMSAA,
 				&this->_renderTargetViewDynCockpitAsInput);
+			if (FAILED(hr)) goto out;
+		}
+
+		if (g_bReshadeEnabled) {
+			step = "_renderTargetViewReshade";
+			hr = this->_d3dDevice->CreateRenderTargetView(this->_offscreenBufferPost, &renderTargetViewDesc, &this->_renderTargetViewReshade);
 			if (FAILED(hr)) goto out;
 		}
 	}

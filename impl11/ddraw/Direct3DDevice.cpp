@@ -2668,16 +2668,6 @@ HRESULT Direct3DDevice::Execute(
 					// This is where we can capture the current frame for post-processing effects
 					context->ResolveSubresource(resources->_offscreenBufferAsInputReshade, 0,
 						resources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
-
-					/*
-					static bool bDump = false;
-					if (!bDump) {
-						log_debug("[DBG] Dumping ReshadeInput");
-						HRESULT hr = DirectX::SaveWICTextureToFile(context.Get(), resources->_offscreenBuffer.Get(),
-							GUID_ContainerFormatJpeg, L"c://temp//ReshadeInput.jpg");
-						bDump = true;
-					}
-					*/
 				}
 
 				if (!g_bPrevIsScaleableGUIElem && g_bIsScaleableGUIElem && !g_bScaleableHUDStarted) {
