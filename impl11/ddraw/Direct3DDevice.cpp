@@ -76,6 +76,8 @@ const float DEFAULT_MAX_POS_Y =  0.5f;
 const float DEFAULT_MIN_POS_Z = -0.15f;
 const float DEFAULT_MAX_POS_Z =  0.75f;
 const bool DEFAULT_STEAMVR_POS_FROM_FREEPIE = false;
+const bool DEFAULT_RESHADE_ENABLED_STATE = false;
+const bool DEFAULT_BLOOM_ENABLED_STATE = false;
 
 const char *FOCAL_DIST_VRPARAM = "focal_dist";
 const char *STEREOSCOPY_STRENGTH_VRPARAM = "IPD";
@@ -119,6 +121,7 @@ const char *MAX_POSITIONAL_Y_VRPARAM = "max_positional_track_y";
 const char *MIN_POSITIONAL_Z_VRPARAM = "min_positional_track_z";
 const char *MAX_POSITIONAL_Z_VRPARAM = "max_positional_track_z";
 const char *STEAMVR_POS_FROM_FREEPIE_VRPARAM = "steamvr_pos_from_freepie";
+const char *BLOOM_ENABLED_VRPARAM = "bloom_effect_enabled";
 
 // Dynamic Cockpit vrparams
 /*
@@ -220,6 +223,8 @@ extern bool g_bRendering3D; // Used to distinguish between 2D (Concourse/Menus) 
 bool g_bCockpitPZHackEnabled = true;
 bool g_bOverrideAspectRatio = false;
 bool g_bEnableVR = true; // Enable/disable VR mode.
+bool g_bReshadeEnabled = DEFAULT_RESHADE_ENABLED_STATE;
+bool g_bBloomEnabled = DEFAULT_BLOOM_ENABLED_STATE;
 
 bool g_bDumpSpecificTex = false;
 int g_iDumpSpecificTexIdx = 0;
@@ -567,6 +572,9 @@ void ResetVRParams() {
 	// Recompute the eye and projection matrices
 	if (!g_bUseSteamVR)
 		InitDirectSBS();
+
+	g_bReshadeEnabled = DEFAULT_RESHADE_ENABLED_STATE;
+	g_bBloomEnabled = DEFAULT_BLOOM_ENABLED_STATE;
 	// Load CRCs
 	ReloadCRCs();
 }
@@ -701,6 +709,9 @@ void SaveVRParams() {
 	// STEAMVR_POS_FROM_FREEPIE_VRPARAM is not saved because it's kind of a hack -- I'm only
 	// using it because the PSMoveServiceSteamVRBridge is a bit tricky to setup and why would
 	// I do that when my current FreePIEBridgeLite is working properly -- and faster.
+
+	fprintf(file, "\n; Enable the Bloom effect\n");
+	fprintf(file, "%s = %d\n", BLOOM_ENABLED_VRPARAM, g_bBloomEnabled);
 
 	fclose(file);
 	log_debug("[DBG] vrparams.cfg saved");
@@ -948,6 +959,12 @@ void LoadVRParams() {
 					//	res, sx, sy, x, y);	
 				}
 			}
+			// ReShade state
+			else if (_stricmp(param, BLOOM_ENABLED_VRPARAM) == 0) {
+				bool state = (bool)value;
+				g_bReshadeEnabled |= state;
+				g_bBloomEnabled = state;
+			}
 			param_read_count++;
 		}
 	} // while ... read file
@@ -955,6 +972,8 @@ void LoadVRParams() {
 	g_fGUIElemsScale = g_bZoomOut ? g_fGlobalScaleZoomOut : g_fGlobalScale;
 	fclose(file);
 
+	log_debug("[DBG] Reshade Enabled: %d", g_bReshadeEnabled);
+	log_debug("[DBG] Bloom Enabled: %d", g_bBloomEnabled);
 next:
 	// Load CRCs
 	ReloadCRCs();
@@ -2644,12 +2663,22 @@ HRESULT Direct3DDevice::Execute(
 				// lastTextureSelected can be NULL. This happens when drawing the square
 				// brackets around the currently-selected object (and maybe other situations)
 
-				/*
-				if (!g_bPrevStartedGUI && g_bStartedGUI) {
+				if (g_bReshadeEnabled && !g_bPrevStartedGUI && g_bStartedGUI) {
 					// We're about to start rendering *ALL* the GUI: including the triangle pointer and text
 					// This is where we can capture the current frame for post-processing effects
+					context->ResolveSubresource(resources->_offscreenBufferAsInputReshade, 0,
+						resources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+
+					/*
+					static bool bDump = false;
+					if (!bDump) {
+						log_debug("[DBG] Dumping ReshadeInput");
+						HRESULT hr = DirectX::SaveWICTextureToFile(context.Get(), resources->_offscreenBuffer.Get(),
+							GUID_ContainerFormatJpeg, L"c://temp//ReshadeInput.jpg");
+						bDump = true;
+					}
+					*/
 				}
-				*/
 
 				if (!g_bPrevIsScaleableGUIElem && g_bIsScaleableGUIElem && !g_bScaleableHUDStarted) {
 					g_bScaleableHUDStarted = true;

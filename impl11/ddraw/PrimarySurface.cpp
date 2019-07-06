@@ -25,7 +25,7 @@ extern float g_fMinPositionX, g_fMaxPositionX;
 extern float g_fMinPositionY, g_fMaxPositionY;
 extern float g_fMinPositionZ, g_fMaxPositionZ;
 extern Vector3 g_headCenter;
-extern bool g_bResetHeadCenter, g_bSteamVRPosFromFreePIE;
+extern bool g_bResetHeadCenter, g_bSteamVRPosFromFreePIE, g_bReshadeEnabled;
 extern vr::IVRSystem *g_pHMD;
 extern int g_iFreePIESlot;
 
@@ -664,6 +664,8 @@ void PrimarySurface::barrelEffect2D(int iteration) {
 
 /*
  * Applies the barrel distortion effect on the 3D window.
+ * Resolves the offscreenBuffer into offscreenBufferAsInput
+ * Renders to _offscreenBufferPost
  */
 void PrimarySurface::barrelEffect3D() {
 	auto& resources = this->_deviceResources;
@@ -721,6 +723,12 @@ void PrimarySurface::barrelEffect3D() {
 
 	context->ResolveSubresource(resources->_offscreenBufferAsInput, 0, resources->_offscreenBuffer,
 		0, DXGI_FORMAT_B8G8R8A8_UNORM);
+
+	static bool bDump = false;
+	if (!bDump && g_iPresentCounter == 30) {
+		capture(0, resources->_offscreenBuffer, L"C:\\Temp\\OffscreenFromBarrel.jpg");
+		bDump = true;
+	}
 
 	resources->InitVSConstantBuffer2D(resources->_mainShadersConstantBuffer.GetAddressOf(), 0.0f, 1.0f, 1.0f, 1.0f, 0.0f); // Do not use 3D projection matrices
 	resources->InitVertexShader(resources->_mainVertexShader);
@@ -1379,10 +1387,23 @@ HRESULT PrimarySurface::Flip(
 	else
 	{
 		HRESULT hr;
+		auto &resources = this->_deviceResources;
 
 		if (this->_deviceResources->_swapChain)
 		{
 			hr = DD_OK;
+
+			// Re-shade the contents of _offscreenBufferAsInputReshade
+			if (g_bReshadeEnabled) {
+				static bool bDump = false;
+				if (!bDump && g_iPresentCounter == 30) {
+					// _offscreenBufferAsInputReshade is resolved during Execute() -- right before any GUI is rendered
+					capture(0, resources->_offscreenBufferAsInputReshade, L"C:\\Temp\\ReshadeInput.jpg");
+					log_debug("[DBG] offscreenBuffer dumped");
+					bDump = true;
+				}
+				
+			}
 
 			// In the original code, the offscreenBuffer is resolved to the backBuffer
 			//this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0, this->_deviceResources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);

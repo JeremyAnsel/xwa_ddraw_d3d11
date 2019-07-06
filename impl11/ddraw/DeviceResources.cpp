@@ -29,6 +29,7 @@
 #include "../Release/SBSVertexShader.h"
 #include "../Release/PixelShaderTexture.h"
 #include "../Release/PixelShaderSolid.h"
+#include "../Release/BloomPrePassPS.h"
 #endif
 
 #include <WICTextureLoader.h>
@@ -46,6 +47,8 @@ extern Matrix4 g_fullMatrixLeft, g_fullMatrixRight;
 extern VertexShaderMatrixCB g_VSMatrixCB;
 
 extern DynCockpitBoxes g_DynCockpitBoxes;
+
+extern bool g_bReshadeEnabled, g_bBloomEnabled;
 
 //extern D3DTLVERTEX g_HUDVertices[6]; // 6 vertices
 //extern float g_fHUDDepth;
@@ -489,6 +492,10 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		this->_dynCockpitAuxBuffer.Release();
 		this->_dynCockpitAuxSRV.Release();
 	}
+	if (g_bReshadeEnabled) {
+		this->_offscreenBufferAsInputReshade.Release();
+		this->_offscreenAsInputReshadeSRV.Release();
+	}
 
 	this->_backBuffer.Release();
 	this->_swapChain.Release();
@@ -696,6 +703,16 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			}
 		}
 
+		if (g_bReshadeEnabled) {
+			step = "_offscreenBufferAsInputReshade";
+			hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBufferAsInputReshade);
+			if (FAILED(hr)) {
+				log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
+				log_err_desc(step, hWnd, hr, desc);
+				goto out;
+			}
+		}
+
 		if (g_bDynCockpitEnabled) {
 			step = "_dynCockpitAuxBuffer";
 			hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_dynCockpitAuxBuffer);
@@ -743,6 +760,18 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
 			log_shaderres_view(step, hWnd, hr, shaderResourceViewDesc);
 			goto out;
+		}
+
+		if (g_bReshadeEnabled) {
+			// Create the shader resource view for offscreenBufferAsInputR
+			step = "_offscreenAsInputReshadeSRV";
+			hr = this->_d3dDevice->CreateShaderResourceView(this->_offscreenBufferAsInputReshade,
+				&shaderResourceViewDesc, &this->_offscreenAsInputReshadeSRV);
+			if (FAILED(hr)) {
+				log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
+				log_shaderres_view(step, hWnd, hr, shaderResourceViewDesc);
+				goto out;
+			}
 		}
 
 		if (g_bUseSteamVR) {
@@ -959,6 +988,11 @@ HRESULT DeviceResources::LoadMainResources()
 	if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_BarrelPixelShader, sizeof(g_BarrelPixelShader), nullptr, &_barrelPixelShader)))
 		return hr;
 
+	if (g_bBloomEnabled) {
+		if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_BloomPrePassPS, sizeof(g_BloomPrePassPS), 	nullptr, &_bloomPrepassPS)))
+			return hr;
+	}
+
 	if (this->_d3dFeatureLevel >= D3D_FEATURE_LEVEL_10_0)
 	{
 		if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_MainPixelShaderBpp2ColorKey20, sizeof(g_MainPixelShaderBpp2ColorKey20), nullptr, &_mainPixelShaderBpp2ColorKey20)))
@@ -1113,6 +1147,11 @@ HRESULT DeviceResources::LoadResources()
 
 	if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_SingleBarrelPixelShader, sizeof(g_SingleBarrelPixelShader), nullptr, &_singleBarrelPixelShader)))
 		return hr;
+
+	if (g_bBloomEnabled) {
+		if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_BloomPrePassPS, sizeof(g_BloomPrePassPS), nullptr, &_bloomPrepassPS)))
+			return hr;
+	}
 
 	D3D11_RASTERIZER_DESC rsDesc;
 	rsDesc.FillMode = g_config.WireframeFillMode ? D3D11_FILL_WIREFRAME : D3D11_FILL_SOLID;

@@ -137,10 +137,11 @@ public:
 	ComPtr<ID3D11Texture2D> _backBuffer;
 	ComPtr<ID3D11Texture2D> _offscreenBuffer;
 	ComPtr<ID3D11Texture2D> _offscreenBufferR; // When SteamVR is used, _offscreenBuffer becomes the left eye and this one becomes the right eye
-	ComPtr<ID3D11Texture2D> _offscreenBufferDynCockpit; // Used to render the targeting computer dynamically
+	ComPtr<ID3D11Texture2D> _offscreenBufferDynCockpit; // Used to render the targeting computer dynamically <-- Need to re-check this claim
 	ComPtr<ID3D11Texture2D> _offscreenBufferAsInput;
 	ComPtr<ID3D11Texture2D> _offscreenBufferAsInputR; // When SteamVR is used, this is the right eye as input buffer
 	ComPtr<ID3D11Texture2D> _offscreenBufferAsInputDynCockpit;
+	ComPtr<ID3D11Texture2D> _offscreenBufferAsInputReshade;
 	ComPtr<ID3D11Texture2D> _dynCockpitAuxBuffer; // Aux Texture to copy portions of _offscreenBufferAsInputDynCockpit
 	ComPtr<ID3D11Texture2D> _offscreenBufferPost; // This is the output of the barrel effect
 	ComPtr<ID3D11Texture2D> _offscreenBufferPostR; // This is the output of the barrel effect for the right image when using SteamVR
@@ -155,6 +156,7 @@ public:
 	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputShaderResourceView;
 	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputShaderResourceViewR; // When SteamVR is enabled, this is the SRV for the right eye
 	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputSRVDynCockpit;
+	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputReshadeSRV;
 	ComPtr<ID3D11ShaderResourceView> _dynCockpitAuxSRV; // Aux SRV used to copy portions of the _offscreenAsInputShaderResourceViewDynCockpit
 	ComPtr<ID3D11Texture2D> _depthStencilL;
 	ComPtr<ID3D11Texture2D> _depthStencilR;
@@ -168,6 +170,7 @@ public:
 	ComPtr<ID3D11PixelShader> _mainPixelShaderBpp2ColorKey00;
 	ComPtr<ID3D11PixelShader> _mainPixelShaderBpp4ColorKey20;
 	ComPtr<ID3D11PixelShader> _barrelPixelShader;
+	ComPtr<ID3D11PixelShader> _bloomPrepassPS;
 	ComPtr<ID3D11PixelShader> _singleBarrelPixelShader;
 	ComPtr<ID3D11RasterizerState> _mainRasterizerState;
 	ComPtr<ID3D11SamplerState> _mainSamplerState;
