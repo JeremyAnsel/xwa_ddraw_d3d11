@@ -146,6 +146,8 @@ public:
 	ComPtr<ID3D11Texture2D> _offscreenBufferPost; // This is the output of the barrel effect
 	ComPtr<ID3D11Texture2D> _offscreenBufferPostR; // This is the output of the barrel effect for the right image when using SteamVR
 	ComPtr<ID3D11Texture2D> _steamVRPresentBuffer; // This is the buffer that will be presented for SteamVR
+	ComPtr<ID3D11Texture2D> _reshadeOutput1; // Non-MSAA output from reshade passes
+	ComPtr<ID3D11Texture2D> _reshadeOutput2;
 	ComPtr<ID3D11RenderTargetView> _renderTargetView;
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewR; // When SteamVR is used, _renderTargetView is the left eye, and this one is the right eye
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewDynCockpit; // Used to render the HUD to an offscreen buffer
@@ -153,12 +155,16 @@ public:
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewPost; // Used for the barrel effect
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewPostR; // Used for the barrel effect (right image) when SteamVR is used.
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewSteamVRResize; // Used for the barrel effect
-	ComPtr<ID3D11RenderTargetView> _renderTargetViewReshade;
+	ComPtr<ID3D11RenderTargetView> _renderTargetViewReshade1;
+	ComPtr<ID3D11RenderTargetView> _renderTargetViewReshade2;
+
 	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputShaderResourceView;
 	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputShaderResourceViewR; // When SteamVR is enabled, this is the SRV for the right eye
 	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputSRVDynCockpit;
 	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputReshadeSRV;
 	ComPtr<ID3D11ShaderResourceView> _dynCockpitAuxSRV; // Aux SRV used to copy portions of the _offscreenAsInputShaderResourceViewDynCockpit
+	ComPtr<ID3D11ShaderResourceView> _reshadeOutput1SRV;
+	ComPtr<ID3D11ShaderResourceView> _reshadeOutput2SRV;
 	ComPtr<ID3D11Texture2D> _depthStencilL;
 	ComPtr<ID3D11Texture2D> _depthStencilR;
 	ComPtr<ID3D11DepthStencilView> _depthStencilViewL;
@@ -172,6 +178,8 @@ public:
 	ComPtr<ID3D11PixelShader> _mainPixelShaderBpp4ColorKey20;
 	ComPtr<ID3D11PixelShader> _barrelPixelShader;
 	ComPtr<ID3D11PixelShader> _bloomPrepassPS;
+	ComPtr<ID3D11PixelShader> _bloomDownSamplePS;
+	ComPtr<ID3D11PixelShader> _bloomUpSamplePS;
 	ComPtr<ID3D11PixelShader> _singleBarrelPixelShader;
 	ComPtr<ID3D11RasterizerState> _mainRasterizerState;
 	ComPtr<ID3D11SamplerState> _mainSamplerState;

@@ -1092,10 +1092,14 @@ void PrimarySurface::resizeForSteamVR(int iteration, bool is_2D) {
 
 /*
  * Applies the bloom effect on the 3D window.
- * Input: an already-resolved _offscreenBufferAsInputReshade
- * Renders to _offscreenBufferPost
+ * pass 0:
+ *		Input: an already-resolved _offscreenBufferAsInputReshade
+ *		Renders to _reshadeOutput1
+ * pass 1:
+ *		Input: an already-resolved _reshadeOutput1
+ *		Renders to _reshadeOutput2
  */
-void PrimarySurface::bloom() {
+void PrimarySurface::bloom(int pass) {
 	auto& resources = this->_deviceResources;
 	auto& device = resources->_d3dDevice;
 	auto& context = resources->_d3dDeviceContext;
@@ -1140,6 +1144,10 @@ void PrimarySurface::bloom() {
 	D3D11_VIEWPORT viewport{};
 	float screen_res_x = (float)resources->_backbufferWidth / 2.0f;
 	float screen_res_y = (float)resources->_backbufferHeight / 2.0f;
+	if (pass == 1) {
+		screen_res_x /= 2.0f;
+		screen_res_y /= 2.0f;
+	}
 	float bgColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 	viewport.TopLeftX = (float)0;
@@ -1149,12 +1157,25 @@ void PrimarySurface::bloom() {
 	viewport.MaxDepth = D3D11_MAX_DEPTH;
 	viewport.MinDepth = D3D11_MIN_DEPTH;
 
-	// The input texture must be resolved already
-
+	// The input texture must be resolved already to _offscreenBufferAsInputReshade
 	resources->InitVertexShader(resources->_mainVertexShader);
-	resources->InitPixelShader(resources->_bloomPrepassPS);
-
-	context->PSSetShaderResources(0, 1, resources->_offscreenAsInputReshadeSRV.GetAddressOf());
+	switch (pass) {
+		case 0: 	
+			resources->InitPixelShader(resources->_bloomPrepassPS);
+			context->PSSetShaderResources(0, 1, resources->_offscreenAsInputReshadeSRV.GetAddressOf());
+			context->ClearRenderTargetView(resources->_renderTargetViewReshade1, bgColor);
+			context->OMSetRenderTargets(1, resources->_renderTargetViewReshade1.GetAddressOf(),
+				this->_deviceResources->_depthStencilViewL.Get());
+			break;
+		case 1:
+			resources->InitPixelShader(resources->_bloomDownSamplePS);
+			context->PSSetShaderResources(0, 1, resources->_reshadeOutput1SRV.GetAddressOf());
+			context->ClearRenderTargetView(resources->_renderTargetViewReshade2, bgColor);
+			context->OMSetRenderTargets(1, resources->_renderTargetViewReshade2.GetAddressOf(),
+				this->_deviceResources->_depthStencilViewL.Get());
+			break;
+	}
+	
 	// Set the constant buffers
 	resources->InitVSConstantBuffer2D(resources->_mainShadersConstantBuffer.GetAddressOf(), 0.0f, 1.0f, 1.0f, 1.0f, 0.0f); // Do not use 3D projection matrices
 	//resources->InitPSConstantBufferBarrel(resources->_barrelConstantBuffer.GetAddressOf(), g_fLensK1, g_fLensK2, g_fLensK3);
@@ -1162,10 +1183,6 @@ void PrimarySurface::bloom() {
 	// Clear the depth stencil
 	// Maybe I should be using resources->clearDepth instead of 1.0f:
 	context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, 1.0f, 0);
-	// Clear the render target
-	context->ClearRenderTargetView(resources->_renderTargetViewReshade, bgColor);
-	context->OMSetRenderTargets(1, resources->_renderTargetViewReshade.GetAddressOf(),
-		this->_deviceResources->_depthStencilViewL.Get());
 	resources->InitViewport(&viewport);
 	context->IASetInputLayout(resources->_mainInputLayout);
 	context->Draw(6, 0);
@@ -1490,6 +1507,7 @@ HRESULT PrimarySurface::Flip(
 	{
 		HRESULT hr;
 		auto &resources = this->_deviceResources;
+		auto &context = resources->_d3dDeviceContext;
 
 		if (this->_deviceResources->_swapChain)
 		{
@@ -1498,13 +1516,18 @@ HRESULT PrimarySurface::Flip(
 			// Re-shade the contents of _offscreenBufferAsInputReshade
 			if (g_bReshadeEnabled) {
 				if (g_bBloomEnabled) {
-					bloom();
+					bloom(0);
+					// Resolve the output to _offscreenBufferAsInputReshade
+					//context->ResolveSubresource(resources->_offscreenBufferAsInputReshade, 0,
+					//	resources->_offscreenBufferPost, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+					bloom(1);
 				}
 
 				static bool bDump = false;
-				if (!bDump && g_iPresentCounter == 30) {
+				if (!bDump && g_iPresentCounter == 100) {
 					// _offscreenBufferAsInputReshade is resolved during Execute() -- right before any GUI is rendered
-					capture(0, resources->_offscreenBufferPost, L"C:\\Temp\\bloomPrePass.jpg");
+					capture(0, resources->_reshadeOutput1, L"C:\\Temp\\reshadeOutput1.jpg");
+					capture(0, resources->_reshadeOutput2, L"C:\\Temp\\reshadeOutput2.jpg");
 					bDump = true;
 				}
 			}

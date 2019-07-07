@@ -381,6 +381,7 @@ technique Bloom
 
 	#define PASS_DOWNSAMPLE(i) pass { VertexShader = PostProcessVS; PixelShader  = PS_Downsample##i; RenderTarget0 = MXBLOOM_BloomTex##i; }
 
+	// Pass N samples from MXBLOOM_BloomTex(N-1) and writes to MXBLOOM_BloomTexN
 	PASS_DOWNSAMPLE(1)
 	PASS_DOWNSAMPLE(2)
 	PASS_DOWNSAMPLE(3)
@@ -389,6 +390,7 @@ technique Bloom
 	PASS_DOWNSAMPLE(6)
 	PASS_DOWNSAMPLE(7)
 
+	// This pass reads from BloomTex7 and writes to MXBLOOM_BloomTexAdapt
 	pass
 	{
 		VertexShader = PostProcessVS;
@@ -398,11 +400,14 @@ technique Bloom
 
 	#define PASS_UPSAMPLE(i,j) pass {VertexShader = PostProcessVS;PixelShader  = PS_Upsample##i;RenderTarget0 = MXBLOOM_BloomTex##j;ClearRenderTargets = false;BlendEnable = true;BlendOp = ADD;SrcBlend = ONE;DestBlend = SRCALPHA;}
 
+	// Reads from BloomTex7 and writes to BloomTex6
 	PASS_UPSAMPLE(1,6)
+	// Reads from BloomTex6 and writes to BloomTex5
 	PASS_UPSAMPLE(2,5)
 	PASS_UPSAMPLE(3,4)
 	PASS_UPSAMPLE(4,3)
 	PASS_UPSAMPLE(5,2)
+	// Reads from BloomTex2 and writes to BloomTex1
 	PASS_UPSAMPLE(6,1)
 
 	pass

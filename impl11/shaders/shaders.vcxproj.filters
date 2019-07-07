@@ -27,5 +27,9 @@
     <FxCompile Include="BarrelPixelShader.hlsl" />
     <FxCompile Include="SingleBarrelPixelShader.hlsl" />
     <FxCompile Include="bloom\BloomPrePassPS.hlsl" />
+    <FxCompile Include="bloom\BloomCommon.fxh">
+      <Filter>Fichiers d%27en-tête</Filter>
+    </FxCompile>
+    <FxCompile Include="bloom\BloomDownSamplePS.hlsl" />
   </ItemGroup>
 </Project>

@@ -49,7 +49,7 @@ public:
 
 	HRESULT buildSteamVRResizeMesh2D();
 
-	void bloom();
+	void bloom(int pass);
 
 	void capture(int time_delay, ComPtr<ID3D11Texture2D> buffer, const wchar_t *filename);
 
