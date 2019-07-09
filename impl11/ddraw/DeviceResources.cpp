@@ -30,8 +30,6 @@
 #include "../Release/PixelShaderTexture.h"
 #include "../Release/PixelShaderSolid.h"
 #include "../Release/BloomPrePassPS.h"
-#include "../Release/BloomDownSamplePS.h"
-#include "../Release/BloomUpSamplePS.h"
 #include "../Release/BloomHGaussPS.h"
 #include "../Release/BloomVGaussPS.h"
 #include "../Release/BloomCombinePS.h"
@@ -1114,12 +1112,6 @@ HRESULT DeviceResources::LoadMainResources()
 		if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_BloomPrePassPS, sizeof(g_BloomPrePassPS), 	nullptr, &_bloomPrepassPS)))
 			return hr;
 
-		if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_BloomDownSamplePS, sizeof(g_BloomDownSamplePS), nullptr, &_bloomDownSamplePS)))
-			return hr;
-
-		if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_BloomUpSamplePS, sizeof(g_BloomUpSamplePS), nullptr, &_bloomUpSamplePS)))
-			return hr;
-
 		if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_BloomHGaussPS, sizeof(g_BloomHGaussPS), nullptr, &_bloomHGaussPS)))
 			return hr;
 		
@@ -1287,12 +1279,6 @@ HRESULT DeviceResources::LoadResources()
 
 	if (g_bBloomEnabled) {
 		if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_BloomPrePassPS, sizeof(g_BloomPrePassPS), nullptr, &_bloomPrepassPS)))
-			return hr;
-
-		if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_BloomDownSamplePS, sizeof(g_BloomDownSamplePS), nullptr, &_bloomDownSamplePS)))
-			return hr;
-
-		if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_BloomUpSamplePS, sizeof(g_BloomUpSamplePS), nullptr, &_bloomUpSamplePS)))
 			return hr;
 
 		if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_BloomHGaussPS, sizeof(g_BloomHGaussPS), nullptr, &_bloomHGaussPS)))
