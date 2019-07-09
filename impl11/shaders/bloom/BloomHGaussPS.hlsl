@@ -36,5 +36,5 @@ float4 main(PixelShaderInput input) : SV_TARGET
 		uv1 += dx;
 		uv2 -= dx;
 	}
-	return 2.0 * color;
+	return 1.2 * color;
 }

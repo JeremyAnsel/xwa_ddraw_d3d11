@@ -30,8 +30,6 @@
     <FxCompile Include="bloom\BloomCommon.fxh">
       <Filter>Fichiers d%27en-tête</Filter>
     </FxCompile>
-    <FxCompile Include="bloom\BloomDownSamplePS.hlsl" />
-    <FxCompile Include="bloom\BloomUpSamplePS.hlsl" />
     <FxCompile Include="bloom\BloomHGaussPS.hlsl" />
     <FxCompile Include="bloom\BloomVGaussPS.hlsl" />
     <FxCompile Include="bloom\BloomCombinePS.hlsl" />

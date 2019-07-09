@@ -148,8 +148,8 @@ public:
 	ComPtr<ID3D11Texture2D> _steamVRPresentBuffer; // This is the buffer that will be presented for SteamVR
 	ComPtr<ID3D11Texture2D> _reshadeOutput1; // Output from reshade pass 1
 	ComPtr<ID3D11Texture2D> _reshadeOutput2; // Output from reshade pass 2
-	ComPtr<ID3D11Texture2D> _reshadeOutput1AsInput; // Non-MSAA version of reshadeOutput1
-	ComPtr<ID3D11Texture2D> _reshadeOutput2AsInput; // Non-MSAA version of reshadeOutput2
+	//ComPtr<ID3D11Texture2D> _reshadeOutput1AsInput; // Non-MSAA version of reshadeOutput1
+	//ComPtr<ID3D11Texture2D> _reshadeOutput2AsInput; // Non-MSAA version of reshadeOutput2
 	ComPtr<ID3D11RenderTargetView> _renderTargetView;
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewR; // When SteamVR is used, _renderTargetView is the left eye, and this one is the right eye
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewDynCockpit; // Used to render the HUD to an offscreen buffer

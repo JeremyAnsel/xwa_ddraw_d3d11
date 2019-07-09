@@ -25,7 +25,7 @@ struct PixelShaderInput
 
 float4 main(PixelShaderInput input) : SV_TARGET
 {
-	float2 input_uv_sub = input.uv;
+	float2 input_uv_sub = input.uv / 4.0;
 	float4 color = texture0.Sample(sampler0, input.uv);
 	float4 bloom = bloomTex.Sample(bloomSampler, input_uv_sub);
 	color += bloom;

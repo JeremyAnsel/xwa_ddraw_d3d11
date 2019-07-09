@@ -11,7 +11,7 @@ static const float2 PIXEL_SIZE  = float2(BUFFER_RCP_WIDTH, BUFFER_RCP_HEIGHT);
 
 static float BLOOM_INTENSITY = 1.2; // Original value: 1.2
 static float BLOOM_CURVE = 10.0;	    // Original value: 1.5
-static float BLOOM_SAT = 2.0;
+static float BLOOM_SAT = 16.0;		// Original value: 2.0
 static float BLOOM_LAYER_MULT_1 = 0.05;
 static float BLOOM_LAYER_MULT_2 = 0.05;
 static float BLOOM_LAYER_MULT_3 = 0.05;

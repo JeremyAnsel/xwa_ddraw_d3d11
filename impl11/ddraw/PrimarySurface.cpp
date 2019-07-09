@@ -1176,7 +1176,6 @@ void PrimarySurface::bloom(int pass) {
 			break;
 		case 1: // Threshold + Horizontal Gaussian Blur
 			// Output: _reshadeOutput2
-			context->ResolveSubresource(resources->_reshadeOutput1AsInput, 0, resources->_reshadeOutput1, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
 			resources->InitPixelShader(resources->_bloomHGaussPS);
 			context->PSSetShaderResources(0, 1, resources->_reshadeOutput1SRV.GetAddressOf());
 			context->ClearRenderTargetView(resources->_renderTargetViewReshade2, bgColor);
@@ -1185,7 +1184,7 @@ void PrimarySurface::bloom(int pass) {
 			break;
 		case 2: // Vertical Gaussian Blur
 			// Output: _reshadeOutput1
-			context->ResolveSubresource(resources->_reshadeOutput2AsInput, 0, resources->_reshadeOutput2, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+			//context->ResolveSubresource(resources->_reshadeOutput2AsInput, 0, resources->_reshadeOutput2, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
 			resources->InitPixelShader(resources->_bloomVGaussPS);
 			context->PSSetShaderResources(0, 1, resources->_reshadeOutput2SRV.GetAddressOf());
 			context->ClearRenderTargetView(resources->_renderTargetViewReshade1, bgColor);
@@ -1194,7 +1193,7 @@ void PrimarySurface::bloom(int pass) {
 			break;
 		case 3: // Final pass to combine the bloom texture with the backbuffer
 			// Output: _reshadeOutput2
-			context->ResolveSubresource(resources->_reshadeOutput1AsInput, 0, resources->_reshadeOutput1, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+			//context->ResolveSubresource(resources->_reshadeOutput1AsInput, 0, resources->_reshadeOutput1, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
 			resources->InitPixelShader(resources->_bloomCombinePS);
 			context->PSSetShaderResources(0, 1, resources->_offscreenAsInputReshadeSRV.GetAddressOf());
 			context->PSSetShaderResources(1, 1, resources->_reshadeOutput1SRV.GetAddressOf());
@@ -1234,6 +1233,7 @@ void PrimarySurface::bloom(int pass) {
 			g_bCapture2DOffscreenBuffer = false;
 	}
 #endif
+#ifdef DBG_VR
 	if (g_iPresentCounter == 100) {
 		switch (pass) {
 			case 0:
@@ -1250,13 +1250,13 @@ void PrimarySurface::bloom(int pass) {
 				break;
 		}
 	}
+#endif
 
 	// Restore previous rendertarget, etc
 	resources->InitInputLayout(resources->_inputLayout);
 	context->OMSetRenderTargets(1, this->_deviceResources->_renderTargetView.GetAddressOf(),
 		this->_deviceResources->_depthStencilViewL.Get());
 }
-
 
 /* Convenience function to call WaitGetPoses() */
 inline void WaitGetPoses() {
@@ -1560,8 +1560,8 @@ HRESULT PrimarySurface::Flip(
 			// Re-shade the contents of _offscreenBufferAsInputReshade
 			if (g_bReshadeEnabled) {
 				// _offscreenBufferAsInputReshade is resolved during Execute() -- right before any GUI is rendered
-				if (g_iPresentCounter == 100)				
-					capture(0, resources->_offscreenBufferAsInputReshade, L"C:\\Temp\\offscreenBufferAsInputReshade-0.jpg");
+				//if (g_iPresentCounter == 100)				
+				//	capture(0, resources->_offscreenBufferAsInputReshade, L"C:\\Temp\\offscreenBufferAsInputReshade-0.jpg");
 				
 				if (g_bBloomEnabled) {
 					//float factor = 0.0f;
@@ -1571,15 +1571,27 @@ HRESULT PrimarySurface::Flip(
 					g_LastPSConstantBufferSet = PS_CONSTANT_BUFFER_NONE; */
 					// Bloom pre-pass
 					bloom(0);
+					// Horizontal Gaussian Blur. input: reshade1, output: reshade2
+					bloom(1);
+					// Vertical Gaussian Blur. input: reshade2, output: reshade1
+					bloom(2);
+
+					// Repeat once more (yes, this can be done; but we need to tune down the bloom effect a bit)
 					// Horizontal Gaussian Blur
 					bloom(1);
 					// Vertical Gaussian Blur
 					bloom(2);
+
+					// Repeat once more (yes, this can be done; but we need to tune down the bloom effect a bit)
+					// Horizontal Gaussian Blur
+					bloom(1);
+					// Vertical Gaussian Blur
+					bloom(2);
+
 					// Combine
 					bloom(3);
 					// Resolve:
-					context->ResolveSubresource(resources->_offscreenBufferAsInput, 0, resources->_reshadeOutput2,
-						0, DXGI_FORMAT_B8G8R8A8_UNORM);
+					context->CopyResource(resources->_offscreenBufferAsInput, resources->_reshadeOutput2);
 				}
 			}
 

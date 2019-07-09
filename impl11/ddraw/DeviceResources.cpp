@@ -508,8 +508,8 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		this->_renderTargetViewReshade2.Release();
 		this->_reshadeOutput1.Release();
 		this->_reshadeOutput2.Release();
-		this->_reshadeOutput1AsInput.Release();
-		this->_reshadeOutput2AsInput.Release();
+		//this->_reshadeOutput1AsInput.Release();
+		//this->_reshadeOutput2AsInput.Release();
 		this->_reshadeOutput1SRV.Release();
 		this->_reshadeOutput2SRV.Release();
 	}
@@ -698,6 +698,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			}
 		}
 
+		/*
 		if (g_bReshadeEnabled) {
 			UINT curFlags = desc.BindFlags;
 			desc.BindFlags |= D3D11_BIND_RENDER_TARGET;
@@ -731,10 +732,10 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 				log_debug("[DBG] _reshadeOutput2 created with combined flags");
 				log_err("Successfully created _reshadeOutput2 with combined flags\n");
 			}
-
 			// Restore the previous bind flags, just in case there is a dependency on these later on
 			desc.BindFlags = curFlags;
 		}
+		*/
 
 		// No MSAA after this point
 		// offscreenBufferAsInput must not have MSAA enabled since it will be used as input for the barrel shader.
@@ -775,29 +776,29 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			log_err("Added D3D11_BIND_RENDER_TARGET flag\n");
 			log_err("Flags: 0x%x\n", desc.BindFlags);
 
-			step = "_reshadeOutput1AsInput";
-			hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_reshadeOutput1AsInput);
+			step = "_reshadeOutput1";
+			hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_reshadeOutput1);
 			if (FAILED(hr)) {
-				log_err("Failed to create _reshadeOutput1AsInput\n");
+				log_err("Failed to create _reshadeOutput1\n");
 				log_err("GetDeviceRemovedReason: 0x%x\n", this->_d3dDevice->GetDeviceRemovedReason());
 				log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
 				log_err_desc(step, hWnd, hr, desc);
 				goto out;
 			}
 			else {
-				log_err("Successfully created _reshadeOutput1AsInput with combined flags\n");
+				log_err("Successfully created _reshadeOutput1 with combined flags\n");
 			}
 
-			step = "_reshadeOutput2AsInput";
-			hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_reshadeOutput2AsInput);
+			step = "_reshadeOutput2";
+			hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_reshadeOutput2);
 			if (FAILED(hr)) {
-				log_err("Failed to create _reshadeOutput2AsInput\n");
+				log_err("Failed to create _reshadeOutput2\n");
 				log_err("GetDeviceRemovedReason: 0x%x\n", this->_d3dDevice->GetDeviceRemovedReason());
 				log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
 				log_err_desc(step, hWnd, hr, desc);
 				goto out;
 			} else {
-				log_err("Successfully created _reshadeOutput2AsInput with combined flags\n");
+				log_err("Successfully created _reshadeOutput2 with combined flags\n");
 			}
 			// Restore the previous bind flags, just in case there is a dependency on these later on
 			desc.BindFlags = curFlags;
@@ -863,7 +864,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			}
 
 			step = "_reshadeOutput1SRV";
-			hr = this->_d3dDevice->CreateShaderResourceView(this->_reshadeOutput1AsInput,
+			hr = this->_d3dDevice->CreateShaderResourceView(this->_reshadeOutput1,
 				&shaderResourceViewDesc, &this->_reshadeOutput1SRV);
 			if (FAILED(hr)) {
 				log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
@@ -872,7 +873,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			}
 
 			step = "_reshadeOutput2SRV";
-			hr = this->_d3dDevice->CreateShaderResourceView(this->_reshadeOutput2AsInput,
+			hr = this->_d3dDevice->CreateShaderResourceView(this->_reshadeOutput2,
 				&shaderResourceViewDesc, &this->_reshadeOutput2SRV);
 			if (FAILED(hr)) {
 				log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
@@ -963,13 +964,13 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			// These RTVs render to non-MSAA buffers
 			CD3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDescNoMSAA(D3D11_RTV_DIMENSION_TEXTURE2D);
 			step = "_renderTargetViewReshade1";
-			//hr = this->_d3dDevice->CreateRenderTargetView(this->_reshadeOutput1, &renderTargetViewDescNoMSAA, &this->_renderTargetViewReshade1);
-			hr = this->_d3dDevice->CreateRenderTargetView(this->_reshadeOutput1, &renderTargetViewDesc, &this->_renderTargetViewReshade1);
+			hr = this->_d3dDevice->CreateRenderTargetView(this->_reshadeOutput1, &renderTargetViewDescNoMSAA, &this->_renderTargetViewReshade1);
+			//hr = this->_d3dDevice->CreateRenderTargetView(this->_reshadeOutput1, &renderTargetViewDesc, &this->_renderTargetViewReshade1);
 			if (FAILED(hr)) goto out;
 
 			step = "_renderTargetViewReshade2";
-			//hr = this->_d3dDevice->CreateRenderTargetView(this->_reshadeOutput2, &renderTargetViewDescNoMSAA, &this->_renderTargetViewReshade2);
-			hr = this->_d3dDevice->CreateRenderTargetView(this->_reshadeOutput2, &renderTargetViewDesc, &this->_renderTargetViewReshade2);
+			hr = this->_d3dDevice->CreateRenderTargetView(this->_reshadeOutput2, &renderTargetViewDescNoMSAA, &this->_renderTargetViewReshade2);
+			//hr = this->_d3dDevice->CreateRenderTargetView(this->_reshadeOutput2, &renderTargetViewDesc, &this->_renderTargetViewReshade2);
 			if (FAILED(hr)) goto out;
 		}
 	}
