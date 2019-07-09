@@ -33,9 +33,22 @@ float4 main(PixelShaderInput input) : SV_TARGET
 {
 	float4 color = downsample(texture0, sampler0, SCREEN_SIZE, input.uv);
 	color.w = saturate(dot(color.rgb, 0.333)); // Original value
-	//color.w = saturate(dot(color.rgb, 0.9));     // Looks like this is the threshold for the bloom effect: higher --> smaller bloom
 
 	color.rgb = lerp(color.w, color.rgb, BLOOM_SAT);
 	color.rgb *= (pow(color.w, BLOOM_CURVE) * BLOOM_INTENSITY * BLOOM_INTENSITY * BLOOM_INTENSITY) / (color.w + 1e-3);
+	color.w = 1.0;
+	return color;
+
+	//float4 color = texture0.Sample(sampler0, input.uv);
+	//color.w = 1.0f;
+	//return color;
+}
+
+/*
+float4 main(PixelShaderInput input) : SV_TARGET
+{
+	float4 color = texture0.Sample(sampler0, input.uv);
+	color.w = 1.0f;
 	return color;
 }
+*/

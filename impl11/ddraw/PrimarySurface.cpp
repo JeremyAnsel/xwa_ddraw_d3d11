@@ -721,8 +721,14 @@ void PrimarySurface::barrelEffect3D() {
 	viewport.MaxDepth = D3D11_MAX_DEPTH;
 	viewport.MinDepth = D3D11_MIN_DEPTH;
 
-	context->ResolveSubresource(resources->_offscreenBufferAsInput, 0, resources->_offscreenBuffer,
-		0, DXGI_FORMAT_B8G8R8A8_UNORM);
+	if (g_bReshadeEnabled && g_bBloomEnabled) {
+		// Nothing to resolve: offscreenBufferAsInput should contain the buffer to display already
+		//context->ResolveSubresource(resources->_offscreenBufferAsInput, 0, resources->_reshadeOutput1,
+		//	0, DXGI_FORMAT_B8G8R8A8_UNORM);
+	} else {
+		context->ResolveSubresource(resources->_offscreenBufferAsInput, 0, resources->_offscreenBuffer,
+			0, DXGI_FORMAT_B8G8R8A8_UNORM);
+	}
 
 	resources->InitVSConstantBuffer2D(resources->_mainShadersConstantBuffer.GetAddressOf(), 0.0f, 1.0f, 1.0f, 1.0f, 0.0f); // Do not use 3D projection matrices
 	resources->InitVertexShader(resources->_mainVertexShader);
@@ -1131,7 +1137,7 @@ void PrimarySurface::bloom(int pass) {
 	resources->InitTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	resources->InitInputLayout(resources->_mainInputLayout);
 
-	// Temporarily disable ZWrite: we won't need it for the barrel effect
+	// Temporarily disable ZWrite: we won't need it for this effect
 	D3D11_DEPTH_STENCIL_DESC desc;
 	ComPtr<ID3D11DepthStencilState> depthState;
 	desc.DepthEnable = FALSE;
@@ -1142,47 +1148,69 @@ void PrimarySurface::bloom(int pass) {
 
 	// Create a new viewport to render the offscreen buffer as a texture
 	D3D11_VIEWPORT viewport{};
-	float screen_res_x = (float)resources->_backbufferWidth / 2.0f;
-	float screen_res_y = (float)resources->_backbufferHeight / 2.0f;
-	if (pass == 1) {
-		screen_res_x /= 2.0f;
-		screen_res_y /= 2.0f;
-	}
+	float screen_res_x = (float)resources->_backbufferWidth;
+	float screen_res_y = (float)resources->_backbufferHeight;
+	
 	float bgColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 	viewport.TopLeftX = (float)0;
 	viewport.TopLeftY = (float)0;
-	viewport.Width = (float)screen_res_x;
-	viewport.Height = (float)screen_res_y;
+	viewport.Width    = (float)screen_res_x;
+	viewport.Height   = (float)screen_res_y;
 	viewport.MaxDepth = D3D11_MAX_DEPTH;
 	viewport.MinDepth = D3D11_MIN_DEPTH;
 
 	// The input texture must be resolved already to _offscreenBufferAsInputReshade
 	resources->InitVertexShader(resources->_mainVertexShader);
 	switch (pass) {
-		case 0: 	
+		case 0: 	// Prepass
+			// Input: _offscreenAsInputReshadeSRV
+			// Output _reshadeOutput1
+			viewport.Width  /= 4.0f;
+			viewport.Height /= 4.0f;
 			resources->InitPixelShader(resources->_bloomPrepassPS);
 			context->PSSetShaderResources(0, 1, resources->_offscreenAsInputReshadeSRV.GetAddressOf());
 			context->ClearRenderTargetView(resources->_renderTargetViewReshade1, bgColor);
 			context->OMSetRenderTargets(1, resources->_renderTargetViewReshade1.GetAddressOf(),
 				this->_deviceResources->_depthStencilViewL.Get());
 			break;
-		case 1:
-			resources->InitPixelShader(resources->_bloomDownSamplePS);
+		case 1: // Threshold + Horizontal Gaussian Blur
+			// Output: _reshadeOutput2
+			context->ResolveSubresource(resources->_reshadeOutput1AsInput, 0, resources->_reshadeOutput1, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+			resources->InitPixelShader(resources->_bloomHGaussPS);
 			context->PSSetShaderResources(0, 1, resources->_reshadeOutput1SRV.GetAddressOf());
 			context->ClearRenderTargetView(resources->_renderTargetViewReshade2, bgColor);
 			context->OMSetRenderTargets(1, resources->_renderTargetViewReshade2.GetAddressOf(),
 				this->_deviceResources->_depthStencilViewL.Get());
 			break;
+		case 2: // Vertical Gaussian Blur
+			// Output: _reshadeOutput1
+			context->ResolveSubresource(resources->_reshadeOutput2AsInput, 0, resources->_reshadeOutput2, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+			resources->InitPixelShader(resources->_bloomVGaussPS);
+			context->PSSetShaderResources(0, 1, resources->_reshadeOutput2SRV.GetAddressOf());
+			context->ClearRenderTargetView(resources->_renderTargetViewReshade1, bgColor);
+			context->OMSetRenderTargets(1, resources->_renderTargetViewReshade1.GetAddressOf(),
+				this->_deviceResources->_depthStencilViewL.Get());
+			break;
+		case 3: // Final pass to combine the bloom texture with the backbuffer
+			// Output: _reshadeOutput2
+			context->ResolveSubresource(resources->_reshadeOutput1AsInput, 0, resources->_reshadeOutput1, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+			resources->InitPixelShader(resources->_bloomCombinePS);
+			context->PSSetShaderResources(0, 1, resources->_offscreenAsInputReshadeSRV.GetAddressOf());
+			context->PSSetShaderResources(1, 1, resources->_reshadeOutput1SRV.GetAddressOf());
+			context->ClearRenderTargetView(resources->_renderTargetViewReshade2, bgColor);
+			context->OMSetRenderTargets(1, resources->_renderTargetViewReshade2.GetAddressOf(),
+				this->_deviceResources->_depthStencilViewL.Get());
+			break;
 	}
-	
+
 	// Set the constant buffers
 	resources->InitVSConstantBuffer2D(resources->_mainShadersConstantBuffer.GetAddressOf(), 0.0f, 1.0f, 1.0f, 1.0f, 0.0f); // Do not use 3D projection matrices
 	//resources->InitPSConstantBufferBarrel(resources->_barrelConstantBuffer.GetAddressOf(), g_fLensK1, g_fLensK2, g_fLensK3);
 
 	// Clear the depth stencil
 	// Maybe I should be using resources->clearDepth instead of 1.0f:
-	context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	//context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
 	resources->InitViewport(&viewport);
 	context->IASetInputLayout(resources->_mainInputLayout);
 	context->Draw(6, 0);
@@ -1206,6 +1234,22 @@ void PrimarySurface::bloom(int pass) {
 			g_bCapture2DOffscreenBuffer = false;
 	}
 #endif
+	if (g_iPresentCounter == 100) {
+		switch (pass) {
+			case 0:
+				capture(0, resources->_reshadeOutput1, L"C:\\Temp\\reshade-pass-0.jpg");
+				break;
+			case 1:
+				capture(0, resources->_reshadeOutput2, L"C:\\Temp\\reshade-pass-1.jpg");
+				break;
+			case 2:
+				capture(0, resources->_reshadeOutput1, L"C:\\Temp\\reshade-pass-2.jpg");
+				break;
+			case 3:
+				capture(0, resources->_reshadeOutput2, L"C:\\Temp\\reshade-pass-3.jpg");
+				break;
+		}
+	}
 
 	// Restore previous rendertarget, etc
 	resources->InitInputLayout(resources->_inputLayout);
@@ -1515,20 +1559,27 @@ HRESULT PrimarySurface::Flip(
 
 			// Re-shade the contents of _offscreenBufferAsInputReshade
 			if (g_bReshadeEnabled) {
+				// _offscreenBufferAsInputReshade is resolved during Execute() -- right before any GUI is rendered
+				if (g_iPresentCounter == 100)				
+					capture(0, resources->_offscreenBufferAsInputReshade, L"C:\\Temp\\offscreenBufferAsInputReshade-0.jpg");
+				
 				if (g_bBloomEnabled) {
+					//float factor = 0.0f;
+					/* factor = -2.0f;
+					context->UpdateSubresource(, 0, nullptr, &g_MSCBuffer, 0, 0);
+					context->PSSetConstantBuffers(0, 1, buffer);
+					g_LastPSConstantBufferSet = PS_CONSTANT_BUFFER_NONE; */
+					// Bloom pre-pass
 					bloom(0);
-					// Resolve the output to _offscreenBufferAsInputReshade
-					//context->ResolveSubresource(resources->_offscreenBufferAsInputReshade, 0,
-					//	resources->_offscreenBufferPost, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+					// Horizontal Gaussian Blur
 					bloom(1);
-				}
-
-				static bool bDump = false;
-				if (!bDump && g_iPresentCounter == 100) {
-					// _offscreenBufferAsInputReshade is resolved during Execute() -- right before any GUI is rendered
-					capture(0, resources->_reshadeOutput1, L"C:\\Temp\\reshadeOutput1.jpg");
-					capture(0, resources->_reshadeOutput2, L"C:\\Temp\\reshadeOutput2.jpg");
-					bDump = true;
+					// Vertical Gaussian Blur
+					bloom(2);
+					// Combine
+					bloom(3);
+					// Resolve:
+					context->ResolveSubresource(resources->_offscreenBufferAsInput, 0, resources->_reshadeOutput2,
+						0, DXGI_FORMAT_B8G8R8A8_UNORM);
 				}
 			}
 

@@ -372,6 +372,7 @@ technique Bloom
                "light sources and other emitters on screen.\n"
                "\nBloom is written by Marty McFly / Pascal Gilcher"; > */
 {
+	// Reads from BackBuffer and writes to BloomTexSource
     pass
 	{
 		VertexShader = PostProcessVS;
@@ -382,12 +383,16 @@ technique Bloom
 	#define PASS_DOWNSAMPLE(i) pass { VertexShader = PostProcessVS; PixelShader  = PS_Downsample##i; RenderTarget0 = MXBLOOM_BloomTex##i; }
 
 	// Pass N samples from MXBLOOM_BloomTex(N-1) and writes to MXBLOOM_BloomTexN
+
+	// Reads from BloomTexSource and writes to BloomTex1
 	PASS_DOWNSAMPLE(1)
+	// Reads from BloomTex1 and writes to BloomTex2
 	PASS_DOWNSAMPLE(2)
 	PASS_DOWNSAMPLE(3)
 	PASS_DOWNSAMPLE(4)
 	PASS_DOWNSAMPLE(5)
 	PASS_DOWNSAMPLE(6)
+	// Reads from BloomTex6 and BloomTexAdapt, writes to BloomTex7
 	PASS_DOWNSAMPLE(7)
 
 	// This pass reads from BloomTex7 and writes to MXBLOOM_BloomTexAdapt
@@ -410,6 +415,7 @@ technique Bloom
 	// Reads from BloomTex2 and writes to BloomTex1
 	PASS_UPSAMPLE(6,1)
 
+	// Reads from BloomTex1 and BloomTexAdapt
 	pass
 	{
 		VertexShader = PostProcessVS;
