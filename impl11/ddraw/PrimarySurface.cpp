@@ -25,12 +25,12 @@ extern float g_fMinPositionX, g_fMaxPositionX;
 extern float g_fMinPositionY, g_fMaxPositionY;
 extern float g_fMinPositionZ, g_fMaxPositionZ;
 extern Vector3 g_headCenter;
-extern bool g_bResetHeadCenter;
+extern bool g_bResetHeadCenter, g_bSteamVRPosFromFreePIE, g_bReshadeEnabled, g_bBloomEnabled;
 extern vr::IVRSystem *g_pHMD;
 extern int g_iFreePIESlot;
 
 // The following is used when the Dynamic Cockpit is enabled to render the HUD separately
-D3DTLVERTEX g_HUDVertices[6] = { 0 };
+//D3DTLVERTEX g_HUDVertices[6] = { 0 };
 
 /*
  * Convert a rotation matrix to a normalized quaternion.
@@ -142,9 +142,6 @@ void GetSteamVRPositionalData(float *yaw, float *pitch, float *roll, float *x, f
 		*z = poseMatrix.m[2][3];
 		*rotMatrix = HmdMatrix34toMatrix3(poseMatrix);
 	}
-	//else {
-	//	log_debug("[DBG] Could not get positional data");
-	//}
 }
 
 struct MainVertex
@@ -667,6 +664,8 @@ void PrimarySurface::barrelEffect2D(int iteration) {
 
 /*
  * Applies the barrel distortion effect on the 3D window.
+ * Resolves the offscreenBuffer into offscreenBufferAsInput
+ * Renders to _offscreenBufferPost
  */
 void PrimarySurface::barrelEffect3D() {
 	auto& resources = this->_deviceResources;
@@ -722,8 +721,14 @@ void PrimarySurface::barrelEffect3D() {
 	viewport.MaxDepth = D3D11_MAX_DEPTH;
 	viewport.MinDepth = D3D11_MIN_DEPTH;
 
-	context->ResolveSubresource(resources->_offscreenBufferAsInput, 0, resources->_offscreenBuffer,
-		0, DXGI_FORMAT_B8G8R8A8_UNORM);
+	if (g_bReshadeEnabled && g_bBloomEnabled) {
+		// Nothing to resolve: offscreenBufferAsInput should contain the buffer to display already
+		//context->ResolveSubresource(resources->_offscreenBufferAsInput, 0, resources->_reshadeOutput1,
+		//	0, DXGI_FORMAT_B8G8R8A8_UNORM);
+	} else {
+		context->ResolveSubresource(resources->_offscreenBufferAsInput, 0, resources->_offscreenBuffer,
+			0, DXGI_FORMAT_B8G8R8A8_UNORM);
+	}
 
 	resources->InitVSConstantBuffer2D(resources->_mainShadersConstantBuffer.GetAddressOf(), 0.0f, 1.0f, 1.0f, 1.0f, 0.0f); // Do not use 3D projection matrices
 	resources->InitVertexShader(resources->_mainVertexShader);
@@ -1090,6 +1095,169 @@ void PrimarySurface::resizeForSteamVR(int iteration, bool is_2D) {
 		resources->_depthStencilViewL.Get());
 }
 
+
+/*
+ * Applies the bloom effect on the 3D window.
+ * pass 0:
+ *		Input: an already-resolved _offscreenBufferAsInputReshade
+ *		Renders to _reshadeOutput1
+ * pass 1:
+ *		Input: an already-resolved _reshadeOutput1
+ *		Renders to _reshadeOutput2
+ */
+void PrimarySurface::bloom(int pass) {
+	auto& resources = this->_deviceResources;
+	auto& device = resources->_d3dDevice;
+	auto& context = resources->_d3dDeviceContext;
+
+	// Create the VertexBuffer if necessary
+	if (g_BarrelEffectVertBuffer == NULL) {
+		D3D11_BUFFER_DESC vertexBufferDesc;
+		ZeroMemory(&vertexBufferDesc, sizeof(vertexBufferDesc));
+
+		vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+		vertexBufferDesc.ByteWidth = sizeof(MainVertex) * ARRAYSIZE(g_BarrelEffectVertices);
+		vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		vertexBufferDesc.CPUAccessFlags = 0;
+		vertexBufferDesc.MiscFlags = 0;
+
+		D3D11_SUBRESOURCE_DATA vertexBufferData;
+
+		ZeroMemory(&vertexBufferData, sizeof(vertexBufferData));
+		vertexBufferData.pSysMem = g_BarrelEffectVertices;
+		device->CreateBuffer(&vertexBufferDesc, &vertexBufferData, &g_BarrelEffectVertBuffer);
+	}
+	// Set the vertex buffer... we probably need another vertex buffer here
+	UINT stride = sizeof(MainVertex);
+	UINT offset = 0;
+	resources->InitVertexBuffer(&g_BarrelEffectVertBuffer, &stride, &offset);
+
+	// Set Primitive Topology
+	// Opportunity for optimization? Make all draw calls use the same topology?
+	resources->InitTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	resources->InitInputLayout(resources->_mainInputLayout);
+
+	// Temporarily disable ZWrite: we won't need it for this effect
+	D3D11_DEPTH_STENCIL_DESC desc;
+	ComPtr<ID3D11DepthStencilState> depthState;
+	desc.DepthEnable = FALSE;
+	desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+	desc.DepthFunc = D3D11_COMPARISON_ALWAYS;
+	desc.StencilEnable = FALSE;
+	resources->InitDepthStencilState(depthState, &desc);
+
+	// Create a new viewport to render the offscreen buffer as a texture
+	D3D11_VIEWPORT viewport{};
+	float screen_res_x = (float)resources->_backbufferWidth;
+	float screen_res_y = (float)resources->_backbufferHeight;
+	
+	float bgColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+	viewport.TopLeftX = (float)0;
+	viewport.TopLeftY = (float)0;
+	viewport.Width    = (float)screen_res_x;
+	viewport.Height   = (float)screen_res_y;
+	viewport.MaxDepth = D3D11_MAX_DEPTH;
+	viewport.MinDepth = D3D11_MIN_DEPTH;
+
+	// The input texture must be resolved already to _offscreenBufferAsInputReshade
+	resources->InitVertexShader(resources->_mainVertexShader);
+	switch (pass) {
+		case 0: 	// Prepass
+			// Input: _offscreenAsInputReshadeSRV
+			// Output _reshadeOutput1
+			viewport.Width  /= 4.0f;
+			viewport.Height /= 4.0f;
+			resources->InitPixelShader(resources->_bloomPrepassPS);
+			context->PSSetShaderResources(0, 1, resources->_offscreenAsInputReshadeSRV.GetAddressOf());
+			context->ClearRenderTargetView(resources->_renderTargetViewReshade1, bgColor);
+			context->OMSetRenderTargets(1, resources->_renderTargetViewReshade1.GetAddressOf(),
+				this->_deviceResources->_depthStencilViewL.Get());
+			break;
+		case 1: // Threshold + Horizontal Gaussian Blur
+			// Output: _reshadeOutput2
+			resources->InitPixelShader(resources->_bloomHGaussPS);
+			context->PSSetShaderResources(0, 1, resources->_reshadeOutput1SRV.GetAddressOf());
+			context->ClearRenderTargetView(resources->_renderTargetViewReshade2, bgColor);
+			context->OMSetRenderTargets(1, resources->_renderTargetViewReshade2.GetAddressOf(),
+				this->_deviceResources->_depthStencilViewL.Get());
+			break;
+		case 2: // Vertical Gaussian Blur
+			// Output: _reshadeOutput1
+			//context->ResolveSubresource(resources->_reshadeOutput2AsInput, 0, resources->_reshadeOutput2, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+			resources->InitPixelShader(resources->_bloomVGaussPS);
+			context->PSSetShaderResources(0, 1, resources->_reshadeOutput2SRV.GetAddressOf());
+			context->ClearRenderTargetView(resources->_renderTargetViewReshade1, bgColor);
+			context->OMSetRenderTargets(1, resources->_renderTargetViewReshade1.GetAddressOf(),
+				this->_deviceResources->_depthStencilViewL.Get());
+			break;
+		case 3: // Final pass to combine the bloom texture with the backbuffer
+			// Output: _reshadeOutput2
+			//context->ResolveSubresource(resources->_reshadeOutput1AsInput, 0, resources->_reshadeOutput1, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+			resources->InitPixelShader(resources->_bloomCombinePS);
+			context->PSSetShaderResources(0, 1, resources->_offscreenAsInputReshadeSRV.GetAddressOf());
+			context->PSSetShaderResources(1, 1, resources->_reshadeOutput1SRV.GetAddressOf());
+			context->ClearRenderTargetView(resources->_renderTargetViewReshade2, bgColor);
+			context->OMSetRenderTargets(1, resources->_renderTargetViewReshade2.GetAddressOf(),
+				this->_deviceResources->_depthStencilViewL.Get());
+			break;
+	}
+
+	// Set the constant buffers
+	resources->InitVSConstantBuffer2D(resources->_mainShadersConstantBuffer.GetAddressOf(), 0.0f, 1.0f, 1.0f, 1.0f, 0.0f); // Do not use 3D projection matrices
+	//resources->InitPSConstantBufferBarrel(resources->_barrelConstantBuffer.GetAddressOf(), g_fLensK1, g_fLensK2, g_fLensK3);
+
+	// Clear the depth stencil
+	// Maybe I should be using resources->clearDepth instead of 1.0f:
+	//context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
+	resources->InitViewport(&viewport);
+	context->IASetInputLayout(resources->_mainInputLayout);
+	context->Draw(6, 0);
+
+#ifdef DBG_VR
+	if (g_bCapture2DOffscreenBuffer) {
+		static int frame = 0;
+		wchar_t filename[120];
+
+		swprintf_s(filename, 120, L"c:\\temp\\offscreenBuf-%d.jpg", frame);
+		capture(0, this->_deviceResources->_offscreenBuffer, filename);
+
+		swprintf_s(filename, 120, L"c:\\temp\\offscreenBuf2-%d.jpg", frame);
+		capture(0, this->_deviceResources->_offscreenBuffer2, filename);
+
+		swprintf_s(filename, 120, L"c:\\temp\\offscreenBuf3-%d.jpg", frame);
+		capture(0, this->_deviceResources->_offscreenBuffer3, filename);
+
+		frame++;
+		if (frame >= 5)
+			g_bCapture2DOffscreenBuffer = false;
+	}
+#endif
+#ifdef DBG_VR
+	if (g_iPresentCounter == 100) {
+		switch (pass) {
+			case 0:
+				capture(0, resources->_reshadeOutput1, L"C:\\Temp\\reshade-pass-0.jpg");
+				break;
+			case 1:
+				capture(0, resources->_reshadeOutput2, L"C:\\Temp\\reshade-pass-1.jpg");
+				break;
+			case 2:
+				capture(0, resources->_reshadeOutput1, L"C:\\Temp\\reshade-pass-2.jpg");
+				break;
+			case 3:
+				capture(0, resources->_reshadeOutput2, L"C:\\Temp\\reshade-pass-3.jpg");
+				break;
+		}
+	}
+#endif
+
+	// Restore previous rendertarget, etc
+	resources->InitInputLayout(resources->_inputLayout);
+	context->OMSetRenderTargets(1, this->_deviceResources->_renderTargetView.GetAddressOf(),
+		this->_deviceResources->_depthStencilViewL.Get());
+}
+
 /* Convenience function to call WaitGetPoses() */
 inline void WaitGetPoses() {
 	// We need to call WaitGetPoses so that SteamVR gets the focus, otherwise we'll just get
@@ -1382,10 +1550,50 @@ HRESULT PrimarySurface::Flip(
 	else
 	{
 		HRESULT hr;
+		auto &resources = this->_deviceResources;
+		auto &context = resources->_d3dDeviceContext;
 
 		if (this->_deviceResources->_swapChain)
 		{
 			hr = DD_OK;
+
+			// Re-shade the contents of _offscreenBufferAsInputReshade
+			if (g_bReshadeEnabled) {
+				// _offscreenBufferAsInputReshade is resolved during Execute() -- right before any GUI is rendered
+				//if (g_iPresentCounter == 100)				
+				//	capture(0, resources->_offscreenBufferAsInputReshade, L"C:\\Temp\\offscreenBufferAsInputReshade-0.jpg");
+				
+				if (g_bBloomEnabled) {
+					//float factor = 0.0f;
+					/* factor = -2.0f;
+					context->UpdateSubresource(, 0, nullptr, &g_MSCBuffer, 0, 0);
+					context->PSSetConstantBuffers(0, 1, buffer);
+					g_LastPSConstantBufferSet = PS_CONSTANT_BUFFER_NONE; */
+					// Bloom pre-pass
+					bloom(0);
+					// Horizontal Gaussian Blur. input: reshade1, output: reshade2
+					bloom(1);
+					// Vertical Gaussian Blur. input: reshade2, output: reshade1
+					bloom(2);
+
+					// Repeat once more (yes, this can be done; but we need to tune down the bloom effect a bit)
+					// Horizontal Gaussian Blur
+					bloom(1);
+					// Vertical Gaussian Blur
+					bloom(2);
+
+					// Repeat once more (yes, this can be done; but we need to tune down the bloom effect a bit)
+					// Horizontal Gaussian Blur
+					bloom(1);
+					// Vertical Gaussian Blur
+					bloom(2);
+
+					// Combine
+					bloom(3);
+					// Resolve:
+					context->CopyResource(resources->_offscreenBufferAsInput, resources->_reshadeOutput2);
+				}
+			}
 
 			// In the original code, the offscreenBuffer is resolved to the backBuffer
 			//this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0, this->_deviceResources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
@@ -1430,15 +1638,10 @@ HRESULT PrimarySurface::Flip(
 			g_bScaleableHUDStarted = false;
 
 			if (g_bDynCockpitEnabled) {
-				//static bool DumpedToFile = false;
 				this->_deviceResources->_d3dDeviceContext->ResolveSubresource(_deviceResources->_offscreenBufferAsInputDynCockpit,
 					0, _deviceResources->_offscreenBufferDynCockpit, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
 				//this->_deviceResources->_d3dDeviceContext->ClearRenderTargetView(this->_deviceResources->_renderTargetViewDynCockpit, 
 				//	this->_deviceResources->clearColor);
-				//if (!DumpedToFile) {
-				//	capture(0, _deviceResources->_offscreenBufferAsInputDynCockpit.Get(), L"c://temp//DynCockpit.png");
-				//	DumpedToFile = true;
-				//}
 			}
 
 			// Perform the lean left/right etc animations
@@ -1456,10 +1659,21 @@ HRESULT PrimarySurface::Flip(
 				Vector3 headPosFromKeyboard(g_HeadPos.x, g_HeadPos.y, g_HeadPos.z);
 
 				GetSteamVRPositionalData(&yaw, &pitch, &roll, &x, &y, &z, &rotMatrix);
-				yaw *= RAD_TO_DEG; // g_fYawMultiplier
+				yaw   *= RAD_TO_DEG; // g_fYawMultiplier
 				pitch *= RAD_TO_DEG; // g_fPitchMultiplier
-				roll *= RAD_TO_DEG * g_fRollMultiplier;
+				roll  *= RAD_TO_DEG * g_fRollMultiplier;
 
+				// HACK ALERT: I'm reading the positional tracking data from FreePIE when
+				// running SteamVR because setting up the PSMoveServiceSteamVRBridge is kind
+				// of tricky... and I'm not going to bother right now since PSMoveService
+				// already works very well for me.
+				// Read the positional data from FreePIE if the right flag is set
+				if (g_bSteamVRPosFromFreePIE) {
+					ReadFreePIE(g_iFreePIESlot);
+					x = g_FreePIEData.x;
+					y = g_FreePIEData.y;
+					z = g_FreePIEData.z;
+				}
 				pos.set(x, y, z);
 				headPos = -pos;
 

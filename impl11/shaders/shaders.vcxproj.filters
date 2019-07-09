@@ -26,6 +26,12 @@
     <FxCompile Include="SBSVertexShader.hlsl" />
     <FxCompile Include="BarrelPixelShader.hlsl" />
     <FxCompile Include="SingleBarrelPixelShader.hlsl" />
-    <FxCompile Include="qUINT_bloom.fx" />
+    <FxCompile Include="bloom\BloomPrePassPS.hlsl" />
+    <FxCompile Include="bloom\BloomCommon.fxh">
+      <Filter>Fichiers d%27en-tête</Filter>
+    </FxCompile>
+    <FxCompile Include="bloom\BloomHGaussPS.hlsl" />
+    <FxCompile Include="bloom\BloomVGaussPS.hlsl" />
+    <FxCompile Include="bloom\BloomCombinePS.hlsl" />
   </ItemGroup>
 </Project>

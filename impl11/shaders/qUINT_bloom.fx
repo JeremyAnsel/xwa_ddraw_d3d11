@@ -188,83 +188,50 @@ float BLOOM_TONEMAP_COMPRESSION = 4.0;
 static const int BloomTex7_LowestMip = int(log(BUFFER_HEIGHT/128) / log(2)) + 1;
 //static const int BloomTex7_LowestMip = CONST_LOG2(BUFFER_HEIGHT/128); // <-- This was the original value
 
-texture2D MXBLOOM_BloomTexSource 	{ Width = BUFFER_WIDTH/2; 	Height = BUFFER_HEIGHT/2;    Format = RGBA16F;};
-texture2D MXBLOOM_BloomTex1 		{ Width = BUFFER_WIDTH/2; 	Height = BUFFER_HEIGHT/2;    Format = RGBA16F;};
-texture2D MXBLOOM_BloomTex2			{ Width = BUFFER_WIDTH/4;  	Height = BUFFER_HEIGHT/4;    Format = RGBA16F;};
-texture2D MXBLOOM_BloomTex3 		{ Width = BUFFER_WIDTH/8;  	Height = BUFFER_HEIGHT/8;    Format = RGBA16F;};
-texture2D MXBLOOM_BloomTex4 		{ Width = BUFFER_WIDTH/16;  Height = BUFFER_HEIGHT/16;   Format = RGBA16F;};
-texture2D MXBLOOM_BloomTex5 		{ Width = BUFFER_WIDTH/32;  Height = BUFFER_HEIGHT/32;   Format = RGBA16F;};
-texture2D MXBLOOM_BloomTex6 		{ Width = BUFFER_WIDTH/64;  Height = BUFFER_HEIGHT/64;   Format = RGBA16F;};
-texture2D MXBLOOM_BloomTex7 		{ Width = BUFFER_WIDTH/128; Height = BUFFER_HEIGHT/128;  Format = RGBA16F; MipLevels = BloomTex7_LowestMip;};
+texture2D MXBLOOM_BloomTexSource		{ Width = BUFFER_WIDTH/2; 	Height = BUFFER_HEIGHT/2;    Format = RGBA16F; };
+texture2D MXBLOOM_BloomTex1 			{ Width = BUFFER_WIDTH/2; 	Height = BUFFER_HEIGHT/2;    Format = RGBA16F; };
+texture2D MXBLOOM_BloomTex2			{ Width = BUFFER_WIDTH/4;  	Height = BUFFER_HEIGHT/4;    Format = RGBA16F; };
+texture2D MXBLOOM_BloomTex3 			{ Width = BUFFER_WIDTH/8;  	Height = BUFFER_HEIGHT/8;    Format = RGBA16F; };
+texture2D MXBLOOM_BloomTex4 			{ Width = BUFFER_WIDTH/16;  Height = BUFFER_HEIGHT/16;   Format = RGBA16F; };
+texture2D MXBLOOM_BloomTex5 			{ Width = BUFFER_WIDTH/32;  Height = BUFFER_HEIGHT/32;   Format = RGBA16F; };
+texture2D MXBLOOM_BloomTex6 			{ Width = BUFFER_WIDTH/64;  Height = BUFFER_HEIGHT/64;   Format = RGBA16F; };
+texture2D MXBLOOM_BloomTex7 			{ Width = BUFFER_WIDTH/128; Height = BUFFER_HEIGHT/128;  Format = RGBA16F; MipLevels = BloomTex7_LowestMip; };
 texture2D MXBLOOM_BloomTexAdapt		{ Format = R16F; };
 
 sampler2D sMXBLOOM_BloomTexSource	{ Texture = MXBLOOM_BloomTexSource;	};
-sampler2D sMXBLOOM_BloomTex1		{ Texture = MXBLOOM_BloomTex1;		};
-sampler2D sMXBLOOM_BloomTex2		{ Texture = MXBLOOM_BloomTex2;		};
-sampler2D sMXBLOOM_BloomTex3		{ Texture = MXBLOOM_BloomTex3;		};
-sampler2D sMXBLOOM_BloomTex4		{ Texture = MXBLOOM_BloomTex4;		};
-sampler2D sMXBLOOM_BloomTex5		{ Texture = MXBLOOM_BloomTex5;		};
-sampler2D sMXBLOOM_BloomTex6		{ Texture = MXBLOOM_BloomTex6;		};
-sampler2D sMXBLOOM_BloomTex7		{ Texture = MXBLOOM_BloomTex7;		};
-sampler2D sMXBLOOM_BloomTexAdapt	{ Texture = MXBLOOM_BloomTexAdapt;	};
+sampler2D sMXBLOOM_BloomTex1			{ Texture = MXBLOOM_BloomTex1;		};
+sampler2D sMXBLOOM_BloomTex2			{ Texture = MXBLOOM_BloomTex2;		};
+sampler2D sMXBLOOM_BloomTex3			{ Texture = MXBLOOM_BloomTex3;		};
+sampler2D sMXBLOOM_BloomTex4			{ Texture = MXBLOOM_BloomTex4;		};
+sampler2D sMXBLOOM_BloomTex5			{ Texture = MXBLOOM_BloomTex5;		};
+sampler2D sMXBLOOM_BloomTex6			{ Texture = MXBLOOM_BloomTex6;		};
+sampler2D sMXBLOOM_BloomTex7			{ Texture = MXBLOOM_BloomTex7;		};
+sampler2D sMXBLOOM_BloomTexAdapt		{ Texture = MXBLOOM_BloomTexAdapt;	};
 
 /*=============================================================================
 	Functions
 =============================================================================*/
 
+// This looks more like a blur operation than a downsample. Maybe the downsample proper comes later?
 float4 downsample(sampler2D tex, float2 tex_size, float2 uv)
 {
 	float4 offset_uv = 0;
 
-	float2 kernel_small_offsets = float2(2.0,2.0) / tex_size;
-	float2 kernel_large_offsets = float2(4.0,4.0) / tex_size;
-
+	float2 kernel_small_offsets = float2(2.0, 2.0) / tex_size;
 	float4 kernel_center = tex2D(tex, uv);
-
 	float4 kernel_small = 0;
 
-	offset_uv.xy = uv + kernel_small_offsets;
+	offset_uv.xy  = uv + kernel_small_offsets;
 	kernel_small += tex2Dlod(tex, offset_uv); //++
-	offset_uv.x = uv.x - kernel_small_offsets.x;
+	offset_uv.x   = uv.x - kernel_small_offsets.x;
 	kernel_small += tex2Dlod(tex, offset_uv); //-+
-	offset_uv.y = uv.y - kernel_small_offsets.y;
+	offset_uv.y   = uv.y - kernel_small_offsets.y;
 	kernel_small += tex2Dlod(tex, offset_uv); //--
-	offset_uv.x = uv.x + kernel_small_offsets.x;
+	offset_uv.x   = uv.x + kernel_small_offsets.x;
 	kernel_small += tex2Dlod(tex, offset_uv); //+-
 
-#if SAMPLE_HQ == 0
-	return kernel_center / 5.0	
-	      + kernel_small / 5.0;
-#else
-	float4 kernel_large_1 = 0;
-
-	offset_uv.xy = uv + kernel_large_offsets;
-	kernel_large_1 += tex2Dlod(tex, offset_uv); //++
-	offset_uv.x = uv.x - kernel_large_offsets.x;
-	kernel_large_1 += tex2Dlod(tex, offset_uv); //-+
-	offset_uv.y = uv.y - kernel_large_offsets.y;
-	kernel_large_1 += tex2Dlod(tex, offset_uv); //--
-	offset_uv.x = uv.x + kernel_large_offsets.x;
-	kernel_large_1 += tex2Dlod(tex, offset_uv); //+-
-
-	float4 kernel_large_2 = 0;
-
-	offset_uv.xy = uv;
-	offset_uv.x += kernel_large_offsets.x;
-	kernel_large_2 += tex2Dlod(tex, offset_uv); //+0
-	offset_uv.x -= kernel_large_offsets.x * 2.0;
-	kernel_large_2 += tex2Dlod(tex, offset_uv); //-0
-	offset_uv.x = uv.x;
-	offset_uv.y += kernel_large_offsets.y;
-	kernel_large_2 += tex2Dlod(tex, offset_uv); //0+
-	offset_uv.y -= kernel_large_offsets.y * 2.0;
-	kernel_large_2 += tex2Dlod(tex, offset_uv); //0-
-
-	return kernel_center * 0.5 / 4.0		
-	     + kernel_small  * 0.5 / 4.0	
-	     + kernel_large_1 * 0.125 / 4.0
-	     + kernel_large_2 * 0.25 / 4.0;
-#endif
+	// This looks like it's taking the average
+	return (kernel_center + kernel_small) / 5.0;
 }
 
 float3 Upsample(sampler2D tex, float2 texel_size, float2 uv)
@@ -288,25 +255,7 @@ float3 Upsample(sampler2D tex, float2 texel_size, float2 uv)
 	offset_uv.x -= kernel_small_offsets.z;
 	kernel_small_1 += tex2Dlod(tex, offset_uv).rgb; //-+
 
-#if SAMPLE_HQ == 0
-	return kernel_center / 5.0
-	     + kernel_small_1 / 5.0;
-#else
-	float3 kernel_small_2 = 0;
-
-	offset_uv.xy = uv.xy + float2(kernel_small_offsets.x, 0);
-	kernel_small_2 += tex2Dlod(tex, offset_uv).rgb; //+0
-	offset_uv.x -= kernel_small_offsets.z;
-	kernel_small_2 += tex2Dlod(tex, offset_uv).rgb; //-0
-	offset_uv.xy = uv.xy + float2(0, kernel_small_offsets.y);
-	kernel_small_2 += tex2Dlod(tex, offset_uv).rgb; //0+
-	offset_uv.y -= kernel_small_offsets.w;
-	kernel_small_2 += tex2Dlod(tex, offset_uv).rgb; //0-
-
-	return kernel_center * 4.0 / 16.0
-	     + kernel_small_1 * 1.0 / 16.0
-	     + kernel_small_2 * 2.0 / 16.0;
-#endif
+	return (kernel_center + kernel_small_1) / 5.0;
 }
 
 /*=============================================================================
@@ -326,26 +275,32 @@ void PS_Downsample1(in float4 pos : SV_Position, in float2 uv : TEXCOORD0, out f
 {	
 	bloom = downsample(sMXBLOOM_BloomTexSource, ldexp(qUINT::SCREEN_SIZE, -1.0), uv);
 }
+
 void PS_Downsample2(in float4 pos : SV_Position, in float2 uv : TEXCOORD0, out float4 bloom : SV_Target0)
 {	
 	bloom = downsample(sMXBLOOM_BloomTex1, 		ldexp(qUINT::SCREEN_SIZE, -2.0), uv);
 }
+
 void PS_Downsample3(in float4 pos : SV_Position, in float2 uv : TEXCOORD0, out float4 bloom : SV_Target0)
 {	
 	bloom = downsample(sMXBLOOM_BloomTex2, 		ldexp(qUINT::SCREEN_SIZE, -3.0), uv);
 }
+
 void PS_Downsample4(in float4 pos : SV_Position, in float2 uv : TEXCOORD0, out float4 bloom : SV_Target0)
 {	
 	bloom = downsample(sMXBLOOM_BloomTex3, 		ldexp(qUINT::SCREEN_SIZE, -4.0), uv);
 }
+
 void PS_Downsample5(in float4 pos : SV_Position, in float2 uv : TEXCOORD0, out float4 bloom : SV_Target0)
 {	
 	bloom = downsample(sMXBLOOM_BloomTex4, 		ldexp(qUINT::SCREEN_SIZE, -5.0), uv);
 }
+
 void PS_Downsample6(in float4 pos : SV_Position, in float2 uv : TEXCOORD0, out float4 bloom : SV_Target0)
 {	
 	bloom = downsample(sMXBLOOM_BloomTex5, 		ldexp(qUINT::SCREEN_SIZE, -6.0), uv);
 }
+
 void PS_Downsample7(in float4 pos : SV_Position, in float2 uv : TEXCOORD0, out float4 bloom : SV_Target0)
 {	
 	bloom = downsample(sMXBLOOM_BloomTex6, 		ldexp(qUINT::SCREEN_SIZE, -7.0), uv); 
@@ -355,27 +310,35 @@ void PS_Downsample7(in float4 pos : SV_Position, in float2 uv : TEXCOORD0, out f
 }
 
 void PS_AdaptStoreLast(in float4 pos : SV_Position, in float2 uv : TEXCOORD0, out float adapt : SV_Target0)
-{	adapt = tex2Dlod(sMXBLOOM_BloomTex7, float4(uv.xy,0,BloomTex7_LowestMip)).w;}
+{	
+	adapt = tex2Dlod(sMXBLOOM_BloomTex7, float4(uv.xy,0,BloomTex7_LowestMip)).w;
+}
 
 void PS_Upsample1(in float4 pos : SV_Position, in float2 uv : TEXCOORD0, out float4 bloom : SV_Target0)
 {	
-	bloom = float4(Upsample(sMXBLOOM_BloomTex7, ldexp(qUINT::PIXEL_SIZE, 7.0), uv) * BLOOM_LAYER_MULT_7, BLOOM_LAYER_MULT_6);}
+	bloom = float4(Upsample(sMXBLOOM_BloomTex7, ldexp(qUINT::PIXEL_SIZE, 7.0), uv) * BLOOM_LAYER_MULT_7, BLOOM_LAYER_MULT_6);
+}
+
 void PS_Upsample2(in float4 pos : SV_Position, in float2 uv : TEXCOORD0, out float4 bloom : SV_Target0)
 {	
 	bloom = float4(Upsample(sMXBLOOM_BloomTex6, ldexp(qUINT::PIXEL_SIZE, 6.0), uv), BLOOM_LAYER_MULT_5);
 }
+
 void PS_Upsample3(in float4 pos : SV_Position, in float2 uv : TEXCOORD0, out float4 bloom : SV_Target0)
 {	
 	bloom = float4(Upsample(sMXBLOOM_BloomTex5, ldexp(qUINT::PIXEL_SIZE, 5.0), uv), BLOOM_LAYER_MULT_4);
 }
+
 void PS_Upsample4(in float4 pos : SV_Position, in float2 uv : TEXCOORD0, out float4 bloom : SV_Target0)
 {	
 	bloom = float4(Upsample(sMXBLOOM_BloomTex4, ldexp(qUINT::PIXEL_SIZE, 4.0), uv), BLOOM_LAYER_MULT_3);
 }
+
 void PS_Upsample5(in float4 pos : SV_Position, in float2 uv : TEXCOORD0, out float4 bloom : SV_Target0)
 {	
 	bloom = float4(Upsample(sMXBLOOM_BloomTex3, ldexp(qUINT::PIXEL_SIZE, 3.0), uv), BLOOM_LAYER_MULT_2);
 }
+
 void PS_Upsample6(in float4 pos : SV_Position, in float2 uv : TEXCOORD0, out float4 bloom : SV_Target0)
 {	
 	bloom = float4(Upsample(sMXBLOOM_BloomTex2, ldexp(qUINT::PIXEL_SIZE, 2.0), uv), BLOOM_LAYER_MULT_1);
@@ -409,6 +372,7 @@ technique Bloom
                "light sources and other emitters on screen.\n"
                "\nBloom is written by Marty McFly / Pascal Gilcher"; > */
 {
+	// Reads from BackBuffer and writes to BloomTexSource
     pass
 	{
 		VertexShader = PostProcessVS;
@@ -418,14 +382,20 @@ technique Bloom
 
 	#define PASS_DOWNSAMPLE(i) pass { VertexShader = PostProcessVS; PixelShader  = PS_Downsample##i; RenderTarget0 = MXBLOOM_BloomTex##i; }
 
+	// Pass N samples from MXBLOOM_BloomTex(N-1) and writes to MXBLOOM_BloomTexN
+
+	// Reads from BloomTexSource and writes to BloomTex1
 	PASS_DOWNSAMPLE(1)
+	// Reads from BloomTex1 and writes to BloomTex2
 	PASS_DOWNSAMPLE(2)
 	PASS_DOWNSAMPLE(3)
 	PASS_DOWNSAMPLE(4)
 	PASS_DOWNSAMPLE(5)
 	PASS_DOWNSAMPLE(6)
+	// Reads from BloomTex6 and BloomTexAdapt, writes to BloomTex7
 	PASS_DOWNSAMPLE(7)
 
+	// This pass reads from BloomTex7 and writes to MXBLOOM_BloomTexAdapt
 	pass
 	{
 		VertexShader = PostProcessVS;
@@ -435,13 +405,17 @@ technique Bloom
 
 	#define PASS_UPSAMPLE(i,j) pass {VertexShader = PostProcessVS;PixelShader  = PS_Upsample##i;RenderTarget0 = MXBLOOM_BloomTex##j;ClearRenderTargets = false;BlendEnable = true;BlendOp = ADD;SrcBlend = ONE;DestBlend = SRCALPHA;}
 
+	// Reads from BloomTex7 and writes to BloomTex6
 	PASS_UPSAMPLE(1,6)
+	// Reads from BloomTex6 and writes to BloomTex5
 	PASS_UPSAMPLE(2,5)
 	PASS_UPSAMPLE(3,4)
 	PASS_UPSAMPLE(4,3)
 	PASS_UPSAMPLE(5,2)
+	// Reads from BloomTex2 and writes to BloomTex1
 	PASS_UPSAMPLE(6,1)
 
+	// Reads from BloomTex1 and BloomTexAdapt
 	pass
 	{
 		VertexShader = PostProcessVS;
@@ -449,6 +423,10 @@ technique Bloom
 	}
 }
 
+/*
 float4 main() : SV_TARGET {
 	return float4(0, 0, 0, 1);
 }
+*/
+
+void main() {}

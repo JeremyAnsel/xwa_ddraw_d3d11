@@ -33,8 +33,8 @@
 float BUFFER_WIDTH = 1920;
 float BUFFER_HEIGHT = 1080;
 
-float BUFFER_RCP_WIDTH = 1920;
-float BUFFER_RCP_HEIGHT = 1080;
+float BUFFER_RCP_WIDTH = 1.0/1920.0;
+float BUFFER_RCP_HEIGHT = 1.0/1080.0;
 
 namespace qUINT
 {
@@ -43,7 +43,7 @@ namespace qUINT
 
     static const float2 ASPECT_RATIO 	= float2(1.0, BUFFER_WIDTH * BUFFER_RCP_HEIGHT);
 	static const float2 PIXEL_SIZE 		= float2(BUFFER_RCP_WIDTH, BUFFER_RCP_HEIGHT);
-	static const float2 SCREEN_SIZE 	= float2(BUFFER_WIDTH, BUFFER_HEIGHT);
+	static const float2 SCREEN_SIZE 	    = float2(BUFFER_WIDTH, BUFFER_HEIGHT);
 
 	// Global textures and samplers
 	texture BackBufferTex : COLOR;
