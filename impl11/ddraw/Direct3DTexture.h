@@ -38,7 +38,11 @@ public:
 	// This texture is the right panel that can be used for the left radar
 	bool is_DynCockpitRightRadarPanel;
 	// This texture is the panel right in the middle of the X-Wing. I don't have a better name for now...
-	bool is_DynCockpitDisplay1;
+	bool is_DynCockpitFrontPanel;
+	// This texture is the shields panel to the right of the targeting computer panel in the X-Wing.
+	bool is_DynCockpitShieldsPanel;
+	// This texture is the lasers-energy panel in the X-Wing cockpit.
+	bool is_DynCockpitLasersPanel;
 	// True for all textures that can be used as sources for the dynamic cockpit.
 	bool is_DynCockpitSrc;
 	// True for the additional textures loaded in Hi-Res mode that provide additional glow

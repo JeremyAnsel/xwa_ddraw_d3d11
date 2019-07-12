@@ -10,6 +10,10 @@ const uint32_t DYN_COCKPIT_TARGET_COMP_SRC_CRC = 0x3b9a3741;
 const uint32_t DYN_COCKPIT_LEFT_RADAR_SRC_CRC  = 0x75b9e062;
 const uint32_t DYN_COCKPIT_RIGHT_RADAR_SRC_CRC = 0x1ec963a9;
 const uint32_t DYN_COCKPIT_SHIELDS_SRC_CRC     = 0x3188119f;
+const uint32_t DYN_COCKPIT_SOLID_MSG_SRC_CRC   = 0x7e1b021d;
+const uint32_t DYN_COCKPIT_BORDER_MSG_SRC_CRC  = 0x771a714c;
+const uint32_t DYN_COCKPIT_LASER_BOX_SRC_CRC   = 0xd0168df9;
+const uint32_t DYN_COCKPIT_ION_BOX_SRC_CRC	   = 0xe321d785;
 
 typedef struct Box_struct {
 	float left, right;
@@ -17,13 +21,20 @@ typedef struct Box_struct {
 } Box;
 
 typedef struct DynCockpitBoxesComputedStruct {
-	bool TargetComp = false;
-	bool LeftRadar = false;
-	bool RightRadar = false;
-	bool Shields = false;
-	Box TargetCompBox = { 0 };
-	Box LeftRadarBox = { 0 };
-	Box RightRadarBox = { 0 };
+	bool TargetCompLimitsComputed = false;
+	bool LeftRadarLimitsComputed  = false;
+	bool RightRadarLimitsComputed = false;
+	bool ShieldsLimitsComputed    = false;
+	bool LasersLimitsComputed     = false;
+	bool LeftMsgLimitsComputed    = false;
+	bool RightMsgLimitsComputed   = false;
+	Box TargetCompBox    = { 0 };
+	Box LeftRadarBox     = { 0 };
+	Box RightRadarBox    = { 0 };
+	Box ShieldsBox       = { 0 };
+	Box LasersBox        = { 1000000, -1000000, 1000000, -1000000 };
+	Box LeftMsgPanelBox  = { 0 };
+	Box RightMsgPanelBox = { 0 };
 } DynCockpitBoxes;
 
 enum RenderMainColorKeyType

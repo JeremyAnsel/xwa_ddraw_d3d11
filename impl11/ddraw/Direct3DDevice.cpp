@@ -129,9 +129,12 @@ dc_target_comp_uv_coords = 0.275, 0.28, -0.01, -0.03
 dc_left_radar_uv_coords  = 0.39, 0.49, -0.045, -0.052
 dc_right_radar_uv_coords = 0.39, 0.49, -0.213, -0.052
 */
-const char *DC_TARGET_COMP_UV_COORDS_VRPARAM = "dc_target_comp_uv_coords";
-const char *DC_LEFT_RADAR_UV_COORDS_VRPARAM  = "dc_left_radar_uv_coords";
-const char *DC_RIGHT_RADAR_UV_COORDS_VRPARAM = "dc_right_radar_uv_coords";
+const char *DC_TARGET_COMP_UV_COORDS_VRPARAM   = "dc_target_comp_uv_coords";
+const char *DC_LEFT_RADAR_UV_COORDS_VRPARAM    = "dc_left_radar_uv_coords";
+const char *DC_RIGHT_RADAR_UV_COORDS_VRPARAM   = "dc_right_radar_uv_coords";
+const char *DC_SHIELDS_PANEL_UV_COORDS_VRPARAM = "dc_shields_panel_uv_coords";
+const char *DC_LASERS_PANEL_UV_COORDS_VRPARAM  = "dc_lasers_panel_uv_coords";
+const char *DC_FRONT_PANEL_UV_COORDS_VRPARAM   = "dc_front_panel_uv_coords";
 
 /*
 typedef enum {
@@ -201,6 +204,7 @@ bool g_bSkipAfterTargetComp = false; // Skip all draw calls after the targetting
 bool g_bTargetCompDrawn = false; // Becomes true after the targetting computer has been drawn
 bool g_bPrevIsFloatingGUI3DObject = false; // Stores the last value of g_bIsFloatingGUI3DObject -- useful to detect when the targeted craft is about to be drawn
 bool g_bIsFloating3DObject = false; // true when rendering the targeted 3D object.
+//bool g_bLaserBoxLimitsUpdated = false; // Set to true whenever the laser/ion charge limit boxes are updated
 unsigned int g_iFloatingGUIDrawnCounter = 0;
 int g_iPresentCounter = 0, g_iNonZBufferCounter = 0, g_iSkipNonZBufferDrawIdx = -1;
 // The following flag tells us when the main GUI elements (HUD, radars, etc) have been rendered
@@ -212,9 +216,12 @@ typedef struct uv_coords_struct {
 	float uv_scale[2];
 	float uv_offset[2];
 } uv_coords;
-uv_coords g_DynCockpitTargetCompUVCoords = { 0.325f, 0.325f, -0.01f, -0.04f };
-uv_coords g_DynCockpitLeftRadarUVCoords = { 0.5f, 0.5f, -0.06f, -0.05f };
-uv_coords g_DynCockpitRightRadarUVCoords = { 0.5f, 0.5f, -0.275f, -0.05f };
+uv_coords g_DCTargetCompUVCoords = { 0.325f, 0.325f, -0.01f, -0.04f };
+uv_coords g_DCLeftRadarUVCoords  = { 0.5f, 0.5f, -0.06f, -0.05f };
+uv_coords g_DCRightRadarUVCoords = { 0.5f, 0.5f, -0.275f, -0.05f };
+uv_coords g_DCShieldsUVCoords    = { 1, 1, 0, 0 };
+uv_coords g_DCLasersUVCoords     = { 1, 1, 0, 0 };
+uv_coords g_DCFrontPanelUVCoords = { 1, 1, 0, 0 };
 
 extern bool g_bRendering3D; // Used to distinguish between 2D (Concourse/Menus) and 3D rendering (main in-flight game)
 
@@ -281,11 +288,14 @@ float g_fFocalDist = DEFAULT_FOCAL_DIST;
 /*
  * New Cockpit Textures
  */
-extern ComPtr<ID3D11ShaderResourceView> g_NewDynCockpitTargetCompCover;
-extern ComPtr<ID3D11ShaderResourceView> g_NewDynCockpitLeftRadar;
-extern ComPtr<ID3D11ShaderResourceView> g_NewDynCockpitRightRadar;
-extern ComPtr<ID3D11ShaderResourceView> g_NewDynCockpitLeftRadarCover;
-extern ComPtr<ID3D11ShaderResourceView> g_NewDynCockpitRightRadarCover;
+extern ComPtr<ID3D11ShaderResourceView> g_NewDCTargetCompCover;
+extern ComPtr<ID3D11ShaderResourceView> g_NewHUDLeftRadar;
+extern ComPtr<ID3D11ShaderResourceView> g_NewHUDRightRadar;
+extern ComPtr<ID3D11ShaderResourceView> g_NewDCLeftRadarCover;
+extern ComPtr<ID3D11ShaderResourceView> g_NewDCRightRadarCover;
+extern ComPtr<ID3D11ShaderResourceView> g_NewDCShieldsCover;
+extern ComPtr<ID3D11ShaderResourceView> g_NewDCLasersCover;
+extern ComPtr<ID3D11ShaderResourceView> g_NewDCFrontPanelCover;
 
 /*
  * Control/Debug variables
@@ -851,6 +861,7 @@ void LoadVRParams() {
 			}
 			else if (_stricmp(param, DYNAMIC_COCKPIT_TARGET_COMP_VRPARAM) == 0) {
 				g_bDynCockpitEnabled = (bool)value;
+				log_debug("[DBG] vrparam: g_bDynCockpitEnabled: %d", g_bDynCockpitEnabled);
 			}
 			else if (_stricmp(param, FIXED_GUI_VRPARAM) == 0) {
 				g_bFixedGUI = (bool)value;
@@ -905,10 +916,10 @@ void LoadVRParams() {
 					c += 1;
 					try {
 						res = sscanf_s(c, "%f, %f, %f, %f", &sx, &sy, &x, &y);
-						g_DynCockpitTargetCompUVCoords.uv_scale[0] = sx;
-						g_DynCockpitTargetCompUVCoords.uv_scale[1] = sy;
-						g_DynCockpitTargetCompUVCoords.uv_offset[0] = x;
-						g_DynCockpitTargetCompUVCoords.uv_offset[1] = y;
+						g_DCTargetCompUVCoords.uv_scale[0] = sx;
+						g_DCTargetCompUVCoords.uv_scale[1] = sy;
+						g_DCTargetCompUVCoords.uv_offset[0] = x;
+						g_DCTargetCompUVCoords.uv_offset[1] = y;
 					}
 					catch (...) {
 						log_debug("[DBG] Could not read uv coords for the targeting computer");
@@ -925,10 +936,10 @@ void LoadVRParams() {
 					//log_debug("[DBG] Reading %s from [%s]", param, c);
 					try {
 						res = sscanf_s(c, "%f, %f, %f, %f", &sx, &sy, &x, &y);
-						g_DynCockpitLeftRadarUVCoords.uv_scale[0] = sx;
-						g_DynCockpitLeftRadarUVCoords.uv_scale[1] = sy;
-						g_DynCockpitLeftRadarUVCoords.uv_offset[0] = x;
-						g_DynCockpitLeftRadarUVCoords.uv_offset[1] = y;
+						g_DCLeftRadarUVCoords.uv_scale[0] = sx;
+						g_DCLeftRadarUVCoords.uv_scale[1] = sy;
+						g_DCLeftRadarUVCoords.uv_offset[0] = x;
+						g_DCLeftRadarUVCoords.uv_offset[1] = y;
 					}
 					catch (...) {
 						log_debug("[DBG] Could not read uv coords for the left radar");
@@ -947,10 +958,10 @@ void LoadVRParams() {
 					//log_debug("[DBG] Reading %s from [%s]", param, c);
 					try {
 						res = sscanf_s(c, "%f, %f, %f, %f", &sx, &sy, &x, &y);
-						g_DynCockpitRightRadarUVCoords.uv_scale[0] = sx;
-						g_DynCockpitRightRadarUVCoords.uv_scale[1] = sy;
-						g_DynCockpitRightRadarUVCoords.uv_offset[0] = x;
-						g_DynCockpitRightRadarUVCoords.uv_offset[1] = y;
+						g_DCRightRadarUVCoords.uv_scale[0] = sx;
+						g_DCRightRadarUVCoords.uv_scale[1] = sy;
+						g_DCRightRadarUVCoords.uv_offset[0] = x;
+						g_DCRightRadarUVCoords.uv_offset[1] = y;
 					}
 					catch (...) {
 						log_debug("[DBG] Could not read uv coords for the left radar");
@@ -959,6 +970,64 @@ void LoadVRParams() {
 					//	res, sx, sy, x, y);	
 				}
 			}
+			else if (_stricmp(param, DC_SHIELDS_PANEL_UV_COORDS_VRPARAM) == 0) {
+				float sx = 1.0f, sy = 1.0f, x = 0.0f, y = 0.0f;
+				int res = 0;
+				char *c = NULL;
+				c = strchr(buf, '=');
+				if (c != NULL) {
+					c += 1;
+					try {
+						res = sscanf_s(c, "%f, %f, %f, %f", &sx, &sy, &x, &y);
+						g_DCShieldsUVCoords.uv_scale[0] = sx;
+						g_DCShieldsUVCoords.uv_scale[1] = sy;
+						g_DCShieldsUVCoords.uv_offset[0] = x;
+						g_DCShieldsUVCoords.uv_offset[1] = y;
+					}
+					catch (...) {
+						log_debug("[DBG] Could not read uv coords for the shields panel");
+					}
+				}
+			}
+			else if (_stricmp(param, DC_LASERS_PANEL_UV_COORDS_VRPARAM) == 0) {
+				float sx = 1.0f, sy = 1.0f, x = 0.0f, y = 0.0f;
+				int res = 0;
+				char *c = NULL;
+				c = strchr(buf, '=');
+				if (c != NULL) {
+					c += 1;
+					try {
+						res = sscanf_s(c, "%f, %f, %f, %f", &sx, &sy, &x, &y);
+						g_DCLasersUVCoords.uv_scale[0] = sx;
+						g_DCLasersUVCoords.uv_scale[1] = sy;
+						g_DCLasersUVCoords.uv_offset[0] = x;
+						g_DCLasersUVCoords.uv_offset[1] = y;
+					}
+					catch (...) {
+						log_debug("[DBG] Could not read uv coords for the lasers panel");
+					}
+				}
+			}
+			else if (_stricmp(param, DC_FRONT_PANEL_UV_COORDS_VRPARAM) == 0) {
+				float sx = 1.0f, sy = 1.0f, x = 0.0f, y = 0.0f;
+				int res = 0;
+				char *c = NULL;
+				c = strchr(buf, '=');
+				if (c != NULL) {
+					c += 1;
+					try {
+						res = sscanf_s(c, "%f, %f, %f, %f", &sx, &sy, &x, &y);
+						g_DCFrontPanelUVCoords.uv_scale[0] = sx;
+						g_DCFrontPanelUVCoords.uv_scale[1] = sy;
+						g_DCFrontPanelUVCoords.uv_offset[0] = x;
+						g_DCFrontPanelUVCoords.uv_offset[1] = y;
+					}
+					catch (...) {
+						log_debug("[DBG] Could not read uv coords for the front panel");
+					}
+				}
+			}
+
 			// ReShade state
 			else if (_stricmp(param, BLOOM_ENABLED_VRPARAM) == 0) {
 				bool state = (bool)value;
@@ -2322,7 +2391,7 @@ HRESULT Direct3DDevice::Execute(
 	size_t vertsLength = sizeof(D3DTLVERTEX) * numVerts;
 	g_OrigVerts = (D3DTLVERTEX *)executeBuffer->_buffer;
 	// Generate vertex positions for the left and right images
-	float displayWidth = (float)resources->_displayWidth;
+	float displayWidth  = (float)resources->_displayWidth;
 	float displayHeight = (float)resources->_displayHeight;
 
 	// Copy the vertex data to the vertexbuffers
@@ -2364,7 +2433,7 @@ HRESULT Direct3DDevice::Execute(
 		}
 		else
 		{
-			width = resources->_backbufferWidth;
+			width  = resources->_backbufferWidth;
 			height = resources->_backbufferHeight;
 
 			if (!g_bOverrideAspectRatio) {
@@ -2693,99 +2762,192 @@ HRESULT Direct3DDevice::Execute(
 				// Capture the bounds of the targeting computer texture
 				// The targeting computer is rendered *after* the laser energy levels and the bounding box of the targeting
 				// computer slightly overlaps the lasers. So, we must be careful when copying image data from this area.
-				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->crc == DYN_COCKPIT_TARGET_COMP_SRC_CRC) {
-					if (!g_DynCockpitBoxes.TargetComp) {
-						// This is the solid targeting computer background. We need to compute its limits in pixels.
-						// We only need to do this once -- and this should be done when the first frame is rendered.
-						float minX, minY, maxX, maxY;
-						GetBoundingBox(instruction, currentIndexLocation, &minX, &minY, &maxX, &maxY);
-						// The bounding box for the targeting computer intersects the laser charge by a little bit, so
-						// let's fix that in pixels; but computed in relative height (so, let's move the top of the box
-						// by 7% of the height downwards:
-						float tcHeight = maxY - minY + 1;
-						float top_margin = 0.07f * tcHeight;
-						lastTextureSelected->boundingBox.left = minX;
-						lastTextureSelected->boundingBox.top = minY + top_margin; // Avoid capturing the laser charge display
-						lastTextureSelected->boundingBox.right = maxX + 1;
-						lastTextureSelected->boundingBox.bottom = maxY + 1;
-						//lastTextureSelected->bBoundingBoxComputed = true;
-						g_DynCockpitBoxes.TargetCompBox = lastTextureSelected->boundingBox;
-						g_DynCockpitBoxes.TargetComp = true;
-						
-						log_debug("[DBG] Targeting Computer limits: (%0.3f, %0.3f)-(%0.3f, %0.3f)",
-							lastTextureSelected->boundingBox.left, lastTextureSelected->boundingBox.top,
-							lastTextureSelected->boundingBox.right, lastTextureSelected->boundingBox.bottom);
+				if (g_bDynCockpitEnabled && lastTextureSelected != NULL)
+				{
+					if (lastTextureSelected->crc == DYN_COCKPIT_TARGET_COMP_SRC_CRC) 
+					{
+						if (!g_DynCockpitBoxes.TargetCompLimitsComputed) {
+							// This is the solid targeting computer background. We need to compute its limits in pixels.
+							// We only need to do this once -- and this should be done when the first frame is rendered.
+							float minX, minY, maxX, maxY;
+							GetBoundingBox(instruction, currentIndexLocation, &minX, &minY, &maxX, &maxY);
+							// The bounding box for the targeting computer intersects the laser charge by a little bit, so
+							// let's fix that in pixels; but computed in relative height (so, let's move the top of the box
+							// by 7% of the height downwards:
+							float tcHeight = maxY - minY + 1;
+							float top_margin = 0.07f * tcHeight;
+							lastTextureSelected->boundingBox.left = minX;
+							lastTextureSelected->boundingBox.top = minY + top_margin; // Avoid capturing the laser charge display
+							lastTextureSelected->boundingBox.right = maxX + 1;
+							lastTextureSelected->boundingBox.bottom = maxY + 1;
+							g_DynCockpitBoxes.TargetCompBox = lastTextureSelected->boundingBox;
+							g_DynCockpitBoxes.TargetCompLimitsComputed = true;
+
+							log_debug("[DBG] Targeting Computer limits: (%0.3f, %0.3f)-(%0.3f, %0.3f)",
+								lastTextureSelected->boundingBox.left, lastTextureSelected->boundingBox.top,
+								lastTextureSelected->boundingBox.right, lastTextureSelected->boundingBox.bottom);
+						}
+						// Don't render this element
+						goto out;
 					}
-					// Don't render this element
-					goto out;
 				}
 
 				// Capture the bounds for the left radar:
-				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->crc == DYN_COCKPIT_LEFT_RADAR_SRC_CRC) {
-					if (!g_DynCockpitBoxes.LeftRadar) {
-						float minX, minY, maxX, maxY;
-						GetBoundingBox(instruction, currentIndexLocation, &minX, &minY, &maxX, &maxY);
-						lastTextureSelected->boundingBox.left = minX;
-						lastTextureSelected->boundingBox.top = minY;
-						lastTextureSelected->boundingBox.right = maxX + 1;
-						lastTextureSelected->boundingBox.bottom = maxY + 1;
-						g_DynCockpitBoxes.LeftRadarBox = lastTextureSelected->boundingBox;
-						g_DynCockpitBoxes.LeftRadar = true;
+				if (g_bDynCockpitEnabled && lastTextureSelected != NULL)
+				{
+					if (lastTextureSelected->crc == DYN_COCKPIT_LEFT_RADAR_SRC_CRC) 
+					{
+						if (!g_DynCockpitBoxes.LeftRadarLimitsComputed) 
+						{
+							float minX, minY, maxX, maxY;
+							GetBoundingBox(instruction, currentIndexLocation, &minX, &minY, &maxX, &maxY);
+							lastTextureSelected->boundingBox.left = minX;
+							lastTextureSelected->boundingBox.top = minY;
+							lastTextureSelected->boundingBox.right = maxX + 1;
+							lastTextureSelected->boundingBox.bottom = maxY + 1;
+							g_DynCockpitBoxes.LeftRadarBox = lastTextureSelected->boundingBox;
+							g_DynCockpitBoxes.LeftRadarLimitsComputed = true;
 
-						log_debug("[DBG] Left Radar limits: (%0.3f, %0.3f)-(%0.3f, %0.3f)",
-							lastTextureSelected->boundingBox.left, lastTextureSelected->boundingBox.top,
-							lastTextureSelected->boundingBox.right, lastTextureSelected->boundingBox.bottom);
+							log_debug("[DBG] Left Radar limits: (%0.3f, %0.3f)-(%0.3f, %0.3f)",
+								lastTextureSelected->boundingBox.left, lastTextureSelected->boundingBox.top,
+								lastTextureSelected->boundingBox.right, lastTextureSelected->boundingBox.bottom);
+						}
+						// Don't render this element
+						//goto out;
+						if (g_NewHUDLeftRadar != NULL)
+							context->PSSetShaderResources(0, 1, g_NewHUDLeftRadar.GetAddressOf());
+						else
+							goto out;
 					}
-					// Don't render this element
-					//goto out;
-					if (g_NewDynCockpitLeftRadar != NULL)
-						context->PSSetShaderResources(0, 1, g_NewDynCockpitLeftRadar.GetAddressOf());
-					else
-						goto out;
 				}
 
 				// Capture the bounds for the right radar:
-				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->crc == DYN_COCKPIT_RIGHT_RADAR_SRC_CRC) {
-					if (!g_DynCockpitBoxes.RightRadar) {
-						float minX, minY, maxX, maxY;
-						GetBoundingBox(instruction, currentIndexLocation, &minX, &minY, &maxX, &maxY);
-						lastTextureSelected->boundingBox.left = minX;
-						lastTextureSelected->boundingBox.top = minY;
-						lastTextureSelected->boundingBox.right = maxX + 1;
-						lastTextureSelected->boundingBox.bottom = maxY + 1;
-						g_DynCockpitBoxes.RightRadarBox = lastTextureSelected->boundingBox;
-						g_DynCockpitBoxes.RightRadar = true;
+				if (g_bDynCockpitEnabled && lastTextureSelected != NULL)
+				{
+					if (lastTextureSelected->crc == DYN_COCKPIT_RIGHT_RADAR_SRC_CRC) 
+					{
+						if (!g_DynCockpitBoxes.RightRadarLimitsComputed) 
+						{
+							float minX, minY, maxX, maxY;
+							GetBoundingBox(instruction, currentIndexLocation, &minX, &minY, &maxX, &maxY);
+							lastTextureSelected->boundingBox.left = minX;
+							lastTextureSelected->boundingBox.top = minY;
+							lastTextureSelected->boundingBox.right = maxX + 1;
+							lastTextureSelected->boundingBox.bottom = maxY + 1;
+							g_DynCockpitBoxes.RightRadarBox = lastTextureSelected->boundingBox;
+							g_DynCockpitBoxes.RightRadarLimitsComputed = true;
 
-						log_debug("[DBG] Right Radar limits: (%0.3f, %0.3f)-(%0.3f, %0.3f)",
-							lastTextureSelected->boundingBox.left, lastTextureSelected->boundingBox.top,
-							lastTextureSelected->boundingBox.right, lastTextureSelected->boundingBox.bottom);
+							log_debug("[DBG] Right Radar limits: (%0.3f, %0.3f)-(%0.3f, %0.3f)",
+								lastTextureSelected->boundingBox.left, lastTextureSelected->boundingBox.top,
+								lastTextureSelected->boundingBox.right, lastTextureSelected->boundingBox.bottom);
+						}
+						// Don't render this element
+						//goto out;
+						if (g_NewHUDRightRadar != NULL)
+							context->PSSetShaderResources(0, 1, g_NewHUDRightRadar.GetAddressOf());
+						else
+							goto out;
 					}
-					// Don't render this element
-					//goto out;
-					if (g_NewDynCockpitRightRadar != NULL)
-						context->PSSetShaderResources(0, 1, g_NewDynCockpitRightRadar.GetAddressOf());
-					else
-						goto out;
 				}
 
-				/*
-				// Check if we're rendering anything that should be moved to the dynamic cockpit
-				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && g_bScaleableHUDStarted) {
-					float minX, minY, maxX, maxY;
-					float tx0, ty0, tx1, ty1;
-					GetBoundingBox(instruction, currentIndexLocation, &minX, &minY, &maxX, &maxY);
-					//log_debug("[DBG] Testing texture for target comp inclusion");
-					tx0 = g_DynCockpitTargetComp.TopLeftX; ty0 = g_DynCockpitTargetComp.TopLeftY;
-					tx1 = tx0 + g_DynCockpitTargetComp.Width; ty1 = ty0 + g_DynCockpitTargetComp.Height;
+				// Capture the bounds for the shields indicator:
+				if (g_bDynCockpitEnabled && lastTextureSelected != NULL)
+				{
+					if (lastTextureSelected->crc == DYN_COCKPIT_SHIELDS_SRC_CRC) 
+					{
+						if (!g_DynCockpitBoxes.ShieldsLimitsComputed) 
+						{
+							float minX, minY, maxX, maxY;
+							GetBoundingBox(instruction, currentIndexLocation, &minX, &minY, &maxX, &maxY);
+							lastTextureSelected->boundingBox.left = minX;
+							lastTextureSelected->boundingBox.top = minY;
+							lastTextureSelected->boundingBox.right = maxX + 1;
+							lastTextureSelected->boundingBox.bottom = maxY + 1;
+							g_DynCockpitBoxes.ShieldsBox = lastTextureSelected->boundingBox;
+							g_DynCockpitBoxes.ShieldsLimitsComputed = true;
 
-					float w = maxX - minX;
-					float h = maxY - minY;
-					if (w > 1000)
+							log_debug("[DBG] Shields Indicator limits: (%0.3f, %0.3f)-(%0.3f, %0.3f)",
+								lastTextureSelected->boundingBox.left, lastTextureSelected->boundingBox.top,
+								lastTextureSelected->boundingBox.right, lastTextureSelected->boundingBox.bottom);
+						}
+						// Don't render this element
 						goto out;
-					//log_debug("[DBG] Tested elem: (%0.3f, %0.3f) (%0.3f, %0.3f)",
-					//	minX, minY, w, h);
+					}
 				}
-				*/
+
+				// Capture the bounds for the left and right messages panel:
+				if (g_bDynCockpitEnabled && lastTextureSelected != NULL) 
+				{
+					if (	(lastTextureSelected->crc == DYN_COCKPIT_SOLID_MSG_SRC_CRC) || (lastTextureSelected->crc == DYN_COCKPIT_BORDER_MSG_SRC_CRC))
+					{
+						if (!g_DynCockpitBoxes.LeftMsgLimitsComputed || !g_DynCockpitBoxes.RightMsgLimitsComputed)
+						{
+							float minX, minY, maxX, maxY, midX;
+							GetBoundingBox(instruction, currentIndexLocation, &minX, &minY, &maxX, &maxY);
+							lastTextureSelected->boundingBox.left = minX;
+							lastTextureSelected->boundingBox.top = minY;
+							lastTextureSelected->boundingBox.right = maxX + 1;
+							lastTextureSelected->boundingBox.bottom = maxY + 1;
+							midX = (minX + maxX) / 2.0f;
+
+							if (midX < displayWidth / 2.0f && !g_DynCockpitBoxes.LeftMsgLimitsComputed) {
+								g_DynCockpitBoxes.LeftMsgPanelBox = lastTextureSelected->boundingBox;
+								g_DynCockpitBoxes.LeftMsgLimitsComputed = true;
+								log_debug("[DBG] %d, Left Messages Box limits: (%0.3f, %0.3f)-(%0.3f, %0.3f)",
+									g_bDynCockpitEnabled,
+									lastTextureSelected->boundingBox.left, lastTextureSelected->boundingBox.top,
+									lastTextureSelected->boundingBox.right, lastTextureSelected->boundingBox.bottom);
+							}
+							else if (midX > displayWidth / 2.0f && !g_DynCockpitBoxes.RightMsgLimitsComputed) {
+								g_DynCockpitBoxes.RightMsgPanelBox = lastTextureSelected->boundingBox;
+								g_DynCockpitBoxes.RightMsgLimitsComputed = true;
+								log_debug("[DBG] %d, Right Messages Box limits: (%0.3f, %0.3f)-(%0.3f, %0.3f)",
+									g_bDynCockpitEnabled,
+									lastTextureSelected->boundingBox.left, lastTextureSelected->boundingBox.top,
+									lastTextureSelected->boundingBox.right, lastTextureSelected->boundingBox.bottom);
+							}
+						}
+						// Don't render this element
+						goto out;
+					}
+				}
+
+				// Capture the bounds for the lasers/ion charge indicator:
+				// The laser/ion boxes are 64x64, so the laser boxes are in the middle of this box and there's a lot of
+				// unused space above and below the actual laser charge... Maybe it would be better to use the laser charge
+				// itself, instead of the boxes?
+				if (g_bDynCockpitEnabled && lastTextureSelected != NULL)
+				{
+					if ((lastTextureSelected->crc == DYN_COCKPIT_LASER_BOX_SRC_CRC) || (lastTextureSelected->crc == DYN_COCKPIT_ION_BOX_SRC_CRC))
+					{
+						if (!g_DynCockpitBoxes.LasersLimitsComputed) {
+							float minX, minY, maxX, maxY;
+							GetBoundingBox(instruction, currentIndexLocation, &minX, &minY, &maxX, &maxY);
+							lastTextureSelected->boundingBox.left = minX;
+							lastTextureSelected->boundingBox.top = minY;
+							lastTextureSelected->boundingBox.right = maxX + 1;
+							lastTextureSelected->boundingBox.bottom = maxY + 1;
+							if (minX < g_DynCockpitBoxes.LasersBox.left) {
+								g_DynCockpitBoxes.LasersBox.left = minX;
+								//g_bLaserBoxLimitsUpdated = true;
+							}
+							if (maxX > g_DynCockpitBoxes.LasersBox.right) {
+								g_DynCockpitBoxes.LasersBox.right = maxX;
+								//g_bLaserBoxLimitsUpdated = true;
+							}
+							if (minY < g_DynCockpitBoxes.LasersBox.top) {
+								g_DynCockpitBoxes.LasersBox.top = minY;
+								//g_bLaserBoxLimitsUpdated = true;
+							}
+							if (maxY > g_DynCockpitBoxes.LasersBox.bottom) {
+								g_DynCockpitBoxes.LasersBox.bottom = maxY;
+								//g_bLaserBoxLimitsUpdated = true;
+							}
+						}
+						// Don't render this element?
+						goto out;
+					}
+				}
 
 				//if (bIsNoZWrite && _renderStates->GetZFunc() == D3DCMP_GREATER) {
 				//	goto out;
@@ -2843,14 +3005,14 @@ HRESULT Direct3DDevice::Execute(
 
 				// Replace the targeting computer texture with our own at run-time:
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitTargetComp &&
-					g_DynCockpitBoxes.TargetComp && g_NewDynCockpitTargetCompCover != NULL) {
+					g_DynCockpitBoxes.TargetCompLimitsComputed && g_NewDCTargetCompCover != NULL) {
 					float bgColor[4] = { 0.07f, 0.07f, 0.2f, 0.0f };
 					bModifiedShaders = true;
 					g_PSCBuffer.bShadeless       = 1.0f; // Render the targeted object without the diffuse component (shadeless)
-					g_PSCBuffer.uv_scale[0]      = g_DynCockpitTargetCompUVCoords.uv_scale[0];
-					g_PSCBuffer.uv_scale[1]      = g_DynCockpitTargetCompUVCoords.uv_scale[1];
-					g_PSCBuffer.uv_offset[0]     = g_DynCockpitTargetCompUVCoords.uv_offset[0];
-					g_PSCBuffer.uv_offset[1]     = g_DynCockpitTargetCompUVCoords.uv_offset[1];
+					g_PSCBuffer.uv_scale[0]      = g_DCTargetCompUVCoords.uv_scale[0];
+					g_PSCBuffer.uv_scale[1]      = g_DCTargetCompUVCoords.uv_scale[1];
+					g_PSCBuffer.uv_offset[0]     = g_DCTargetCompUVCoords.uv_offset[0];
+					g_PSCBuffer.uv_offset[1]     = g_DCTargetCompUVCoords.uv_offset[1];
 					g_PSCBuffer.bUseCoverTexture = 1.0f;
 					g_PSCBuffer.bUseDynCockpit   = 1.0f;
 					memcpy(g_PSCBuffer.bgColor, bgColor, 4 * sizeof(float));
@@ -2888,21 +3050,24 @@ HRESULT Direct3DDevice::Execute(
 						bDumped = true;
 					}
 					*/
-					context->PSSetShaderResources(0, 1, g_NewDynCockpitTargetCompCover.GetAddressOf());
-					context->PSSetShaderResources(1, 1, resources->_dynCockpitAuxSRV.GetAddressOf());
+
+					if (g_NewDCTargetCompCover != NULL) {
+						context->PSSetShaderResources(0, 1, g_NewDCTargetCompCover.GetAddressOf());
+						context->PSSetShaderResources(1, 1, resources->_dynCockpitAuxSRV.GetAddressOf());
+					}
 				}
 
 				// Replace the left radar texture with our own at run-time:
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitLeftRadarPanel &&
-					g_DynCockpitBoxes.LeftRadar && g_NewDynCockpitLeftRadarCover != NULL) {
+					g_DynCockpitBoxes.LeftRadarLimitsComputed && g_NewDCLeftRadarCover != NULL) {
 					float bgColor[4] = { 0.07f, 0.07f, 0.2f, 0.0f };
 					float black[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 					bModifiedShaders = true;
 					g_PSCBuffer.bShadeless = 1.0f;
-					g_PSCBuffer.uv_scale[0]      = g_DynCockpitLeftRadarUVCoords.uv_scale[0];
-					g_PSCBuffer.uv_scale[1]      = g_DynCockpitLeftRadarUVCoords.uv_scale[1];
-					g_PSCBuffer.uv_offset[0]     = g_DynCockpitLeftRadarUVCoords.uv_offset[0];
-					g_PSCBuffer.uv_offset[1]     = g_DynCockpitLeftRadarUVCoords.uv_offset[1];
+					g_PSCBuffer.uv_scale[0]      = g_DCLeftRadarUVCoords.uv_scale[0];
+					g_PSCBuffer.uv_scale[1]      = g_DCLeftRadarUVCoords.uv_scale[1];
+					g_PSCBuffer.uv_offset[0]     = g_DCLeftRadarUVCoords.uv_offset[0];
+					g_PSCBuffer.uv_offset[1]     = g_DCLeftRadarUVCoords.uv_offset[1];
 					g_PSCBuffer.bUseCoverTexture = 1.0f;
 					g_PSCBuffer.bUseDynCockpit   = 1.0f;
 					memcpy(g_PSCBuffer.bgColor, bgColor, 4 * sizeof(float));
@@ -2938,21 +3103,23 @@ HRESULT Direct3DDevice::Execute(
 					rect.top = box.top; rect.bottom = box.bottom;
 					//context1->ClearView(resources->_renderTargetViewDynCockpitAsInput.Get(), black, &rect, 1);
 
-					context->PSSetShaderResources(0, 1, g_NewDynCockpitLeftRadarCover.GetAddressOf());
-					context->PSSetShaderResources(1, 1, resources->_dynCockpitAuxSRV.GetAddressOf());
+					if (g_NewDCLeftRadarCover != NULL) {
+						context->PSSetShaderResources(0, 1, g_NewDCLeftRadarCover.GetAddressOf());
+						context->PSSetShaderResources(1, 1, resources->_dynCockpitAuxSRV.GetAddressOf());
+					}
 				}
 
 				// Replace the right radar texture with our own at run-time:
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitRightRadarPanel &&
-					g_DynCockpitBoxes.RightRadar && g_NewDynCockpitRightRadarCover != NULL) {
+					g_DynCockpitBoxes.RightRadarLimitsComputed && g_NewDCRightRadarCover != NULL) {
 					float bgColor[4] = { 0.07f, 0.07f, 0.2f, 0.0f };
 					float black[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 					bModifiedShaders = true;
 					g_PSCBuffer.bShadeless = 1.0f;
-					g_PSCBuffer.uv_scale[0]      = g_DynCockpitRightRadarUVCoords.uv_scale[0];
-					g_PSCBuffer.uv_scale[1]      = g_DynCockpitRightRadarUVCoords.uv_scale[1];
-					g_PSCBuffer.uv_offset[0]     = g_DynCockpitRightRadarUVCoords.uv_offset[0];
-					g_PSCBuffer.uv_offset[1]     = g_DynCockpitRightRadarUVCoords.uv_offset[1];
+					g_PSCBuffer.uv_scale[0]      = g_DCRightRadarUVCoords.uv_scale[0];
+					g_PSCBuffer.uv_scale[1]      = g_DCRightRadarUVCoords.uv_scale[1];
+					g_PSCBuffer.uv_offset[0]     = g_DCRightRadarUVCoords.uv_offset[0];
+					g_PSCBuffer.uv_offset[1]     = g_DCRightRadarUVCoords.uv_offset[1];
 					g_PSCBuffer.bUseCoverTexture = 1.0f;
 					g_PSCBuffer.bUseDynCockpit   = 1.0f;
 					memcpy(g_PSCBuffer.bgColor, bgColor, 4 * sizeof(float));
@@ -2979,8 +3146,127 @@ HRESULT Direct3DDevice::Execute(
 					rect.top = box.top; rect.bottom = box.bottom;
 					//context1->ClearView(resources->_renderTargetViewDynCockpitAsInput.Get(), black, &rect, 1);
 
-					context->PSSetShaderResources(0, 1, g_NewDynCockpitRightRadarCover.GetAddressOf());
-					context->PSSetShaderResources(1, 1, resources->_dynCockpitAuxSRV.GetAddressOf());
+					if (g_NewDCRightRadarCover) {
+						context->PSSetShaderResources(0, 1, g_NewDCRightRadarCover.GetAddressOf());
+						context->PSSetShaderResources(1, 1, resources->_dynCockpitAuxSRV.GetAddressOf());
+					}
+				}
+
+				// Replace the shields panel texture with our own at run-time:
+				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitShieldsPanel &&
+					g_DynCockpitBoxes.ShieldsLimitsComputed && g_NewDCShieldsCover != NULL) {
+					float bgColor[4] = { 0.07f, 0.07f, 0.2f, 0.0f };
+					float black[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+					bModifiedShaders = true;
+					g_PSCBuffer.bShadeless = 1.0f;
+					g_PSCBuffer.uv_scale[0]  = g_DCShieldsUVCoords.uv_scale[0];
+					g_PSCBuffer.uv_scale[1]  = g_DCShieldsUVCoords.uv_scale[1];
+					g_PSCBuffer.uv_offset[0] = g_DCShieldsUVCoords.uv_offset[0];
+					g_PSCBuffer.uv_offset[1] = g_DCShieldsUVCoords.uv_offset[1];
+					g_PSCBuffer.bUseCoverTexture = 1.0f;
+					g_PSCBuffer.bUseDynCockpit = 1.0f;
+					memcpy(g_PSCBuffer.bgColor, bgColor, 4 * sizeof(float));
+
+					D3D11_BOX box;
+					box.left   = left + (UINT)(g_DynCockpitBoxes.ShieldsBox.left   / displayWidth * width);
+					box.right  = left + (UINT)(g_DynCockpitBoxes.ShieldsBox.right  / displayWidth * width);
+					box.top    = top  + (UINT)(g_DynCockpitBoxes.ShieldsBox.top    / displayHeight * height);
+					box.bottom = top  + (UINT)(g_DynCockpitBoxes.ShieldsBox.bottom / displayHeight * height);
+					box.front  = 0;
+					box.back   = 1;
+
+					// Copy the targeting computer from the offscreenBuffer to the auxiliary dynCockpit buffer:
+					context->CopySubresourceRegion(resources->_dynCockpitAuxBuffer.Get(), 0, 0, 0, 0,
+						resources->_offscreenBufferAsInputDynCockpit.Get(), 0, &box);
+
+					// Erase this same area in the dynamic cockpit texture
+					D3D11_RECT rect;
+					rect.left = box.left; rect.right = box.right;
+					rect.top = box.top; rect.bottom = box.bottom;
+					//context1->ClearView(resources->_renderTargetViewDynCockpitAsInput.Get(), black, &rect, 1);
+
+					if (g_NewDCShieldsCover) {
+						context->PSSetShaderResources(0, 1, g_NewDCShieldsCover.GetAddressOf());
+						context->PSSetShaderResources(1, 1, resources->_dynCockpitAuxSRV.GetAddressOf());
+					}
+				}
+
+				// Replace the lasers panel texture with our own at run-time:
+				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitLasersPanel &&
+					g_DynCockpitBoxes.LasersLimitsComputed && g_NewDCLasersCover != NULL) {
+					float bgColor[4] = { 0.07f, 0.07f, 0.2f, 0.0f };
+					float black[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+					bModifiedShaders = true;
+					g_PSCBuffer.bShadeless = 1.0f;
+					g_PSCBuffer.uv_scale[0]  = g_DCLasersUVCoords.uv_scale[0];
+					g_PSCBuffer.uv_scale[1]  = g_DCLasersUVCoords.uv_scale[1];
+					g_PSCBuffer.uv_offset[0] = g_DCLasersUVCoords.uv_offset[0];
+					g_PSCBuffer.uv_offset[1] = g_DCLasersUVCoords.uv_offset[1];
+					g_PSCBuffer.bUseCoverTexture = 1.0f;
+					g_PSCBuffer.bUseDynCockpit = 1.0f;
+					memcpy(g_PSCBuffer.bgColor, bgColor, 4 * sizeof(float));
+
+					D3D11_BOX box;
+					box.left   = left + (UINT)(g_DynCockpitBoxes.LasersBox.left / displayWidth * width);
+					box.right  = left + (UINT)(g_DynCockpitBoxes.LasersBox.right / displayWidth * width);
+					box.top    = top + (UINT)(g_DynCockpitBoxes.LasersBox.top / displayHeight * height);
+					box.bottom = top + (UINT)(g_DynCockpitBoxes.LasersBox.bottom / displayHeight * height);
+					box.front  = 0;
+					box.back   = 1;
+
+					// Copy the targeting computer from the offscreenBuffer to the auxiliary dynCockpit buffer:
+					context->CopySubresourceRegion(resources->_dynCockpitAuxBuffer.Get(), 0, 0, 0, 0,
+						resources->_offscreenBufferAsInputDynCockpit.Get(), 0, &box);
+
+					// Erase this same area in the dynamic cockpit texture
+					D3D11_RECT rect;
+					rect.left = box.left; rect.right = box.right;
+					rect.top = box.top; rect.bottom = box.bottom;
+					//context1->ClearView(resources->_renderTargetViewDynCockpitAsInput.Get(), black, &rect, 1);
+
+					if (g_NewDCLasersCover) {
+						context->PSSetShaderResources(0, 1, g_NewDCLasersCover.GetAddressOf());
+						context->PSSetShaderResources(1, 1, resources->_dynCockpitAuxSRV.GetAddressOf());
+					}
+				}
+
+				// Replace the front panel texture with our own at run-time:
+				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitFrontPanel &&
+					g_DynCockpitBoxes.LeftRadarLimitsComputed && g_NewDCFrontPanelCover != NULL) {
+					float bgColor[4] = { 0.07f, 0.07f, 0.2f, 0.0f };
+					//float black[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+					bModifiedShaders = true;
+					g_PSCBuffer.bShadeless = 1.0f;
+					g_PSCBuffer.uv_scale[0]  = g_DCFrontPanelUVCoords.uv_scale[0];
+					g_PSCBuffer.uv_scale[1]  = g_DCFrontPanelUVCoords.uv_scale[1];
+					g_PSCBuffer.uv_offset[0] = g_DCFrontPanelUVCoords.uv_offset[0];
+					g_PSCBuffer.uv_offset[1] = g_DCFrontPanelUVCoords.uv_offset[1];
+					g_PSCBuffer.bUseCoverTexture = 1.0f;
+					g_PSCBuffer.bUseDynCockpit = 1.0f;
+					memcpy(g_PSCBuffer.bgColor, bgColor, 4 * sizeof(float));
+
+					D3D11_BOX box;
+					box.left   = left + (UINT)(g_DynCockpitBoxes.LeftMsgPanelBox.left / displayWidth * width);
+					box.right  = left + (UINT)(g_DynCockpitBoxes.LeftMsgPanelBox.right / displayWidth * width);
+					box.top    = top + (UINT)(g_DynCockpitBoxes.LeftMsgPanelBox.top / displayHeight * height);
+					box.bottom = top + (UINT)(g_DynCockpitBoxes.LeftMsgPanelBox.bottom / displayHeight * height);
+					box.front  = 0;
+					box.back   = 1;
+
+					// Copy the targeting computer from the offscreenBuffer to the auxiliary dynCockpit buffer:
+					context->CopySubresourceRegion(resources->_dynCockpitAuxBuffer.Get(), 0, 0, 0, 0,
+						resources->_offscreenBufferAsInputDynCockpit.Get(), 0, &box);
+
+					// Erase this same area in the dynamic cockpit texture
+					D3D11_RECT rect;
+					rect.left = box.left; rect.right = box.right;
+					rect.top = box.top; rect.bottom = box.bottom;
+					//context1->ClearView(resources->_renderTargetViewDynCockpitAsInput.Get(), black, &rect, 1);
+
+					if (g_NewDCFrontPanelCover) {
+						context->PSSetShaderResources(0, 1, g_NewDCFrontPanelCover.GetAddressOf());
+						context->PSSetShaderResources(1, 1, resources->_dynCockpitAuxSRV.GetAddressOf());
+					}
 				}
 
 				// Early exit 1: Render the HUD/GUI to the Dynamic Cockpit RTV and continue

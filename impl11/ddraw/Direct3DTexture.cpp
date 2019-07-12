@@ -62,11 +62,13 @@ std::vector<uint32_t> GUI_CRCs = {
 // In high res mode, XWA loads additional "alpha" overlays to make certain elements brighter
 const uint32_t DYN_COCKPIT_XWING_TARGET_COMP_CRC_LO_RES = 0x5b27f370;
 const uint32_t DYN_COCKPIT_XWING_TARGET_COMP_CRC_HI_RES = 0x1671ea5b;
-const uint32_t DYN_COCKPIT_XWING_TARGET_COMP_CRC_ALPHA = 0xdb6a55a4;
+const uint32_t DYN_COCKPIT_XWING_TARGET_COMP_CRC_ALPHA  = 0xdb6a55a4;
 
-const uint32_t DYN_COCKPIT_XWING_DISPLAY_1_CRC_LO_RES = 0xc5894992;
-const uint32_t DYN_COCKPIT_XWING_DISPLAY_1_CRC_HI_RES = 0xfee7db3b;
-const uint32_t DYN_COCKPIT_XWING_DISPLAY_1_CRC_ALPHA = 0x7c66376a;
+/*
+const uint32_t DYN_COCKPIT_XWING_FRONT_PANEL_CRC_LO_RES = 0xc5894992;
+const uint32_t DYN_COCKPIT_XWING_FRONT_PANEL_CRC_HI_RES = 0xfee7db3b;
+const uint32_t DYN_COCKPIT_XWING_FRONT_PANEL_CRC_ALPHA  = 0x7c66376a;
+*/
 
 const uint32_t DYN_COCKPIT_XWING_LEFT_PANEL_CRC_LO_RES = 0xbe3c6620;
 const uint32_t DYN_COCKPIT_XWING_LEFT_PANEL_CRC_HI_RES = 0x58993346;
@@ -75,6 +77,18 @@ const uint32_t DYN_COCKPIT_XWING_LEFT_PANEL_CRC_ALPHA  = 0x90ac07f;
 const uint32_t DYN_COCKPIT_XWING_RIGHT_PANEL_CRC_LO_RES = 0xdb210014;
 const uint32_t DYN_COCKPIT_XWING_RIGHT_PANEL_CRC_HI_RES = 0xc1538ae7;
 const uint32_t DYN_COCKPIT_XWING_RIGHT_PANEL_CRC_ALPHA  = 0x3d328022;
+
+const uint32_t DYN_COCKPIT_XWING_SHIELDS_PANEL_CRC_LO_RES = 0xb094e68f; // 64x64
+const uint32_t DYN_COCKPIT_XWING_SHIELDS_PANEL_CRC_HI_RES = 0x747af065; // 128x128
+const uint32_t DYN_COCKPIT_XWING_SHIELDS_PANEL_CRC_ALPHA  = 0xa63ea601;
+
+const uint32_t DYN_COCKPIT_XWING_LASERS_PANEL_CRC_HI_RES = 0x7def05c;  // 256x64
+const uint32_t DYN_COCKPIT_XWING_LASERS_PANEL_CRC_LO_RES = 0x6b57bcd7; // 128x32
+const uint32_t DYN_COCKPIT_XWING_LASERS_PANEL_CRC_ALPHA  = 0xb7850e28;
+
+const uint32_t DYN_COCKPIT_XWING_FRONT_PANEL_CRC_HI_RES = 0xfee7db3b; // 256x256
+const uint32_t DYN_COCKPIT_XWING_FRONT_PANEL_CRC_LO_RES = 0xc5894992; // 128x128
+const uint32_t DYN_COCKPIT_XWING_FRONT_PANEL_CRC_ALPHA  = 0x7c66376a;
 
 extern bool g_bDynCockpitEnabled;
 
@@ -203,10 +217,15 @@ Direct3DTexture::Direct3DTexture(DeviceResources* deviceResources, TextureSurfac
 	this->is_Floating_GUI = false;
 	this->is_GUI = false;
 	this->is_TargetingComp = false;
+	// Dynamic cockpit data
 	this->is_DynCockpitSrc = false;
 	this->is_DynCockpitTargetComp = false;
+	this->is_DynCockpitFrontPanel = false;
+	this->is_DynCockpitLeftRadarPanel = false;
+	this->is_DynCockpitRightRadarPanel = false;
+	this->is_DynCockpitShieldsPanel = false;
+	this->is_DynCockpitLasersPanel = false;
 	this->is_DynCockpitAlphaOverlay = false;
-	//this->bBoundingBoxComputed = false;
 	this->boundingBox = { 0 };
 }
 
@@ -528,37 +547,53 @@ HRESULT Direct3DTexture::Load(
 		// Check the surface with the smallest resolution
 		int width = surface->_width;
 		int height = surface->_height;
-		if (width == 128 || width == 256) { // || width == 512 || width == 1024) {
+		if (width == 64 || width == 128 || width == 256) { // || width == 512 || width == 1024) {
 			unsigned int size = width * height * (useBuffers ? 4 : bpp);
 
 			// Compute the CRC
 			this->crc = crc32c(0, (const unsigned char *)textureData[0].pSysMem, size);
 			if (this->crc == DYN_COCKPIT_XWING_TARGET_COMP_CRC_LO_RES ||
 				this->crc == DYN_COCKPIT_XWING_TARGET_COMP_CRC_HI_RES) {
-				log_debug("[DBG] ***** FOUND DYN SRC TARGET COMP");
+				log_debug("[DBG] ***** FOUND DYN TARGET COMP");
 				this->is_DynCockpitTargetComp = true;
 				this->is_DynCockpitSrc = true;
 			}
-			else if (this->crc == DYN_COCKPIT_XWING_DISPLAY_1_CRC_LO_RES ||
-				     this->crc == DYN_COCKPIT_XWING_DISPLAY_1_CRC_HI_RES) {
-				log_debug("[DBG] ***** FOUND DYN SRC DISPLAY 1");
-				this->is_DynCockpitDisplay1 = true;
+			else if (this->crc == DYN_COCKPIT_XWING_FRONT_PANEL_CRC_LO_RES ||
+				     this->crc == DYN_COCKPIT_XWING_FRONT_PANEL_CRC_HI_RES) {
+				log_debug("[DBG] ***** FOUND DYN FRONT PANEL");
+				this->is_DynCockpitFrontPanel = true;
 				this->is_DynCockpitSrc = true;
 			}
 			else if (this->crc == DYN_COCKPIT_XWING_LEFT_PANEL_CRC_LO_RES ||
-				this->crc == DYN_COCKPIT_XWING_LEFT_PANEL_CRC_HI_RES) {
-				log_debug("[DBG] ***** FOUND DYN SRC LEFT PANEL");
+				     this->crc == DYN_COCKPIT_XWING_LEFT_PANEL_CRC_HI_RES) {
+				log_debug("[DBG] ***** FOUND DYN LEFT PANEL");
 				this->is_DynCockpitLeftRadarPanel = true;
+				this->is_DynCockpitSrc = true;
 			}
 			else if (this->crc == DYN_COCKPIT_XWING_RIGHT_PANEL_CRC_LO_RES ||
-				this->crc == DYN_COCKPIT_XWING_RIGHT_PANEL_CRC_HI_RES) {
-				log_debug("[DBG] ***** FOUND DYN SRC RIGHT PANEL");
+				     this->crc == DYN_COCKPIT_XWING_RIGHT_PANEL_CRC_HI_RES) {
+				log_debug("[DBG] ***** FOUND DYN RIGHT PANEL");
 				this->is_DynCockpitRightRadarPanel = true;
+				this->is_DynCockpitSrc = true;
 			}
-			else if (this->crc == DYN_COCKPIT_XWING_TARGET_COMP_CRC_ALPHA ||
-					 this->crc == DYN_COCKPIT_XWING_DISPLAY_1_CRC_ALPHA ||
-					 this->crc == DYN_COCKPIT_XWING_LEFT_PANEL_CRC_ALPHA ||
-					 this->crc == DYN_COCKPIT_XWING_RIGHT_PANEL_CRC_ALPHA) {
+			else if (this->crc == DYN_COCKPIT_XWING_SHIELDS_PANEL_CRC_LO_RES ||
+				     this->crc == DYN_COCKPIT_XWING_SHIELDS_PANEL_CRC_HI_RES) {
+				log_debug("[DBG] ***** FOUND DYN SHIELDS PANEL");
+				this->is_DynCockpitShieldsPanel = true;
+				this->is_DynCockpitSrc = true;
+			}
+			else if (this->crc == DYN_COCKPIT_XWING_LASERS_PANEL_CRC_LO_RES ||
+				     this->crc == DYN_COCKPIT_XWING_LASERS_PANEL_CRC_HI_RES) {
+				log_debug("[DBG] ***** FOUND DYN LASERS PANEL");
+				this->is_DynCockpitLasersPanel = true;
+				this->is_DynCockpitSrc = true;
+			}
+			else if (this->crc == DYN_COCKPIT_XWING_TARGET_COMP_CRC_ALPHA   ||
+					 this->crc == DYN_COCKPIT_XWING_FRONT_PANEL_CRC_ALPHA   ||
+					 this->crc == DYN_COCKPIT_XWING_LEFT_PANEL_CRC_ALPHA    ||
+					 this->crc == DYN_COCKPIT_XWING_RIGHT_PANEL_CRC_ALPHA   ||
+					 this->crc == DYN_COCKPIT_XWING_SHIELDS_PANEL_CRC_ALPHA ||
+					 this->crc == DYN_COCKPIT_XWING_LASERS_PANEL_CRC_ALPHA) {
 				log_debug("[DBG] ***** FOUND DYN SRC ALPHA OVERLAY");
 				this->is_DynCockpitAlphaOverlay = true;
 			}

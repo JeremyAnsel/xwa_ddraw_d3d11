@@ -83,11 +83,15 @@ PSConstantBufferType g_LastPSConstantBufferSet = PS_CONSTANT_BUFFER_NONE;
 
 extern bool g_bDynCockpitEnabled;
 bool g_bNewCockpitTexturesLoaded = false;
-ComPtr<ID3D11ShaderResourceView> g_NewDynCockpitTargetCompCover = NULL;
-ComPtr<ID3D11ShaderResourceView> g_NewDynCockpitLeftRadar = NULL;
-ComPtr<ID3D11ShaderResourceView> g_NewDynCockpitRightRadar = NULL;
-ComPtr<ID3D11ShaderResourceView> g_NewDynCockpitLeftRadarCover = NULL;
-ComPtr<ID3D11ShaderResourceView> g_NewDynCockpitRightRadarCover = NULL;
+ComPtr<ID3D11ShaderResourceView> g_NewHUDLeftRadar = NULL;
+ComPtr<ID3D11ShaderResourceView> g_NewHUDRightRadar = NULL;
+
+ComPtr<ID3D11ShaderResourceView> g_NewDCTargetCompCover = NULL;
+ComPtr<ID3D11ShaderResourceView> g_NewDCLeftRadarCover = NULL;
+ComPtr<ID3D11ShaderResourceView> g_NewDCRightRadarCover = NULL;
+ComPtr<ID3D11ShaderResourceView> g_NewDCShieldsCover = NULL;
+ComPtr<ID3D11ShaderResourceView> g_NewDCLasersCover = NULL;
+ComPtr<ID3D11ShaderResourceView> g_NewDCFrontPanelCover = NULL;
 
 FILE *g_DebugFile = NULL;
 
@@ -183,60 +187,91 @@ bool LoadNewCockpitTextures(ID3D11Device *device) {
 		return true;
 	}
 
-	if (g_NewDynCockpitTargetCompCover == NULL) {
+	if (g_NewDCTargetCompCover == NULL) {
 		log_debug("[DBG] [Dyn] >>>>> Loading new Cockpit Targeting Computer");
 		HRESULT res = DirectX::CreateWICTextureFromFile(device, L"./DynamicCockpit/x-wing-targeting-comp-cover.png",
-			NULL, &g_NewDynCockpitTargetCompCover);
+			NULL, &g_NewDCTargetCompCover);
 		if (FAILED(res)) {
 			log_debug("[DBG] [Dyn] Failed to load new targeting comp texture: 0x%x", res);
-			g_NewDynCockpitTargetCompCover = NULL;
+			g_NewDCTargetCompCover = NULL;
 		} else
 			g_bNewCockpitTexturesLoaded = true;
 	}
 
-	if (g_NewDynCockpitLeftRadar == NULL) {
+	if (g_NewHUDLeftRadar == NULL) {
 		log_debug("[DBG] [Dyn] >>>>> Loading new Left Radar");
 		HRESULT res = DirectX::CreateWICTextureFromFile(device, L"./DynamicCockpit/Left-Radar-Round.png",
-			NULL, &g_NewDynCockpitLeftRadar);
+			NULL, &g_NewHUDLeftRadar);
 		if (FAILED(res)) {
 			log_debug("[DBG] [Dyn] Failed to load new Left Radar texture: 0x%x", res);
-			g_NewDynCockpitLeftRadar = NULL;
+			g_NewHUDLeftRadar = NULL;
 		}
 	}
 
-	if (g_NewDynCockpitLeftRadarCover == NULL) {
+	if (g_NewDCLeftRadarCover == NULL) {
 		log_debug("[DBG] [Dyn] >>>>> Loading new Left Radar Cover");
 		HRESULT res = DirectX::CreateWICTextureFromFile(device, L"./DynamicCockpit/x-wing-left-radar-cover.png",
-			NULL, &g_NewDynCockpitLeftRadarCover);
+			NULL, &g_NewDCLeftRadarCover);
 		if (FAILED(res)) {
 			log_debug("[DBG] [Dyn] Failed to load new Left Radar Cover texture: 0x%x", res);
-			g_NewDynCockpitLeftRadarCover = NULL;
+			g_NewDCLeftRadarCover = NULL;
 		}
 	}
 
 
-	if (g_NewDynCockpitRightRadar == NULL) {
+	if (g_NewHUDRightRadar == NULL) {
 		log_debug("[DBG] [Dyn] >>>>> Loading new Right Radar");
 		HRESULT res = DirectX::CreateWICTextureFromFile(device, L"./DynamicCockpit/Right-Radar-Round.png",
-			NULL, &g_NewDynCockpitRightRadar);
+			NULL, &g_NewHUDRightRadar);
 		if (FAILED(res)) {
 			log_debug("[DBG] [Dyn] Failed to load new Right Radar texture: 0x%x", res);
-			g_NewDynCockpitRightRadar = NULL;
+			g_NewHUDRightRadar = NULL;
 		}
 	}
 
-	if (g_NewDynCockpitRightRadarCover == NULL) {
+	if (g_NewDCRightRadarCover == NULL) {
 		log_debug("[DBG] [Dyn] >>>>> Loading new Right Radar Cover");
 		HRESULT res = DirectX::CreateWICTextureFromFile(device, L"./DynamicCockpit/x-wing-right-radar-cover.png",
-			NULL, &g_NewDynCockpitRightRadarCover);
+			NULL, &g_NewDCRightRadarCover);
 		if (FAILED(res)) {
 			log_debug("[DBG] [Dyn] Failed to load new Right Radar Cover texture: 0x%x", res);
-			g_NewDynCockpitRightRadarCover = NULL;
+			g_NewDCRightRadarCover = NULL;
 		}
 	}
 
-	g_bNewCockpitTexturesLoaded = (g_NewDynCockpitTargetCompCover != NULL) || (g_NewDynCockpitLeftRadar != NULL) ||
-		(g_NewDynCockpitRightRadar != NULL) || (g_NewDynCockpitRightRadarCover != NULL);
+	if (g_NewDCShieldsCover == NULL) {
+		log_debug("[DBG] [Dyn] >>>>> Loading new Shields Cover");
+		HRESULT res = DirectX::CreateWICTextureFromFile(device, L"./DynamicCockpit/x-wing-shields-cover.png",
+			NULL, &g_NewDCShieldsCover);
+		if (FAILED(res)) {
+			log_debug("[DBG] [Dyn] Failed to load new Shields Cover texture: 0x%x", res);
+			g_NewDCShieldsCover = NULL;
+		}
+	}
+
+	if (g_NewDCLasersCover == NULL) {
+		log_debug("[DBG] [Dyn] >>>>> Loading new Lasers Cover");
+		HRESULT res = DirectX::CreateWICTextureFromFile(device, L"./DynamicCockpit/x-wing-lasers-panel-cover.png",
+			NULL, &g_NewDCLasersCover);
+		if (FAILED(res)) {
+			log_debug("[DBG] [Dyn] Failed to load new Lasers Cover texture: 0x%x", res);
+			g_NewDCLasersCover = NULL;
+		}
+	}
+
+	if (g_NewDCFrontPanelCover == NULL) {
+		log_debug("[DBG] [Dyn] >>>>> Loading new Front Panel Cover");
+		HRESULT res = DirectX::CreateWICTextureFromFile(device, L"./DynamicCockpit/x-wing-front-panel-cover.png",
+			NULL, &g_NewDCFrontPanelCover);
+		if (FAILED(res)) {
+			log_debug("[DBG] [Dyn] Failed to load new Front Panel Cover texture: 0x%x", res);
+			g_NewDCFrontPanelCover = NULL;
+		}
+	}
+
+	g_bNewCockpitTexturesLoaded = (g_NewDCTargetCompCover != NULL) || (g_NewHUDLeftRadar != NULL) ||
+		(g_NewHUDRightRadar != NULL) || (g_NewDCRightRadarCover != NULL) || (g_NewDCShieldsCover != NULL) ||
+		(g_NewDCLasersCover != NULL) || (g_NewDCFrontPanelCover != NULL);
 
 	log_debug("[DBG} [Dyn] New cockpit textures loaded: %d", g_bNewCockpitTexturesLoaded);
 out:
@@ -248,25 +283,37 @@ void UnloadNewCockpitTextures() {
 		return;
 
 	log_debug("[DBG] [Dyn] >>>>> Releasing textures");
-	if (g_NewDynCockpitTargetCompCover != NULL) {
-		g_NewDynCockpitTargetCompCover.Release();
-		g_NewDynCockpitTargetCompCover = NULL;
+	if (g_NewDCTargetCompCover != NULL) {
+		g_NewDCTargetCompCover.Release();
+		g_NewDCTargetCompCover = NULL;
 	}
-	if (g_NewDynCockpitLeftRadar != NULL) {
-		g_NewDynCockpitLeftRadar.Release();
-		g_NewDynCockpitLeftRadar = NULL;
+	if (g_NewHUDLeftRadar != NULL) {
+		g_NewHUDLeftRadar.Release();
+		g_NewHUDLeftRadar = NULL;
 	}
-	if (g_NewDynCockpitRightRadar != NULL) {
-		g_NewDynCockpitRightRadar.Release();
-		g_NewDynCockpitRightRadar = NULL;
+	if (g_NewHUDRightRadar != NULL) {
+		g_NewHUDRightRadar.Release();
+		g_NewHUDRightRadar = NULL;
 	}
-	if (g_NewDynCockpitLeftRadarCover != NULL) {
-		g_NewDynCockpitLeftRadarCover.Release();
-		g_NewDynCockpitLeftRadarCover = NULL;
+	if (g_NewDCLeftRadarCover != NULL) {
+		g_NewDCLeftRadarCover.Release();
+		g_NewDCLeftRadarCover = NULL;
 	}
-	if (g_NewDynCockpitRightRadarCover != NULL) {
-		g_NewDynCockpitRightRadarCover.Release();
-		g_NewDynCockpitRightRadarCover = NULL;
+	if (g_NewDCRightRadarCover != NULL) {
+		g_NewDCRightRadarCover.Release();
+		g_NewDCRightRadarCover = NULL;
+	}
+	if (g_NewDCShieldsCover != NULL) {
+		g_NewDCShieldsCover.Release();
+		g_NewDCShieldsCover = NULL;
+	}
+	if (g_NewDCLasersCover != NULL) {
+		g_NewDCLasersCover.Release();
+		g_NewDCLasersCover = NULL;
+	}
+	if (g_NewDCFrontPanelCover != NULL) {
+		g_NewDCFrontPanelCover.Release();
+		g_NewDCFrontPanelCover = NULL;
 	}
 	g_bNewCockpitTexturesLoaded = false;
 }
@@ -486,10 +533,18 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 	}
 	if (g_bDynCockpitEnabled) {
 		// Re-compute the Dynamic cockpit limits for all source images:
-		g_DynCockpitBoxes.TargetComp = false;
-		g_DynCockpitBoxes.LeftRadar = false;
-		g_DynCockpitBoxes.RightRadar = false;
-		g_DynCockpitBoxes.Shields = false;
+		g_DynCockpitBoxes.TargetCompLimitsComputed = false;
+		g_DynCockpitBoxes.LeftRadarLimitsComputed = false;
+		g_DynCockpitBoxes.RightRadarLimitsComputed = false;
+		g_DynCockpitBoxes.ShieldsLimitsComputed = false;
+		g_DynCockpitBoxes.LasersLimitsComputed = false;
+		g_DynCockpitBoxes.LeftMsgLimitsComputed = false;
+		g_DynCockpitBoxes.RightMsgLimitsComputed = false;
+		log_debug("[DBG] Resetting Laser Box limits");
+		g_DynCockpitBoxes.LasersBox.left   =  1000000;
+		g_DynCockpitBoxes.LasersBox.right  = -1000000;
+		g_DynCockpitBoxes.LasersBox.bottom = -1000000;
+		g_DynCockpitBoxes.LasersBox.top    =  1000000;
 		// No need to zero-out the boxes: the booleans above state whether the boxes are valid or not.
 		this->_renderTargetViewDynCockpit.Release();
 		this->_renderTargetViewDynCockpitAsInput.Release();

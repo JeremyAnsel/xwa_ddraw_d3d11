@@ -28,6 +28,7 @@ extern Vector3 g_headCenter;
 extern bool g_bResetHeadCenter, g_bSteamVRPosFromFreePIE, g_bReshadeEnabled, g_bBloomEnabled;
 extern vr::IVRSystem *g_pHMD;
 extern int g_iFreePIESlot;
+extern DynCockpitBoxes g_DynCockpitBoxes;
 
 // The following is used when the Dynamic Cockpit is enabled to render the HUD separately
 //D3DTLVERTEX g_HUDVertices[6] = { 0 };
@@ -1638,10 +1639,16 @@ HRESULT PrimarySurface::Flip(
 			g_bScaleableHUDStarted = false;
 
 			if (g_bDynCockpitEnabled) {
-				this->_deviceResources->_d3dDeviceContext->ResolveSubresource(_deviceResources->_offscreenBufferAsInputDynCockpit,
+				_deviceResources->_d3dDeviceContext->ResolveSubresource(_deviceResources->_offscreenBufferAsInputDynCockpit,
 					0, _deviceResources->_offscreenBufferDynCockpit, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
 				//this->_deviceResources->_d3dDeviceContext->ClearRenderTargetView(this->_deviceResources->_renderTargetViewDynCockpit, 
 				//	this->_deviceResources->clearColor);
+				if (!g_DynCockpitBoxes.LasersLimitsComputed && g_iPresentCounter == 2) { // The limits for the laser boxes were not updated in the last frame, stop updating it
+					g_DynCockpitBoxes.LasersLimitsComputed = true;
+					log_debug("[DBG] Lasers Indicator FINAL limits: (%0.3f, %0.3f)-(%0.3f, %0.3f)",
+						g_DynCockpitBoxes.LasersBox.left, g_DynCockpitBoxes.LasersBox.top,
+						g_DynCockpitBoxes.LasersBox.right, g_DynCockpitBoxes.LasersBox.bottom);
+				}
 			}
 
 			// Perform the lean left/right etc animations
