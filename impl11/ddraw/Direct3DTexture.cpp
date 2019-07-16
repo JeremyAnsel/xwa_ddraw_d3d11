@@ -227,8 +227,9 @@ HRESULT Direct3DTexture::Load(
 		LogText(str.str());
 #endif
 
+		d3dTexture->_textureView->AddRef();
 		*&this->_textureView = d3dTexture->_textureView.Get();
-		this->_textureView->AddRef();
+
 		return D3D_OK;
 	}
 
@@ -366,8 +367,8 @@ HRESULT Direct3DTexture::Load(
 		return D3DERR_TEXTURE_LOAD_FAILED;
 	}
 
+	d3dTexture->_textureView->AddRef();
 	*&this->_textureView = d3dTexture->_textureView.Get();
-	this->_textureView->AddRef();
 
 	return D3D_OK;
 }
