@@ -1015,8 +1015,8 @@ void PrimarySurface::resizeForSteamVR(int iteration, bool is_2D) {
 		scale *= 0.5f;
 		//scale *= 0.75f; // HACK: Use this for Trinus PSVR
 	
-	//float newWidth = g_steamVRWidth * scale * 0.5f; // HACK: Use this for Trinus PSVR
 	float newWidth = g_steamVRWidth * scale; // Use this when not running Trinus
+	//float newWidth = g_steamVRWidth * scale * 0.5f; // HACK: Use this for Trinus PSVR
 	float newHeight = g_steamVRHeight * scale;
 
 #ifdef DBG_VR
@@ -1643,7 +1643,7 @@ HRESULT PrimarySurface::Flip(
 					0, _deviceResources->_offscreenBufferDynCockpit, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
 				//this->_deviceResources->_d3dDeviceContext->ClearRenderTargetView(this->_deviceResources->_renderTargetViewDynCockpit, 
 				//	this->_deviceResources->clearColor);
-				if (!g_DynCockpitBoxes.LasersLimitsComputed && g_iPresentCounter == 2) { // The limits for the laser boxes were not updated in the last frame, stop updating it
+				if (!g_DynCockpitBoxes.LasersLimitsComputed && g_iPresentCounter == 10) { // The limits for the laser boxes were not updated in the last frame, stop updating it
 					g_DynCockpitBoxes.LasersLimitsComputed = true;
 					log_debug("[DBG] Lasers Indicator FINAL limits: (%0.3f, %0.3f)-(%0.3f, %0.3f)",
 						g_DynCockpitBoxes.LasersBox.left, g_DynCockpitBoxes.LasersBox.top,
@@ -1652,9 +1652,11 @@ HRESULT PrimarySurface::Flip(
 			}
 
 			// Perform the lean left/right etc animations
-			animTickX();
-			animTickY();
-			animTickZ();
+			//if (!g_bUseSteamVR) {
+				animTickX();
+				animTickY();
+				animTickZ();
+			//}
 
 			// Enable 6dof
 			if (g_bUseSteamVR) {
@@ -1662,6 +1664,7 @@ HRESULT PrimarySurface::Flip(
 				float x = 0.0f, y = 0.0f, z = 0.0f;
 				Matrix3 rotMatrix;
 				Vector3 pos;
+				static Vector4 headCenter(0, 0, 0, 0);
 				Vector3 headPos;
 				Vector3 headPosFromKeyboard(g_HeadPos.x, g_HeadPos.y, g_HeadPos.z);
 
@@ -1672,14 +1675,21 @@ HRESULT PrimarySurface::Flip(
 
 				// HACK ALERT: I'm reading the positional tracking data from FreePIE when
 				// running SteamVR because setting up the PSMoveServiceSteamVRBridge is kind
-				// of tricky... and I'm not going to bother right now since PSMoveService
+				// of... tricky; and I'm not going to bother right now since PSMoveService
 				// already works very well for me.
 				// Read the positional data from FreePIE if the right flag is set
 				if (g_bSteamVRPosFromFreePIE) {
 					ReadFreePIE(g_iFreePIESlot);
-					x = g_FreePIEData.x;
-					y = g_FreePIEData.y;
-					z = g_FreePIEData.z;
+					if (g_bResetHeadCenter) {
+						headCenter[0] = g_FreePIEData.x;
+						headCenter[1] = g_FreePIEData.y;
+						headCenter[2] = g_FreePIEData.z;
+						log_debug("[DBG] New Head Center: (%0.3f, %0.3f, %0.3f)", headCenter[0], headCenter[1], headCenter[2]);
+						g_bResetHeadCenter = false;
+					}
+					x = g_FreePIEData.x - headCenter[0];
+					y = g_FreePIEData.y - headCenter[1];
+					z = g_FreePIEData.z - headCenter[2];
 				}
 				pos.set(x, y, z);
 				headPos = -pos;
@@ -1749,7 +1759,7 @@ HRESULT PrimarySurface::Flip(
 						g_bResetHeadCenter = false;
 					}
 					Vector4 pos(g_FreePIEData.x, g_FreePIEData.y, g_FreePIEData.z, 1.0f);
-					yaw =   g_FreePIEData.yaw + 180; // FIX THE HARD-CODED 180 LATER * g_fYawMultiplier;
+					yaw =   g_FreePIEData.yaw;   // * g_fYawMultiplier;
 					pitch = g_FreePIEData.pitch; // * g_fPitchMultiplier;
 					roll =  g_FreePIEData.roll * g_fRollMultiplier;
 					headPos = (pos - headCenter);

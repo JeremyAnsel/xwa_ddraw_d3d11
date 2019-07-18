@@ -332,14 +332,12 @@ void animTickX() {
 		g_HeadPosAnim.x -= ANIM_INCR;
 	else if (g_bLeftKeyDown)
 		g_HeadPosAnim.x += ANIM_INCR;
-	/*
 	else if (!g_bRightKeyDown && !g_bLeftKeyDown) {
 		if (g_HeadPosAnim.x < 0.0001)
 			g_HeadPosAnim.x += ANIM_INCR;
 		if (g_HeadPosAnim.x > 0.0001)
 			g_HeadPosAnim.x -= ANIM_INCR;
 	}
-	*/
 
 	// Range clamping
 	if (g_HeadPosAnim.x >  6.0f)  g_HeadPosAnim.x =  6.0f;
@@ -353,14 +351,12 @@ void animTickY() {
 		g_HeadPosAnim.y += ANIM_INCR;
 	else if (g_bUpKeyDown)
 		g_HeadPosAnim.y -= ANIM_INCR;
-	/*
 	else if (!g_bDownKeyDown && !g_bUpKeyDown) {
 		if (g_HeadPosAnim.y < 0.0001)
 			g_HeadPosAnim.y += ANIM_INCR;
 		if (g_HeadPosAnim.y > 0.0001)
 			g_HeadPosAnim.y -= ANIM_INCR;
 	}
-	*/
 
 	// Range clamping
 	if (g_HeadPosAnim.y >  6.0f)  g_HeadPosAnim.y =  6.0f;
@@ -374,14 +370,12 @@ void animTickZ() {
 		g_HeadPosAnim.z -= ANIM_INCR;
 	else if (g_bUpKeyDownShift)
 		g_HeadPosAnim.z += ANIM_INCR;
-	/*
 	else if (!g_bDownKeyDownShift && !g_bUpKeyDownShift) {
 		if (g_HeadPosAnim.z < 0.0001)
 			g_HeadPosAnim.z += ANIM_INCR;
 		if (g_HeadPosAnim.z > 0.0001)
 			g_HeadPosAnim.z -= ANIM_INCR;
 	}
-	*/
 
 	// Range clamping
 	if (g_HeadPosAnim.z >  6.0f)  g_HeadPosAnim.z =  6.0f;
@@ -392,9 +386,9 @@ void animTickZ() {
 
 // NewIPD is in cms
 void EvaluateIPD(float NewIPD) {
-	/*
 	if (NewIPD < 0.0f)
 		NewIPD = 0.0f;
+	/*
 	if (NewIPD > 12.0f) {
 		NewIPD = 12.0f;
 	}
@@ -2764,9 +2758,9 @@ HRESULT Direct3DDevice::Execute(
 				// computer slightly overlaps the lasers. So, we must be careful when copying image data from this area.
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL)
 				{
-					if (lastTextureSelected->crc == DYN_COCKPIT_TARGET_COMP_SRC_CRC) 
-					{
-						if (!g_DynCockpitBoxes.TargetCompLimitsComputed) {
+					if (lastTextureSelected->crc == DYN_COCKPIT_TARGET_COMP_SRC_CRC) {
+						if (!g_DynCockpitBoxes.TargetCompLimitsComputed)
+						{
 							// This is the solid targeting computer background. We need to compute its limits in pixels.
 							// We only need to do this once -- and this should be done when the first frame is rendered.
 							float minX, minY, maxX, maxY;
@@ -2812,6 +2806,7 @@ HRESULT Direct3DDevice::Execute(
 								lastTextureSelected->boundingBox.left, lastTextureSelected->boundingBox.top,
 								lastTextureSelected->boundingBox.right, lastTextureSelected->boundingBox.bottom);
 						}
+
 						// Don't render this element
 						//goto out;
 						if (g_NewHUDLeftRadar != NULL)
@@ -2841,6 +2836,7 @@ HRESULT Direct3DDevice::Execute(
 								lastTextureSelected->boundingBox.left, lastTextureSelected->boundingBox.top,
 								lastTextureSelected->boundingBox.right, lastTextureSelected->boundingBox.bottom);
 						}
+						
 						// Don't render this element
 						//goto out;
 						if (g_NewHUDRightRadar != NULL)
@@ -2918,7 +2914,7 @@ HRESULT Direct3DDevice::Execute(
 				// itself, instead of the boxes?
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL)
 				{
-					if ((lastTextureSelected->crc == DYN_COCKPIT_LASER_BOX_SRC_CRC) || (lastTextureSelected->crc == DYN_COCKPIT_ION_BOX_SRC_CRC))
+					if (lastTextureSelected->crc == DYN_COCKPIT_LASER_BOX_SRC_CRC || lastTextureSelected->crc == DYN_COCKPIT_ION_BOX_SRC_CRC)
 					{
 						if (!g_DynCockpitBoxes.LasersLimitsComputed) {
 							float minX, minY, maxX, maxY;
@@ -2929,22 +2925,18 @@ HRESULT Direct3DDevice::Execute(
 							lastTextureSelected->boundingBox.bottom = maxY + 1;
 							if (minX < g_DynCockpitBoxes.LasersBox.left) {
 								g_DynCockpitBoxes.LasersBox.left = minX;
-								//g_bLaserBoxLimitsUpdated = true;
 							}
 							if (maxX > g_DynCockpitBoxes.LasersBox.right) {
 								g_DynCockpitBoxes.LasersBox.right = maxX;
-								//g_bLaserBoxLimitsUpdated = true;
 							}
 							if (minY < g_DynCockpitBoxes.LasersBox.top) {
 								g_DynCockpitBoxes.LasersBox.top = minY;
-								//g_bLaserBoxLimitsUpdated = true;
 							}
 							if (maxY > g_DynCockpitBoxes.LasersBox.bottom) {
 								g_DynCockpitBoxes.LasersBox.bottom = maxY;
-								//g_bLaserBoxLimitsUpdated = true;
 							}
 						}
-						// Don't render this element?
+						// Don't render this element
 						goto out;
 					}
 				}
@@ -3088,6 +3080,7 @@ HRESULT Direct3DDevice::Execute(
 					context->CopySubresourceRegion(resources->_dynCockpitAuxBuffer.Get(), 0, 0, 0, 0,
 						resources->_offscreenBufferAsInputDynCockpit.Get(), 0, &box);
 
+					/*
 					static bool bDumped = false;
 					if (g_iPresentCounter > 100 && !bDumped) {
 						log_debug("[DBG] Left Radar in screen res: (%d, %d)-(%d, %d)", box.left, box.top, box.right, box.bottom);
@@ -3096,6 +3089,7 @@ HRESULT Direct3DDevice::Execute(
 						log_debug("[DBG] Dumping offscreenBufferDynCockpit");
 						bDumped = true;
 					}
+					*/
 
 					// Erase this same area in the dynamic cockpit texture
 					D3D11_RECT rect;
@@ -3575,7 +3569,8 @@ HRESULT Direct3DDevice::Execute(
 			strcat_s(text, "\n");
 			strcat_s(text, _com_error(hr).ErrorMessage());
 
-			MessageBox(nullptr, text, __FUNCTION__, MB_ICONERROR);
+			//MessageBox(nullptr, text, __FUNCTION__, MB_ICONERROR);
+			log_debug("[DBG] %s, %s", text, __FUNCTION__);
 		}
 
 		messageShown = true;
