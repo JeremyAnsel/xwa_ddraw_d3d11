@@ -6,13 +6,14 @@ cbuffer ConstantBuffer : register(b0)
 {
 	float4 vpScale;
 	float aspect_ratio, cockpit_threshold, z_override, sz_override;
-	float mult_z_override, bPreventTransform;
+	float mult_z_override, bPreventTransform, bFullTransform;
 };
 
 cbuffer ConstantBuffer : register(b1)
 {
 	matrix projEyeMatrix;
 	matrix viewMatrix;
+	matrix fullViewMatrix;
 };
 
 struct VertexShaderInput
@@ -48,8 +49,8 @@ PixelShaderInput main(VertexShaderInput input)
 	// so that it's readable)
 	temp.xy *= vpScale.w * vpScale.z * float2(aspect_ratio, 1);
 
-	temp.z = METRIC_SCALE_FACTOR * w; // This value was determined empirically so that the X-Wing cockpit had a reasonably metric size
-	// temp.z = w; // This setting provides a really nice depth for distant objects.
+	temp.z = METRIC_SCALE_FACTOR * w; // This value was determined empirically
+	// temp.z = w; // This setting provides a really nice depth for distant objects; but the cockpit is messed up
 	// Override the depth of this element if z_override is set
 	if (mult_z_override > -0.1)
 		temp.z *= mult_z_override;
@@ -62,15 +63,18 @@ PixelShaderInput main(VertexShaderInput input)
 	P.y = -P.y;
 	P.z = -P.z;
 	// Apply head position and project 3D --> 2D
-	if (bPreventTransform < 0.5f) // The HUD should not be transformed so that it's possible to aim properly
-		output.pos = mul(viewMatrix, float4(P, 1));
-	else {
+	if (bPreventTransform < 0.5f) {
+		if (bFullTransform < 0.5f)
+			output.pos = mul(viewMatrix, float4(P, 1));
+		else
+			output.pos = mul(fullViewMatrix, float4(P, 1));
+	} else {
+		// The HUD should not be transformed so that it's possible to aim properly
 		// This case is specifically to keep the aiming HUD centered so that it can still be used
-		// to aim the lasers. Here, we ignore all translations except over the Z-axis
+		// to aim the lasers. Here, we ignore all translations to keep the HUD in the right spot.
 		float4x4 compViewMatrix = viewMatrix;
 		compViewMatrix._m03_m13_m23 = 0;
 		output.pos = mul(compViewMatrix, float4(P, 1));
-		//output.pos = float4(P, 1);
 	}
 	output.pos = mul(projEyeMatrix, output.pos);
 
@@ -112,32 +116,3 @@ PixelShaderInput main(VertexShaderInput input)
 	output.tex = input.tex;
 	return output;
 }
-
-/*
-PixelShaderInput main_old(VertexShaderInput input) // This was the original DirectSBS shader
-{
-	PixelShaderInput output;
-
-	output.pos.x = (input.pos.x * vpScale.x - 1.0f + parallax) * vpScale.z;
-	output.pos.y = (input.pos.y * vpScale.y + 1.0f) * vpScale.z;
-	if (z_override > -0.9f) {
-		output.pos.z = z_override;
-	}
-	else {
-		output.pos.z = input.pos.z;
-	}
-	output.pos.w = 1.0f;
-
-	// Halve the size of the screen; but scale according to vpScale.w, which is
-	// set to g_global_scale or GUI_elem_scale depending on the type of element
-	// being drawn
-	output.pos.x *= vpScale.w * 0.5 * aspect_ratio;
-	output.pos.y *= vpScale.w * 0.5;
-
-	output.pos /= input.pos.w;
-
-	output.color = input.color.zyxw;
-	output.tex = input.tex;
-	return output;
-}
-*/

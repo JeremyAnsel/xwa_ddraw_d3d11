@@ -5,6 +5,38 @@
 #pragma once
 #include "Matrices.h"
 
+// Also found in the Floating_GUI_CRCs list:
+const uint32_t DYN_COCKPIT_TARGET_COMP_SRC_CRC = 0x3b9a3741;
+const uint32_t DYN_COCKPIT_LEFT_RADAR_SRC_CRC  = 0x75b9e062;
+const uint32_t DYN_COCKPIT_RIGHT_RADAR_SRC_CRC = 0x1ec963a9;
+const uint32_t DYN_COCKPIT_SHIELDS_SRC_CRC     = 0x3188119f;
+const uint32_t DYN_COCKPIT_SOLID_MSG_SRC_CRC   = 0x7e1b021d;
+const uint32_t DYN_COCKPIT_BORDER_MSG_SRC_CRC  = 0x771a714c;
+const uint32_t DYN_COCKPIT_LASER_BOX_SRC_CRC   = 0xd0168df9;
+const uint32_t DYN_COCKPIT_ION_BOX_SRC_CRC	   = 0xe321d785;
+
+typedef struct Box_struct {
+	float left, right;
+	float top, bottom;
+} Box;
+
+typedef struct DynCockpitBoxesComputedStruct {
+	bool TargetCompLimitsComputed = false;
+	bool LeftRadarLimitsComputed  = false;
+	bool RightRadarLimitsComputed = false;
+	bool ShieldsLimitsComputed    = false;
+	bool LasersLimitsComputed     = false;
+	bool LeftMsgLimitsComputed    = false;
+	bool RightMsgLimitsComputed   = false;
+	Box TargetCompBox    = { 0 };
+	Box LeftRadarBox     = { 0 };
+	Box RightRadarBox    = { 0 };
+	Box ShieldsBox       = { 0 };
+	Box LasersBox        = { 1000000, -1000000, 1000000, -1000000 };
+	Box LeftMsgPanelBox  = { 0 };
+	Box RightMsgPanelBox = { 0 };
+} DynCockpitBoxes;
+
 enum RenderMainColorKeyType
 {
 	RENDERMAIN_NO_COLORKEY,
@@ -32,17 +64,26 @@ typedef struct BarrelPixelShaderCBStruct {
 typedef struct VertexShaderCBStruct {
 	float viewportScale[4];
 	float aspect_ratio, cockpit_threshold, z_override, sz_override;
-	float mult_z_override, bPreventTransform;
+	float mult_z_override, bPreventTransform, bFullTransform;
 } VertexShaderCBuffer;
 
 typedef struct PixelShaderCBStruct {
-	float brightness; // Used to control the brightness of some elements -- mostly for ReShade compatibility
+	float brightness;   // Used to control the brightness of some elements -- mostly for ReShade compatibility
+	float bShadeless;   // Ignore the diffuse component, used for the dynamic cockpit
+	float uv_scale[2];  // uv_scale is used when rendering this element (dynamic cockpit)
+
+	float uv_offset[2];   // uv_ofs used to place the texture (dynamic cockpit)
+	float bUseCoverTexture;    // Use the background color (dynamic cockpit)
+	float bUseDynCockpit; // Enable the second texture slot for the dynamic cockpit
+
+	float bgColor[4];   // Background color (dynamic cockpit)
 } PixelShaderCBuffer;
 
 typedef struct VertexShaderMatrixCBStruct
 {
 	Matrix4 projEye;
 	Matrix4 viewMat;
+	Matrix4 fullViewMat;
 } VertexShaderMatrixCB;
 
 typedef struct HeadPosStruct {
@@ -78,7 +119,7 @@ public:
 	void InitVSConstantBuffer2D(ID3D11Buffer** buffer, const float parallax, const float aspectRatio, const float scale, const float brightness, const float use_3D);
 	void InitPSConstantBuffer2D(ID3D11Buffer** buffer, const float parallax, const float aspectRatio, const float scale, const float brightness);
 	void InitPSConstantBufferBarrel(ID3D11Buffer** buffer, const float k1, const float k2, const float k3);
-	void InitPSConstantBufferBrightness(ID3D11Buffer** buffer, const PixelShaderCBuffer *psConstants);
+	void InitPSConstantBuffer3D(ID3D11Buffer** buffer, const PixelShaderCBuffer *psConstants);
 
 	HRESULT RenderMain(char* buffer, DWORD width, DWORD height, DWORD bpp, RenderMainColorKeyType useColorKey = RENDERMAIN_COLORKEY_20);
 
@@ -100,27 +141,43 @@ public:
 	D3D_DRIVER_TYPE _d3dDriverType;
 	D3D_FEATURE_LEVEL _d3dFeatureLevel;
 	ComPtr<ID3D11Device> _d3dDevice;
+	//ComPtr<ID3D11Device1> _d3dDevice1;
 	ComPtr<ID3D11DeviceContext> _d3dDeviceContext;
+	//ComPtr<ID3D11DeviceContext1> _d3dDeviceContext1;
 	ComPtr<IDXGISwapChain> _swapChain;
 	ComPtr<ID3D11Texture2D> _backBuffer;
 	ComPtr<ID3D11Texture2D> _offscreenBuffer;
 	ComPtr<ID3D11Texture2D> _offscreenBufferR; // When SteamVR is used, _offscreenBuffer becomes the left eye and this one becomes the right eye
-	ComPtr<ID3D11Texture2D> _offscreenBufferTargetComp; // Used to render the targeting computer dynamically
+	ComPtr<ID3D11Texture2D> _offscreenBufferDynCockpit; // Used to render the targeting computer dynamically <-- Need to re-check this claim
 	ComPtr<ID3D11Texture2D> _offscreenBufferAsInput;
 	ComPtr<ID3D11Texture2D> _offscreenBufferAsInputR; // When SteamVR is used, this is the right eye as input buffer
-	ComPtr<ID3D11Texture2D> _offscreenBufferTargetCompAsInput;
+	ComPtr<ID3D11Texture2D> _offscreenBufferAsInputDynCockpit;
+	ComPtr<ID3D11Texture2D> _offscreenBufferAsInputReshade;
+	ComPtr<ID3D11Texture2D> _dynCockpitAuxBuffer; // Aux Texture to copy portions of _offscreenBufferAsInputDynCockpit
 	ComPtr<ID3D11Texture2D> _offscreenBufferPost; // This is the output of the barrel effect
 	ComPtr<ID3D11Texture2D> _offscreenBufferPostR; // This is the output of the barrel effect for the right image when using SteamVR
 	ComPtr<ID3D11Texture2D> _steamVRPresentBuffer; // This is the buffer that will be presented for SteamVR
+	ComPtr<ID3D11Texture2D> _reshadeOutput1; // Output from reshade pass 1
+	ComPtr<ID3D11Texture2D> _reshadeOutput2; // Output from reshade pass 2
+	//ComPtr<ID3D11Texture2D> _reshadeOutput1AsInput; // Non-MSAA version of reshadeOutput1
+	//ComPtr<ID3D11Texture2D> _reshadeOutput2AsInput; // Non-MSAA version of reshadeOutput2
 	ComPtr<ID3D11RenderTargetView> _renderTargetView;
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewR; // When SteamVR is used, _renderTargetView is the left eye, and this one is the right eye
-	ComPtr<ID3D11RenderTargetView> _renderTargetViewTargetComp; // Used to render the targeting computer dynamically
-	ComPtr<ID3D11RenderTargetView> _renderTargetViewPost; // Used for the barrel effect
+	ComPtr<ID3D11RenderTargetView> _renderTargetViewDynCockpit; // Used to render the HUD to an offscreen buffer
+	ComPtr<ID3D11RenderTargetView> _renderTargetViewDynCockpitAsInput; // RTV that can be used to modify _offscreenBufferAsInputDynCockpit directly
+	ComPtr<ID3D11RenderTargetView> _renderTargetViewPost;  // Used for the barrel effect
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewPostR; // Used for the barrel effect (right image) when SteamVR is used.
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewSteamVRResize; // Used for the barrel effect
+	ComPtr<ID3D11RenderTargetView> _renderTargetViewReshade1; // Renders to reshadeOutput1
+	ComPtr<ID3D11RenderTargetView> _renderTargetViewReshade2; // Renders to reshadeOutput2
+
 	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputShaderResourceView;
 	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputShaderResourceViewR; // When SteamVR is enabled, this is the SRV for the right eye
-	ComPtr<ID3D11ShaderResourceView> _offscreenTargetCompAsInputShaderResourceView;
+	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputSRVDynCockpit;
+	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputReshadeSRV;
+	ComPtr<ID3D11ShaderResourceView> _dynCockpitAuxSRV;  // Aux SRV used to copy portions of the _offscreenAsInputShaderResourceViewDynCockpit
+	ComPtr<ID3D11ShaderResourceView> _reshadeOutput1SRV; // SRV for reshadeOutput1
+	ComPtr<ID3D11ShaderResourceView> _reshadeOutput2SRV; // SRV for reshadeOutput2
 	ComPtr<ID3D11Texture2D> _depthStencilL;
 	ComPtr<ID3D11Texture2D> _depthStencilR;
 	ComPtr<ID3D11DepthStencilView> _depthStencilViewL;
@@ -133,6 +190,10 @@ public:
 	ComPtr<ID3D11PixelShader> _mainPixelShaderBpp2ColorKey00;
 	ComPtr<ID3D11PixelShader> _mainPixelShaderBpp4ColorKey20;
 	ComPtr<ID3D11PixelShader> _barrelPixelShader;
+	ComPtr<ID3D11PixelShader> _bloomPrepassPS;
+	ComPtr<ID3D11PixelShader> _bloomHGaussPS;
+	ComPtr<ID3D11PixelShader> _bloomVGaussPS;
+	ComPtr<ID3D11PixelShader> _bloomCombinePS;
 	ComPtr<ID3D11PixelShader> _singleBarrelPixelShader;
 	ComPtr<ID3D11RasterizerState> _mainRasterizerState;
 	ComPtr<ID3D11SamplerState> _mainSamplerState;

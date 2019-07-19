@@ -35,6 +35,8 @@ public:
 
 	HRESULT QuickSetZWriteEnabled(BOOL);
 
+	void GetBoundingBox(LPD3DINSTRUCTION instruction, UINT curIndex, float * minX, float * minY, float * maxX, float * maxY);
+
 	STDMETHOD(Execute)(THIS_ LPDIRECT3DEXECUTEBUFFER, LPDIRECT3DVIEWPORT, DWORD);
 
 	STDMETHOD(AddViewport)(THIS_ LPDIRECT3DVIEWPORT);
