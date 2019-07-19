@@ -691,7 +691,8 @@ void SaveVRParams() {
 	fprintf(file, "; controls towards you. Objects in the tech library are obviously scaled by XWA, because there's\n");
 	fprintf(file, "; otherwise no way to visualize both a Star Destroyer and an A-Wing in the same volume.\n");
 	fprintf(file, "%s = %0.3f\n", TECH_LIB_PARALLAX_VRPARAM, g_fTechLibraryParallax);
-	fprintf(file, "; The HUD/GUI can be fixed in space now. If this setting is enabled, you'll be\n");
+
+	fprintf(file, "\n; The HUD/GUI can be fixed in space now. If this setting is enabled, you'll be\n");
 	fprintf(file, "; able to see all the HUD simply by looking around. You may also lean forward to\n");
 	fprintf(file, "; zoom-in on the text messages to make them more readable.\n");
 	fprintf(file, "%s = %d\n", FIXED_GUI_VRPARAM, g_bFixedGUI);
