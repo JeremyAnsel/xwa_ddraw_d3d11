@@ -20,7 +20,9 @@ extern bool g_bNaturalConcourseAnimations;
 #include <headers/openvr.h>
 const float PI = 3.141592f;
 const float RAD_TO_DEG = 180.0f / PI;
-extern float g_fRollMultiplier, g_fPosXMultiplier, g_fPosYMultiplier, g_fPosZMultiplier;
+extern float g_fPitchMultiplier, g_fYawMultiplier, g_fRollMultiplier;
+extern float g_fYawOffset, g_fPitchOffset;
+extern float g_fPosXMultiplier, g_fPosYMultiplier, g_fPosZMultiplier;
 extern float g_fMinPositionX, g_fMaxPositionX;
 extern float g_fMinPositionY, g_fMaxPositionY;
 extern float g_fMinPositionZ, g_fMaxPositionZ;
@@ -1669,9 +1671,11 @@ HRESULT PrimarySurface::Flip(
 				Vector3 headPosFromKeyboard(g_HeadPos.x, g_HeadPos.y, g_HeadPos.z);
 
 				GetSteamVRPositionalData(&yaw, &pitch, &roll, &x, &y, &z, &rotMatrix);
-				yaw   *= RAD_TO_DEG; // g_fYawMultiplier
-				pitch *= RAD_TO_DEG; // g_fPitchMultiplier
+				yaw   *= RAD_TO_DEG * g_fYawMultiplier;
+				pitch *= RAD_TO_DEG * g_fPitchMultiplier;
 				roll  *= RAD_TO_DEG * g_fRollMultiplier;
+				yaw   += g_fYawOffset;
+				pitch += g_fPitchOffset;
 
 				// HACK ALERT: I'm reading the positional tracking data from FreePIE when
 				// running SteamVR because setting up the PSMoveServiceSteamVRBridge is kind
@@ -1759,9 +1763,11 @@ HRESULT PrimarySurface::Flip(
 						g_bResetHeadCenter = false;
 					}
 					Vector4 pos(g_FreePIEData.x, g_FreePIEData.y, g_FreePIEData.z, 1.0f);
-					yaw =   g_FreePIEData.yaw;   // * g_fYawMultiplier;
-					pitch = g_FreePIEData.pitch; // * g_fPitchMultiplier;
-					roll =  g_FreePIEData.roll * g_fRollMultiplier;
+					yaw   = g_FreePIEData.yaw   * g_fYawMultiplier;
+					pitch = g_FreePIEData.pitch * g_fPitchMultiplier;
+					roll  = g_FreePIEData.roll  * g_fRollMultiplier;
+					yaw   += g_fYawOffset;
+					pitch += g_fPitchOffset;
 					headPos = (pos - headCenter);
 				}
 

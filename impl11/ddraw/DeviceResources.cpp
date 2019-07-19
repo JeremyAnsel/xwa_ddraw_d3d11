@@ -375,7 +375,6 @@ HRESULT DeviceResources::Initialize()
 
 	hr = D3D11CreateDevice(nullptr, this->_d3dDriverType, nullptr, createDeviceFlags, featureLevels, numFeatureLevels,
 		D3D11_SDK_VERSION, &this->_d3dDevice, &this->_d3dFeatureLevel, &this->_d3dDeviceContext);
-	log_debug("[DBG] _d3dFeatureLevel: 0x%x", _d3dFeatureLevel);
 
 	if (FAILED(hr))
 	{

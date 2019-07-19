@@ -61,7 +61,7 @@ const bool DEFAULT_INVERSE_TRANSPOSE = false;
 const float MAX_BRIGHTNESS = 1.0f;
 const bool DEFAULT_FLOATING_AIMING_HUD = true;
 const bool DEFAULT_NATURAL_CONCOURSE_ANIM = true;
-const bool DEFAULT_DYNAMIC_TARGET_COMP = false;
+const bool DEFAULT_DYNAMIC_COCKPIT_ENABLED = false;
 const bool DEFAULT_FIXED_GUI_STATE = true;
 // 6dof
 const int DEFAULT_FREEPIE_SLOT = 0;
@@ -69,15 +69,20 @@ const float DEFAULT_ROLL_MULTIPLIER =  -1.0f;
 const float DEFAULT_POS_X_MULTIPLIER =  1.0f;
 const float DEFAULT_POS_Y_MULTIPLIER =  1.0f;
 const float DEFAULT_POS_Z_MULTIPLIER = -1.0f;
-const float DEFAULT_MIN_POS_X = -0.25f;
-const float DEFAULT_MAX_POS_X =  0.25f;
-const float DEFAULT_MIN_POS_Y = -0.15f;
-const float DEFAULT_MAX_POS_Y =  0.5f;
-const float DEFAULT_MIN_POS_Z = -0.15f;
-const float DEFAULT_MAX_POS_Z =  0.75f;
+const float DEFAULT_MIN_POS_X = -1.5f;
+const float DEFAULT_MAX_POS_X =  1.5f;
+const float DEFAULT_MIN_POS_Y = -1.5f;
+const float DEFAULT_MAX_POS_Y =  1.5f;
+const float DEFAULT_MIN_POS_Z = -0.1f;
+const float DEFAULT_MAX_POS_Z =  2.5f;
 const bool DEFAULT_STEAMVR_POS_FROM_FREEPIE = false;
 const bool DEFAULT_RESHADE_ENABLED_STATE = false;
 const bool DEFAULT_BLOOM_ENABLED_STATE = false;
+// cockpit look constants
+const float DEFAULT_YAW_MULTIPLIER   = 1.0f;
+const float DEFAULT_PITCH_MULTIPLIER = 1.0f;
+const float DEFAULT_YAW_OFFSET   = 0.0f;
+const float DEFAULT_PITCH_OFFSET = 0.0f;
 
 const char *FOCAL_DIST_VRPARAM = "focal_dist";
 const char *STEREOSCOPY_STRENGTH_VRPARAM = "IPD";
@@ -122,13 +127,13 @@ const char *MIN_POSITIONAL_Z_VRPARAM = "min_positional_track_z";
 const char *MAX_POSITIONAL_Z_VRPARAM = "max_positional_track_z";
 const char *STEAMVR_POS_FROM_FREEPIE_VRPARAM = "steamvr_pos_from_freepie";
 const char *BLOOM_ENABLED_VRPARAM = "bloom_effect_enabled";
+// Cockpitlook params
+const char *YAW_MULTIPLIER_CLPARAM   = "yaw_multiplier";
+const char *PITCH_MULTIPLIER_CLPARAM = "pitch_multiplier";
+const char *YAW_OFFSET_CLPARAM       = "yaw_offset";
+const char *PITCH_OFFSET_CLPARAM     = "pitch_offset";
 
 // Dynamic Cockpit vrparams
-/*
-dc_target_comp_uv_coords = 0.275, 0.28, -0.01, -0.03
-dc_left_radar_uv_coords  = 0.39, 0.49, -0.045, -0.052
-dc_right_radar_uv_coords = 0.39, 0.49, -0.213, -0.052
-*/
 const char *DC_TARGET_COMP_UV_COORDS_VRPARAM   = "dc_target_comp_uv_coords";
 const char *DC_LEFT_RADAR_UV_COORDS_VRPARAM    = "dc_left_radar_uv_coords";
 const char *DC_RIGHT_RADAR_UV_COORDS_VRPARAM   = "dc_right_radar_uv_coords";
@@ -163,11 +168,15 @@ Matrix4 g_projLeft, g_projRight, g_projHead;
 Matrix4 g_fullMatrixLeft, g_fullMatrixRight, g_fullMatrixHead;
 Matrix4 g_viewMatrix;
 bool g_bNaturalConcourseAnimations = DEFAULT_NATURAL_CONCOURSE_ANIM;
-bool g_bDynCockpitEnabled = DEFAULT_DYNAMIC_TARGET_COMP;
-float g_fRollMultiplier = DEFAULT_ROLL_MULTIPLIER;
-float g_fPosXMultiplier = DEFAULT_POS_X_MULTIPLIER;
-float g_fPosYMultiplier = DEFAULT_POS_Y_MULTIPLIER;
-float g_fPosZMultiplier = DEFAULT_POS_Z_MULTIPLIER;
+bool g_bDynCockpitEnabled = DEFAULT_DYNAMIC_COCKPIT_ENABLED;
+float g_fYawMultiplier   = DEFAULT_YAW_MULTIPLIER;
+float g_fPitchMultiplier = DEFAULT_PITCH_MULTIPLIER;
+float g_fRollMultiplier  = DEFAULT_ROLL_MULTIPLIER;
+float g_fYawOffset   = DEFAULT_YAW_OFFSET;
+float g_fPitchOffset = DEFAULT_PITCH_OFFSET;
+float g_fPosXMultiplier  = DEFAULT_POS_X_MULTIPLIER;
+float g_fPosYMultiplier  = DEFAULT_POS_Y_MULTIPLIER;
+float g_fPosZMultiplier  = DEFAULT_POS_Z_MULTIPLIER;
 float g_fMinPositionX = DEFAULT_MIN_POS_X, g_fMaxPositionX = DEFAULT_MAX_POS_X;
 float g_fMinPositionY = DEFAULT_MIN_POS_Y, g_fMaxPositionY = DEFAULT_MAX_POS_Y;
 float g_fMinPositionZ = DEFAULT_MIN_POS_Z, g_fMaxPositionZ = DEFAULT_MAX_POS_Z;
@@ -176,8 +185,6 @@ void projectSteamVR(float X, float Y, float Z, vr::EVREye eye, float &x, float &
 
 /* Vertices that will be used for the VertexBuffer. */
 D3DTLVERTEX *g_OrigVerts = NULL;
-//WORD *g_OrigIndices = NULL;
-//D3DTLVERTEX *g_3DVerts = NULL;
 //int g_iNumVertices = 0;
 
 // Counter for calls to DrawIndexed() (This helps us know where were are in the rendering process)
@@ -312,6 +319,7 @@ int g_iDumpGUICounter = 0, g_iHUDCounter = 0;
 
 /* Reloads all the CRCs. */
 bool ReloadCRCs();
+void LoadCockpitLookParams();
 bool isInVector(uint32_t crc, std::vector<uint32_t> &vector);
 bool InitDirectSBS();
 bool LoadNewCockpitTextures(ID3D11Device *device);
@@ -565,10 +573,14 @@ void ResetVRParams() {
 	g_bFixedGUI = DEFAULT_FIXED_GUI_STATE;
 
 	g_iFreePIESlot = DEFAULT_FREEPIE_SLOT;
-	g_fRollMultiplier = DEFAULT_ROLL_MULTIPLIER;
-	g_fPosXMultiplier = DEFAULT_POS_X_MULTIPLIER;
-	g_fPosYMultiplier = DEFAULT_POS_Y_MULTIPLIER;
-	g_fPosZMultiplier = DEFAULT_POS_Z_MULTIPLIER;
+	g_fYawMultiplier   = DEFAULT_YAW_MULTIPLIER;
+	g_fPitchMultiplier = DEFAULT_PITCH_MULTIPLIER;
+	g_fRollMultiplier  = DEFAULT_ROLL_MULTIPLIER;
+	g_fYawOffset   = DEFAULT_YAW_OFFSET;
+	g_fPitchOffset = DEFAULT_PITCH_OFFSET;
+	g_fPosXMultiplier  = DEFAULT_POS_X_MULTIPLIER;
+	g_fPosYMultiplier  = DEFAULT_POS_Y_MULTIPLIER;
+	g_fPosZMultiplier  = DEFAULT_POS_Z_MULTIPLIER;
 	g_fMinPositionX = DEFAULT_MIN_POS_X; g_fMaxPositionX = DEFAULT_MAX_POS_X;
 	g_fMinPositionY = DEFAULT_MIN_POS_Y; g_fMaxPositionY = DEFAULT_MAX_POS_Y;
 	g_fMinPositionZ = DEFAULT_MIN_POS_Z; g_fMaxPositionZ = DEFAULT_MAX_POS_Z;
@@ -579,8 +591,10 @@ void ResetVRParams() {
 
 	g_bReshadeEnabled = DEFAULT_RESHADE_ENABLED_STATE;
 	g_bBloomEnabled = DEFAULT_BLOOM_ENABLED_STATE;
+	g_bDynCockpitEnabled = DEFAULT_DYNAMIC_COCKPIT_ENABLED;
 	// Load CRCs
 	ReloadCRCs();
+	LoadCockpitLookParams();
 }
 
 /* Saves the current view parameters to vrparams.cfg */
@@ -600,9 +614,10 @@ void SaveVRParams() {
 	}
 	fprintf(file, "; VR parameters. Write one parameter per line.\n");
 	fprintf(file, "; Always make a backup copy of this file before modifying it.\n");
-	fprintf(file, "; If you want to restore it to its default settings, simply delete the\n");
-	fprintf(file, "; file and restart the game. Then press Ctrl + Alt + S to save a\n");
-	fprintf(file, "; new config file with the default parameters.\n");
+	fprintf(file, "; If you want to restore it to its default settings, delete the\n");
+	fprintf(file, "; file and restart the game. Then press Ctrl+Alt+S to save a\n");
+	fprintf(file, "; new config file with the default parameters -- however the\n");
+	fprintf(file, "; VR mode may need to be set manually.\n");
 	fprintf(file, "; To reload this file during game (at any point) just press Ctrl+Alt+L.\n");
 	fprintf(file, "; Most parameters can be re-applied when reloading.\n");
 	fprintf(file, "; You can also press Ctrl+Alt+R to reset the viewing params to default values.\n\n");
@@ -621,7 +636,7 @@ void SaveVRParams() {
 	//fprintf(file, "focal_dist = %0.6f # Try not to modify this value, change IPD instead.\n", focal_dist);
 
 	fprintf(file, "; %s is measured in cms; but it's an approximation to in-game units. Set it to 0 to\n", STEREOSCOPY_STRENGTH_VRPARAM);
-	fprintf(file, "; remove the stereoscopy effect. The maximum allowed by the engine is 12cm.\n");
+	fprintf(file, "; remove the stereoscopy effect.\n");
 	fprintf(file, "; This setting is ignored in SteamVR mode. Configure the IPD through SteamVR instead.\n");
 	fprintf(file, "%s = %0.1f\n", STEREOSCOPY_STRENGTH_VRPARAM, g_fIPD * IPD_SCALE_FACTOR);
 	fprintf(file, "%s = %0.3f\n", SIZE_3D_WINDOW_VRPARAM, g_fGlobalScale);
@@ -648,7 +663,8 @@ void SaveVRParams() {
 	fprintf(file, "%s = %0.3f\n", CONCOURSE_ASPECT_RATIO_VRPARAM, g_fConcourseAspectRatio);
 
 	fprintf(file, "\n; Lens correction parameters. k2 has the biggest effect and k1 fine-tunes the effect.\n");
-	fprintf(file, "; Positive values = convex warping; negative = concave warping.\n");
+	fprintf(file, "; Positive values = convex warping; negative = concave warping. SteamVR already provides\n");
+	fprintf(file, "; it's own automatic warping effect, so you probably shouldn't enable this in SteamVR mode.\n");
 	fprintf(file, "%s = %0.6f\n", K1_VRPARAM, g_fLensK1);
 	fprintf(file, "%s = %0.6f\n", K2_VRPARAM, g_fLensK2);
 	fprintf(file, "%s = %0.6f\n", K3_VRPARAM, g_fLensK3);
@@ -658,11 +674,11 @@ void SaveVRParams() {
 	fprintf(file, "; Positive depth is forwards, negative is backwards (towards you).\n");
 	fprintf(file, "; As a reference, the background starfield is 65km meters away.\n");
 	fprintf(file, "%s = %0.3f\n", HUD_PARALLAX_VRPARAM, g_fHUDDepth);
-	fprintf(file, "; If 6dof is enabled, the aiming HUD can be fixed to the cockpit or it can float\n");
-	fprintf(file, "; and follow you. When it's fixed, it's probably more realistic; but it will be\n");
-	fprintf(file, "; harder to aim when you lean. You can move it back to 65000m away to fix this\n");
-	fprintf(file, "; When the aiming HUD is floating, it will follow you around no matter how much you\n");
-	fprintf(file, "; lean, making it easier to aim properly (but it's probably less realistic).\n");
+	fprintf(file, "; If 6dof is enabled, the aiming HUD can be fixed to the cockpit or it can \"float\"\n");
+	fprintf(file, "; and follow the lasers. When it's fixed, it's probably more realistic; but it will\n");
+	fprintf(file, "; be harder to aim when you lean.\n");
+	fprintf(file, "; When the aiming HUD is floating, it will follow the lasers when you lean,\n");
+	fprintf(file, "; making it easier to aim properly.\n");
 	fprintf(file, "%s = %d\n", FLOATING_AIMING_HUD_VRPARAM, g_bFloatingAimingHUD);
 	fprintf(file, "%s = %0.3f\n", GUI_PARALLAX_VRPARAM, g_fFloatingGUIDepth);
 	fprintf(file, "%s = %0.3f\n", GUI_OBJ_PARALLAX_VRPARAM, g_fFloatingGUIObjDepth);
@@ -671,10 +687,13 @@ void SaveVRParams() {
 	fprintf(file, "%s = %0.3f\n", TEXT_PARALLAX_VRPARAM, g_fTextDepth);
 	fprintf(file, "; As a rule of thumb always make %s <= %s so that\n", TEXT_PARALLAX_VRPARAM, GUI_PARALLAX_VRPARAM);
 	fprintf(file, "; the text hovers above the targeting computer\n\n");
-	fprintf(file, "; This is the parallax added to the controls in the tech library. Make it negative to bring the\n");
+	fprintf(file, "; This is the depth added to the controls in the tech library. Make it negative to bring the\n");
 	fprintf(file, "; controls towards you. Objects in the tech library are obviously scaled by XWA, because there's\n");
 	fprintf(file, "; otherwise no way to visualize both a Star Destroyer and an A-Wing in the same volume.\n");
 	fprintf(file, "%s = %0.3f\n", TECH_LIB_PARALLAX_VRPARAM, g_fTechLibraryParallax);
+	fprintf(file, "; The HUD/GUI can be fixed in space now. If this setting is enabled, you'll be\n");
+	fprintf(file, "; able to see all the HUD simply by looking around. You may also lean forward to\n");
+	fprintf(file, "; zoom-in on the text messages to make them more readable.\n");
 	fprintf(file, "%s = %d\n", FIXED_GUI_VRPARAM, g_bFixedGUI);
 
 	fprintf(file, "\n");
@@ -692,11 +711,12 @@ void SaveVRParams() {
 	//fprintf(file, "%s = %d\n", INVERSE_TRANSPOSE_VRPARAM, g_bInverseTranspose);
 	fprintf(file, "\n; 6dof section. Set any of these multipliers to 0 to de-activate individual axes.\n");
 	fprintf(file, "; The settings for pitch and yaw are in cockpitlook.cfg\n");
-	fprintf(file, "%s = %0.3f\n", ROLL_MULTIPLIER_VRPARAM, g_fRollMultiplier);
+	fprintf(file, "%s = %0.3f\n", ROLL_MULTIPLIER_VRPARAM,  g_fRollMultiplier);
 	fprintf(file, "%s = %0.3f\n", POS_X_MULTIPLIER_VRPARAM, g_fPosXMultiplier);
 	fprintf(file, "%s = %0.3f\n", POS_Y_MULTIPLIER_VRPARAM, g_fPosYMultiplier);
 	fprintf(file, "%s = %0.3f\n", POS_Z_MULTIPLIER_VRPARAM, g_fPosZMultiplier);
-	fprintf(file, "\n; Limits of the position in meters.\n");
+	fprintf(file, "\n; Limits of the head tracker position in meters: this prevents you from\n");
+	fprintf(file, "; \"leaning outside the cockpit\".\n");
 	fprintf(file, "; x+ is to the right.\n");
 	fprintf(file, "; y+ is down.\n");
 	fprintf(file, "; z+ is forward.\n");
@@ -707,18 +727,69 @@ void SaveVRParams() {
 	fprintf(file, "%s = %0.3f\n",   MIN_POSITIONAL_Z_VRPARAM, g_fMinPositionZ);
 	fprintf(file, "%s = %0.3f\n\n", MAX_POSITIONAL_Z_VRPARAM, g_fMaxPositionZ);
 
-	fprintf(file, "; The following setting only applies when using FreePIE for 6dof:\n");
+	fprintf(file, "; Specify which slot will be used to read FreePIE positional data.\n");
+	fprintf(file, "; Only applies in DirectSBS mode (ignored in SteamVR mode).\n");
 	fprintf(file, "%s = %d\n", FREEPIE_SLOT_VRPARAM, g_iFreePIESlot);
 
 	// STEAMVR_POS_FROM_FREEPIE_VRPARAM is not saved because it's kind of a hack -- I'm only
 	// using it because the PSMoveServiceSteamVRBridge is a bit tricky to setup and why would
 	// I do that when my current FreePIEBridgeLite is working properly -- and faster.
 
-	fprintf(file, "\n; Enable the Bloom effect\n");
-	fprintf(file, "%s = %d\n", BLOOM_ENABLED_VRPARAM, g_bBloomEnabled);
+	//fprintf(file, "\n; Enable the Bloom effect\n");
+	//fprintf(file, "%s = %d\n", BLOOM_ENABLED_VRPARAM, g_bBloomEnabled);
 
 	fclose(file);
 	log_debug("[DBG] vrparams.cfg saved");
+}
+
+/* Loads cockpitlook params that are relevant to tracking */
+void LoadCockpitLookParams() {
+	log_debug("[DBG] Loading cockpit look params...");
+	FILE *file;
+	int error = 0;
+
+	try {
+		error = fopen_s(&file, "./cockpitlook.cfg", "rt");
+	}
+	catch (...) {
+		log_debug("[DBG] Could not load cockpitlook.cfg");
+	}
+
+	if (error != 0) {
+		log_debug("[DBG] Error %d when loading cockpitlook.cfg", error);
+		return;
+	}
+
+	char buf[160], param[80], svalue[80];
+	int param_read_count = 0;
+	float value = 0.0f;
+
+	while (fgets(buf, 160, file) != NULL) {
+		// Skip comments and blank lines
+		if (buf[0] == ';' || buf[0] == '#')
+			continue;
+		if (strlen(buf) == 0)
+			continue;
+
+		if (sscanf_s(buf, "%s = %s", param, 80, svalue, 80) > 0) {
+			value = (float)atof(svalue);
+			if (_stricmp(param, YAW_MULTIPLIER_CLPARAM) == 0) {
+				g_fYawMultiplier = value;
+			}
+			else if (_stricmp(param, PITCH_MULTIPLIER_CLPARAM) == 0) {
+				g_fPitchMultiplier = value;
+			}
+			else if (_stricmp(param, YAW_OFFSET_CLPARAM) == 0) {
+				g_fYawOffset = value;
+			}
+			else if (_stricmp(param, PITCH_OFFSET_CLPARAM) == 0) {
+				g_fPitchOffset = value;
+			}
+			param_read_count++;
+		}
+	} // while ... read file
+	fclose(file);
+	log_debug("[DBG] Loaded %d cockpitlook params", param_read_count);
 }
 
 /* Loads the VR parameters from vrparams.cfg */
@@ -853,10 +924,12 @@ void LoadVRParams() {
 			else if (_stricmp(param, NATURAL_CONCOURSE_ANIM_VRPARAM) == 0) {
 				g_bNaturalConcourseAnimations = (bool)value;
 			}
+			/*
 			else if (_stricmp(param, DYNAMIC_COCKPIT_TARGET_COMP_VRPARAM) == 0) {
 				g_bDynCockpitEnabled = (bool)value;
 				log_debug("[DBG] vrparam: g_bDynCockpitEnabled: %d", g_bDynCockpitEnabled);
 			}
+			*/
 			else if (_stricmp(param, FIXED_GUI_VRPARAM) == 0) {
 				g_bFixedGUI = (bool)value;
 			}
@@ -1022,12 +1095,14 @@ void LoadVRParams() {
 				}
 			}
 
+			/*
 			// ReShade state
 			else if (_stricmp(param, BLOOM_ENABLED_VRPARAM) == 0) {
 				bool state = (bool)value;
 				g_bReshadeEnabled |= state;
 				g_bBloomEnabled = state;
 			}
+			*/
 			param_read_count++;
 		}
 	} // while ... read file
@@ -1040,6 +1115,8 @@ void LoadVRParams() {
 next:
 	// Load CRCs
 	ReloadCRCs();
+	// Load cockpit look params
+	LoadCockpitLookParams();
 }
 
 /*
@@ -1216,10 +1293,12 @@ void ProcessSteamVREyeMatrices(vr::EVREye eye) {
 	matrixObj.transpose();
 	*/
 
+	/*
 	if (g_bInverseTranspose) {
 		log_debug("[DBG] Computing Inverse Transpose");
 		matrixObj.transpose();
 	}
+	*/
 	// Invert the matrix and store it
 	matrixObj.invertGeneral();
 	if (eye == vr::EVREye::Eye_Left)
@@ -1848,20 +1927,10 @@ Direct3DDevice::Direct3DDevice(DeviceResources* deviceResources)
 	this->_renderStates = new RenderStates(this->_deviceResources);
 
 	this->_maxExecuteBufferSize = 0;
-
-	if (this->_deviceResources->_d3dDevice != NULL) {
-		log_debug("[DBG] Loading new resources, device: 0x%x", _deviceResources->_d3dDevice);
-		//LoadNewCockpitTextures(this->_deviceResources->_d3dDevice);
-	}
-	else {
-		log_debug("[DBG] Could not load new textures: d3dDevice is NULL");
-	}
 }
 
 Direct3DDevice::~Direct3DDevice()
 {
-	//UnloadNewCockpitTextures();
-	//DeleteStereoVertices();
 	//g_iNumVertices = 0;
 	delete this->_renderStates;
 }
