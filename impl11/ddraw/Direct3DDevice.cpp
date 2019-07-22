@@ -5,6 +5,9 @@
 // Shaders by Marty McFly (used with permission from the author)
 // https://github.com/martymcmodding/qUINT/tree/master/Shaders
 
+// backbuffersize: 3240, 2160 -- SCREEN Resolution
+// resources->_displayWidth, resources->_displayHeight -- in-game resolution
+
 #include "common.h"
 #include "DeviceResources.h"
 #include "Direct3DDevice.h"
@@ -21,9 +24,15 @@
 #include <headers/openvr.h>
 #include "Matrices.h"
 
+#include "XWAObject.h"
+
 #define DBG_MAX_PRESENT_LOGS 0
 
 FILE *g_HackFile = NULL;
+
+//ObjectEntry* objects = *(ObjectEntry **)0x7B33C4;
+PlayerDataEntry *PlayerDataTable = (PlayerDataEntry *)0x8B94E0;
+uint32_t *g_playerInHangar = (uint32_t *)0x09C6E40;
 
 const float DEFAULT_FOCAL_DIST = 0.5f;
 //const float DEFAULT_FOCAL_DIST_STEAMVR = 0.6f;
@@ -211,6 +220,7 @@ bool g_bSkipAfterTargetComp = false; // Skip all draw calls after the targetting
 bool g_bTargetCompDrawn = false; // Becomes true after the targetting computer has been drawn
 bool g_bPrevIsFloatingGUI3DObject = false; // Stores the last value of g_bIsFloatingGUI3DObject -- useful to detect when the targeted craft is about to be drawn
 bool g_bIsFloating3DObject = false; // true when rendering the targeted 3D object.
+bool g_bIsTrianglePointer = false, g_bLastTrianglePointer = false;
 //bool g_bLaserBoxLimitsUpdated = false; // Set to true whenever the laser/ion charge limit boxes are updated
 unsigned int g_iFloatingGUIDrawnCounter = 0;
 int g_iPresentCounter = 0, g_iNonZBufferCounter = 0, g_iSkipNonZBufferDrawIdx = -1;
@@ -925,12 +935,10 @@ void LoadVRParams() {
 			else if (_stricmp(param, NATURAL_CONCOURSE_ANIM_VRPARAM) == 0) {
 				g_bNaturalConcourseAnimations = (bool)value;
 			}
-			/*
 			else if (_stricmp(param, DYNAMIC_COCKPIT_TARGET_COMP_VRPARAM) == 0) {
 				g_bDynCockpitEnabled = (bool)value;
 				log_debug("[DBG] vrparam: g_bDynCockpitEnabled: %d", g_bDynCockpitEnabled);
 			}
-			*/
 			else if (_stricmp(param, FIXED_GUI_VRPARAM) == 0) {
 				g_bFixedGUI = (bool)value;
 			}
@@ -2346,8 +2354,10 @@ HRESULT Direct3DDevice::QuickSetZWriteEnabled(BOOL Enabled) {
 // See:
 // xwa_ddraw_d3d11-sm4\impl11\ddraw-May-6-2019-Functionality-Complete\Direct3DDevice.cpp
 // For a working implementation of the index buffer read (spoiler alert: it's the same we have here)
-void Direct3DDevice::GetBoundingBox(LPD3DINSTRUCTION instruction, UINT curIndex, float *minX, float *minY, float *maxX, float *maxY) {
+void Direct3DDevice::GetBoundingBox(LPD3DINSTRUCTION instruction, UINT curIndex,
+	float *minX, float *minY, float *maxX, float *maxY, bool debug) {
 	LPD3DTRIANGLE triangle = (LPD3DTRIANGLE)(instruction + 1);
+	D3DTLVERTEX v;
 	WORD index;
 	//int aux_idx = curIndex;
 	float px, py;
@@ -2356,22 +2366,31 @@ void Direct3DDevice::GetBoundingBox(LPD3DINSTRUCTION instruction, UINT curIndex,
 	for (WORD i = 0; i < instruction->wCount; i++)
 	{
 		index = triangle->v1;
-		//index = g_OrigIndices[aux_idx++];
 		px = g_OrigVerts[index].sx; py = g_OrigVerts[index].sy;
 		if (px < *minX) *minX = px; if (px > *maxX) *maxX = px;
 		if (py < *minY) *minY = py; if (py > *maxY) *maxY = py;
+		if (debug) {
+			v = g_OrigVerts[index];
+			log_debug("[DBG] sx: %0.6f, sy: %0.6f, sz: %0.6f, rhw: %0.6f, tu: %0.3f, tv: %0.3f", v.sx, v.sy, v.sz, v.rhw, v.tu, v.tv);
+		}
 
 		index = triangle->v2;
-		//index = g_OrigIndices[aux_idx++];
 		px = g_OrigVerts[index].sx; py = g_OrigVerts[index].sy;
 		if (px < *minX) *minX = px; if (px > *maxX) *maxX = px;
 		if (py < *minY) *minY = py; if (py > *maxY) *maxY = py;
+		if (debug) {
+			v = g_OrigVerts[index];
+			log_debug("[DBG] sx: %0.6f, sy: %0.6f, sz: %0.6f, rhw: %0.6f, tu: %0.3f, tv: %0.3f", v.sx, v.sy, v.sz, v.rhw, v.tu, v.tv);
+		}
 
 		index = triangle->v3;
-		//index = g_OrigIndices[aux_idx++];
 		px = g_OrigVerts[index].sx; py = g_OrigVerts[index].sy;
 		if (px < *minX) *minX = px; if (px > *maxX) *maxX = px;
 		if (py < *minY) *minY = py; if (py > *maxY) *maxY = py;
+		if (debug) {
+			v = g_OrigVerts[index];
+			log_debug("[DBG] sx: %0.6f, sy: %0.6f, sz: %0.6f, rhw: %0.6f, tu: %0.3f, tv: %0.3f", v.sx, v.sy, v.sz, v.rhw, v.tu, v.tv);
+		}
 
 		triangle++;
 	}
@@ -2450,11 +2469,9 @@ HRESULT Direct3DDevice::Execute(
 	this->_deviceResources->InitTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	this->_deviceResources->InitRasterizerState(resources->_rasterizerState);
 
-	// Do stereo preprocessing
 	int numVerts = executeBuffer->_executeData.dwVertexCount;
 	size_t vertsLength = sizeof(D3DTLVERTEX) * numVerts;
 	g_OrigVerts = (D3DTLVERTEX *)executeBuffer->_buffer;
-	// Generate vertex positions for the left and right images
 	float displayWidth  = (float)resources->_displayWidth;
 	float displayHeight = (float)resources->_displayHeight;
 
@@ -2767,8 +2784,8 @@ HRESULT Direct3DDevice::Execute(
 				bool bIsNoZWrite = !bZWriteEnabled && g_iExecBufCounter > g_iSkyBoxExecIndex;
 				// bIsSkyBox is true if we're about to render the SkyBox
 				bool bIsSkyBox = !bZWriteEnabled && g_iExecBufCounter <= g_iSkyBoxExecIndex;
-				bool bIsTrianglePointer = lastTextureSelected != NULL && lastTextureSelected->is_TrianglePointer;
-				bool bIsText = (lastTextureSelected != NULL) && lastTextureSelected->is_Text;
+				g_bIsTrianglePointer = lastTextureSelected != NULL && lastTextureSelected->is_TrianglePointer;
+				bool bIsText = lastTextureSelected != NULL && lastTextureSelected->is_Text;
 				bool bIsHUD = lastTextureSelected != NULL && lastTextureSelected->is_HUD;
 				bool bIsGUI = lastTextureSelected != NULL && lastTextureSelected->is_GUI;
 				// In the hangar, shadows are enabled. Shadows don't have a texture and are rendered with
@@ -2791,7 +2808,7 @@ HRESULT Direct3DDevice::Execute(
 				g_bStartedGUI |= bIsGUI || bIsText || bIsBracket || bIsFloatingGUI;
 				// bIsScaleableGUIElem is true when we're about to render a HUD element that can be scaled down with Ctrl+Z
 				g_bPrevIsScaleableGUIElem = g_bIsScaleableGUIElem;
-				g_bIsScaleableGUIElem = g_bStartedGUI && !bIsHUD && !bIsBracket && !bIsTrianglePointer;
+				g_bIsScaleableGUIElem = g_bStartedGUI && !bIsHUD && !bIsBracket && !g_bIsTrianglePointer;
 				
 				// lastTextureSelected can be NULL. This happens when drawing the square
 				// brackets around the currently-selected object (and maybe other situations)
@@ -2805,6 +2822,8 @@ HRESULT Direct3DDevice::Execute(
 
 				if (!g_bPrevIsScaleableGUIElem && g_bIsScaleableGUIElem && !g_bScaleableHUDStarted) {
 					g_bScaleableHUDStarted = true;
+					// HACK
+					//*g_playerInHangar = 1;
 					// We're about to render the scaleable HUD, time to clear the dynamic cockpit texture
 					if (g_bDynCockpitEnabled) {
 						//float bgColor[4] = { 0.1f, 0.1f, 0.2f, 0.0f };
@@ -2822,6 +2841,10 @@ HRESULT Direct3DDevice::Execute(
 				/*************************************************************************
 					State management ends here
 				 *************************************************************************/
+
+				//if (PlayerDataTable[0].cockpitDisplayed)
+				//if (PlayerDataTable[0].cockpitDisplayed2)
+				//	goto out;
 
 				// Capture the bounds of the targeting computer texture
 				// The targeting computer is rendered *after* the laser energy levels and the bounding box of the targeting
@@ -3011,6 +3034,16 @@ HRESULT Direct3DDevice::Execute(
 					}
 				}
 
+				// Skip the tractor beam background and the top brackets
+				if (g_bDynCockpitEnabled && lastTextureSelected != NULL) 
+					if (lastTextureSelected->crc == DYN_COCKPIT_TOP_LEFT_SRC_CRC ||
+						lastTextureSelected->crc == DYN_COCKPIT_TOP_RIGHT_SRC_CRC ||
+						lastTextureSelected->crc == DYN_COCKPIT_BEAM_BOX_SRC_CRC)
+				{
+						// Don't render these elements
+						goto out;
+				}
+
 				//if (bIsNoZWrite && _renderStates->GetZFunc() == D3DCMP_GREATER) {
 				//	goto out;
 					//log_debug("[DBG] NoZWrite, ZFunc: %d", _renderStates->GetZFunc());
@@ -3078,6 +3111,7 @@ HRESULT Direct3DDevice::Execute(
 					g_PSCBuffer.bUseCoverTexture = 1.0f;
 					g_PSCBuffer.bUseDynCockpit   = 1.0f;
 					memcpy(g_PSCBuffer.bgColor, bgColor, 4 * sizeof(float));
+					//log_debug("[DBG] Rendering Target Computer DC");
 
 					D3D11_BOX box;
 					box.left   = left + (UINT)(g_DynCockpitBoxes.TargetCompBox.left   / displayWidth * width);
@@ -3155,7 +3189,7 @@ HRESULT Direct3DDevice::Execute(
 					if (g_iPresentCounter > 100 && !bDumped) {
 						log_debug("[DBG] Left Radar in screen res: (%d, %d)-(%d, %d)", box.left, box.top, box.right, box.bottom);
 						hr = DirectX::SaveWICTextureToFile(context.Get(), resources->_offscreenBufferAsInputDynCockpit.Get(), 
-							GUID_ContainerFormatPng, L"c://temp//dyncock.png");
+							GUID_ContainerFormatPng, L"c://temp//dynamic_cockpit_HUD.png");
 						log_debug("[DBG] Dumping offscreenBufferDynCockpit");
 						bDumped = true;
 					}
@@ -3257,7 +3291,9 @@ HRESULT Direct3DDevice::Execute(
 
 				// Replace the lasers panel texture with our own at run-time:
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitLasersPanel &&
-					g_DynCockpitBoxes.LasersLimitsComputed && g_NewDCLasersCover != NULL) {
+					g_DynCockpitBoxes.LasersLimitsComputed && g_NewDCLasersCover != NULL &&
+					g_DynCockpitBoxes.LasersBox.right > -1 && g_DynCockpitBoxes.LasersBox.bottom > -1)
+				{
 					float bgColor[4] = { 0.07f, 0.07f, 0.2f, 0.0f };
 					float black[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 					bModifiedShaders = true;
@@ -3316,6 +3352,17 @@ HRESULT Direct3DDevice::Execute(
 					box.bottom = top + (UINT)(g_DynCockpitBoxes.LeftMsgPanelBox.bottom / displayHeight * height);
 					box.front  = 0;
 					box.back   = 1;
+
+					/*
+					static bool bDump = true;
+					if (bDump) {
+						float minX, minY, maxX, maxY;
+						log_debug("[DBG] -------------------------------");
+						GetBoundingBox(instruction, currentIndexLocation, &minX, &minY, &maxX, &maxY, true);
+						log_debug("[DBG] ===============================");
+						bDump = false;
+					}
+					*/
 
 					// Copy the targeting computer from the offscreenBuffer to the auxiliary dynCockpit buffer:
 					context->CopySubresourceRegion(resources->_dynCockpitAuxBuffer.Get(), 0, 0, 0, 0,
@@ -3473,7 +3520,7 @@ HRESULT Direct3DDevice::Execute(
 				// Let's render the triangle pointer closer to the center so that we can see it all the time,
 				// and let's put it at text depth so that it doesn't cause visual contention against the
 				// cockpit
-				if (bIsTrianglePointer) {
+				if (g_bIsTrianglePointer) {
 					bModifiedShaders = true;
 					g_VSCBuffer.viewportScale[3] = g_fGUIElemScale;
 					g_VSCBuffer.z_override = g_fTextDepth;
@@ -3494,6 +3541,19 @@ HRESULT Direct3DDevice::Execute(
 					bModifiedShaders = true;
 					g_VSCBuffer.z_override = g_fTextDepth;
 				}
+
+				/*
+				// HACK
+				// Skip the text call after the triangle pointer is rendered
+				if (g_bLastTrianglePointer && lastTextureSelected != NULL && lastTextureSelected->is_Text) {
+					g_bLastTrianglePointer = false;
+					//log_debug("[DBG] Skipping text");
+					bModifiedShaders = true;
+					g_VSCBuffer.viewportScale[3] = g_fGUIElemScale;
+					g_VSCBuffer.z_override = g_fTextDepth;
+					//goto out;
+				}
+				*/
 
 				if (bModifiedShaders) {
 					resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
@@ -3584,6 +3644,9 @@ HRESULT Direct3DDevice::Execute(
 				// Have we just finished drawing the targetting computer?
 				if (lastTextureSelected != NULL && lastTextureSelected->is_Floating_GUI)
 					g_iFloatingGUIDrawnCounter++;
+
+				if (g_bIsTrianglePointer)
+					g_bLastTrianglePointer = true;
 
 				if (bIsBracket && bModifiedShaders) {
 					// Restore the No-Z-Write state for bracket elements

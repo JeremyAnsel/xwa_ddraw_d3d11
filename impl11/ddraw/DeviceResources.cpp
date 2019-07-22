@@ -54,8 +54,10 @@ extern DynCockpitBoxes g_DynCockpitBoxes;
 
 extern bool g_bReshadeEnabled, g_bBloomEnabled;
 
-//extern D3DTLVERTEX g_HUDVertices[6]; // 6 vertices
-//extern float g_fHUDDepth;
+extern D3DTLVERTEX g_HUDVertices[6]; // 6 vertices
+extern float g_fHUDDepth;
+extern bool g_bHUDVerticesReady;
+extern ID3D11Buffer* g_HUDVertexBuffer;
 
 // SteamVR
 #include <headers/openvr.h>
@@ -442,52 +444,82 @@ HRESULT DeviceResources::Initialize()
 	return hr;
 }
 
-/*
-void BuildHUDVertexBuffer(UINT width, UINT height) {
+void BuildHUDVertexBuffer(ComPtr<ID3D11Device> device, UINT width, UINT height) {
 	D3DCOLOR color = 0xFFFFFF;
-	g_HUDVertices[0].sx = 0;
-	g_HUDVertices[0].sy = 0;
-	g_HUDVertices[0].tu = 0;
-	g_HUDVertices[0].tv = 0;
+	//float depth = g_fHUDDepth;
+	// The values for rhw_depth and sz_depth were taken from an actual sample from the X-Wing's front panel
+	float rhw_depth = 34.0f;
+	float sz_depth  = 0.98f;
+
+	g_HUDVertices[0].sx  = 0;
+	g_HUDVertices[0].sy  = 0;
+	g_HUDVertices[0].sz  = sz_depth;
+	g_HUDVertices[0].rhw = rhw_depth;
+	g_HUDVertices[0].tu  = 0;
+	g_HUDVertices[0].tv  = 0;
 	g_HUDVertices[0].color = color;
-	g_HUDVertices[0].sz = g_fHUDDepth;
 
 	g_HUDVertices[1].sx = (float)width;
 	g_HUDVertices[1].sy = 0;
-	g_HUDVertices[1].tu = 1;
-	g_HUDVertices[1].tv = 0;
+	g_HUDVertices[1].sz  = sz_depth;
+	g_HUDVertices[1].rhw = rhw_depth;
+	g_HUDVertices[1].tu  = 1;
+	g_HUDVertices[1].tv  = 0;
 	g_HUDVertices[1].color = color;
-	g_HUDVertices[1].sz = g_fHUDDepth;
-
+	
 	g_HUDVertices[2].sx = (float)width;
 	g_HUDVertices[2].sy = (float)height;
-	g_HUDVertices[2].tu = 1;
-	g_HUDVertices[2].tv = 1;
+	g_HUDVertices[2].sz  = sz_depth;
+	g_HUDVertices[2].rhw = rhw_depth;
+	g_HUDVertices[2].tu  = 1;
+	g_HUDVertices[2].tv  = 1;
 	g_HUDVertices[2].color = color;
-	g_HUDVertices[2].sz = g_fHUDDepth;
-
+	
 	g_HUDVertices[3].sx = (float)width;
 	g_HUDVertices[3].sy = (float)height;
-	g_HUDVertices[3].tu = 1;
-	g_HUDVertices[3].tv = 1;
+	g_HUDVertices[3].sz  = sz_depth;
+	g_HUDVertices[3].rhw = rhw_depth;
+	g_HUDVertices[3].tu  = 1;
+	g_HUDVertices[3].tv  = 1;
 	g_HUDVertices[3].color = color;
-	g_HUDVertices[3].sz = g_fHUDDepth;
-
+	
 	g_HUDVertices[4].sx = 0;
 	g_HUDVertices[4].sy = (float)height;
-	g_HUDVertices[4].tu = 0;
-	g_HUDVertices[4].tv = 1;
+	g_HUDVertices[4].sz  = sz_depth;
+	g_HUDVertices[4].rhw = rhw_depth;
+	g_HUDVertices[4].tu  = 0;
+	g_HUDVertices[4].tv  = 1;
 	g_HUDVertices[4].color = color;
-	g_HUDVertices[4].sz = g_fHUDDepth;
+	
+	g_HUDVertices[5].sx  = 0;
+	g_HUDVertices[5].sy  = 0;
+	g_HUDVertices[5].sz  = sz_depth;
+	g_HUDVertices[5].rhw = rhw_depth;
+	g_HUDVertices[5].tu  = 0;
+	g_HUDVertices[5].tv  = 0;
+	g_HUDVertices[5].color = color;	
 
-	g_HUDVertices[5].sx = 0;
-	g_HUDVertices[5].sy = 0;
-	g_HUDVertices[5].tu = 0;
-	g_HUDVertices[5].tv = 0;
-	g_HUDVertices[5].color = color;
-	g_HUDVertices[5].sz = g_fHUDDepth;
+	/* Create the VertexBuffer if necessary */
+	if (g_HUDVertexBuffer != NULL) {
+		g_HUDVertexBuffer->Release();
+		g_HUDVertexBuffer = NULL;
+	}
+
+	D3D11_BUFFER_DESC vertexBufferDesc;
+	ZeroMemory(&vertexBufferDesc, sizeof(vertexBufferDesc));
+	vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+	vertexBufferDesc.ByteWidth = sizeof(D3DTLVERTEX) * ARRAYSIZE(g_HUDVertices);
+	vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	vertexBufferDesc.CPUAccessFlags = 0;
+	vertexBufferDesc.MiscFlags = 0;
+
+	D3D11_SUBRESOURCE_DATA vertexBufferData;
+	ZeroMemory(&vertexBufferData, sizeof(vertexBufferData));
+	vertexBufferData.pSysMem = g_HUDVertices;
+	device->CreateBuffer(&vertexBufferDesc, &vertexBufferData, &g_HUDVertexBuffer);
+
+	g_bHUDVerticesReady = true;
 }
-*/
 
 HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 {
@@ -970,7 +1002,9 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		LoadNewCockpitTextures(this->_d3dDevice);
 
 		// Build the HUD vertex buffer
-		//BuildHUDVertexBuffer(_backbufferWidth, _backbufferHeight);
+		//log_debug("[DBG] backbuffersize: %d, %d", _backbufferWidth, _backbufferHeight);
+		//log_debug("[DBG] displaySize: %d, %d", _displayWidth, _displayHeight);
+		BuildHUDVertexBuffer(this->_d3dDevice, this->_displayWidth, this->_displayHeight);
 	}
 
 	if (SUCCEEDED(hr))

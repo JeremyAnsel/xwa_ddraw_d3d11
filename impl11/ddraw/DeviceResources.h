@@ -14,6 +14,9 @@ const uint32_t DYN_COCKPIT_SOLID_MSG_SRC_CRC   = 0x7e1b021d;
 const uint32_t DYN_COCKPIT_BORDER_MSG_SRC_CRC  = 0x771a714c;
 const uint32_t DYN_COCKPIT_LASER_BOX_SRC_CRC   = 0xd0168df9;
 const uint32_t DYN_COCKPIT_ION_BOX_SRC_CRC	   = 0xe321d785;
+const uint32_t DYN_COCKPIT_BEAM_BOX_SRC_CRC    = 0x75082e5e;
+const uint32_t DYN_COCKPIT_TOP_LEFT_SRC_CRC    = 0xc2416bf9;
+const uint32_t DYN_COCKPIT_TOP_RIGHT_SRC_CRC   = 0x71ce88f1;
 
 typedef struct Box_struct {
 	float left, right;

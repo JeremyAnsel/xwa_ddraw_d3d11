@@ -53,6 +53,8 @@ public:
 
 	void capture(int time_delay, ComPtr<ID3D11Texture2D> buffer, const wchar_t *filename);
 
+	void DrawHUDVertices();
+
 	STDMETHOD(Flip)(THIS_ LPDIRECTDRAWSURFACE, DWORD);
 
 	STDMETHOD(GetAttachedSurface)(THIS_ LPDDSCAPS, LPDIRECTDRAWSURFACE FAR *);

@@ -15,7 +15,21 @@
 
 #define DBG_MAX_PRESENT_LOGS 0
 
+#include "XWAObject.h"
+extern PlayerDataEntry* PlayerDataTable;
+const auto mouseLook_Y = (int*)0x9E9624;
+const auto mouseLook_X = (int*)0x9E9620;
+extern uint32_t *g_playerInHangar;
+
 extern bool g_bNaturalConcourseAnimations;
+extern bool g_bIsTrianglePointer, g_bLastTrianglePointer;
+extern D3DTLVERTEX g_HUDVertices[6]; // 6 vertices
+extern bool g_bHUDVerticesReady;
+
+extern VertexShaderCBuffer g_VSCBuffer;
+extern PixelShaderCBuffer g_PSCBuffer;
+extern float g_fAspectRatio, g_fGlobalScale;
+
 
 #include <headers/openvr.h>
 const float PI = 3.141592f;
@@ -31,9 +45,12 @@ extern bool g_bResetHeadCenter, g_bSteamVRPosFromFreePIE, g_bReshadeEnabled, g_b
 extern vr::IVRSystem *g_pHMD;
 extern int g_iFreePIESlot;
 extern DynCockpitBoxes g_DynCockpitBoxes;
+extern Matrix4 g_fullMatrixLeft, g_fullMatrixRight, g_fullMatrixHead;
 
 // The following is used when the Dynamic Cockpit is enabled to render the HUD separately
-//D3DTLVERTEX g_HUDVertices[6] = { 0 };
+D3DTLVERTEX g_HUDVertices[6] = { 0 };
+bool g_bHUDVerticesReady = false; // Set to true when the g_HUDVertices array has valid data
+ID3D11Buffer* g_HUDVertexBuffer = NULL;
 
 /*
  * Convert a rotation matrix to a normalized quaternion.
@@ -1273,6 +1290,115 @@ inline void WaitGetPoses() {
 	//if (error) log_debug("[DBG] WaitGetPoses error: %d", error);
 }
 
+void PrimarySurface::DrawHUDVertices() {
+	auto& resources = this->_deviceResources;
+	auto& device = resources->_d3dDevice;
+	auto& context = resources->_d3dDeviceContext;
+	D3D11_VIEWPORT viewport;
+	HRESULT hr;
+
+	g_VSCBuffer = { 0 };
+	g_VSCBuffer.aspect_ratio      = g_fAspectRatio;
+	g_VSCBuffer.z_override        = -1.0f;
+	g_VSCBuffer.sz_override       = -1.0f;
+	g_VSCBuffer.mult_z_override   = -1.0f;
+	g_VSCBuffer.cockpit_threshold = -1.0f;
+	g_VSCBuffer.bPreventTransform =  0.0f;
+	g_VSCBuffer.bFullTransform    =  0.0f;
+	if (g_bEnableVR) {
+		g_VSCBuffer.viewportScale[0] = 1.0f / resources->_displayWidth;
+		g_VSCBuffer.viewportScale[1] = 1.0f / resources->_displayHeight;
+	}
+	else {
+		g_VSCBuffer.viewportScale[0] =  2.0f / resources->_displayWidth;
+		g_VSCBuffer.viewportScale[1] = -2.0f / resources->_displayHeight;
+	}
+	g_VSCBuffer.viewportScale[2] = 1.0f; // scale;
+	g_VSCBuffer.viewportScale[3] = g_fGlobalScale;
+
+	g_PSCBuffer.brightness       = 1.0f;
+	g_PSCBuffer.bShadeless       = 1.0f;
+	g_PSCBuffer.uv_scale[0]      = 0.0f;
+	g_PSCBuffer.uv_scale[1]      = 0.0f;
+	g_PSCBuffer.uv_offset[0]     = 0.0f;
+	g_PSCBuffer.uv_offset[1]     = 0.0f;
+	g_PSCBuffer.bUseCoverTexture = 0.0f;
+	g_PSCBuffer.bUseDynCockpit   = 0.0f;
+
+	resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
+	resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
+
+	static bool bDumped = false;
+	if (g_iPresentCounter > 100 && !bDumped) {
+		hr = DirectX::SaveWICTextureToFile(context.Get(), resources->_offscreenBufferAsInputDynCockpit.Get(),
+			GUID_ContainerFormatPng, L"c://temp//draw_dynamic_cockpit_HUD.png");
+		log_debug("[DBG] Dumping offscreenBufferDynCockpit from DrawHUDVertices");
+		bDumped = true;
+	}
+
+	UINT stride = sizeof(D3DTLVERTEX);
+	UINT offset = 0;
+	resources->InitVertexBuffer(&g_HUDVertexBuffer, &stride, &offset);
+	resources->InitInputLayout(resources->_inputLayout);
+	if (g_bEnableVR)
+		this->_deviceResources->InitVertexShader(resources->_sbsVertexShader);
+	else
+		// The original code used _vertexShader:
+		this->_deviceResources->InitVertexShader(resources->_vertexShader);
+	this->_deviceResources->InitPixelShader(resources->_pixelShaderTexture);
+	this->_deviceResources->InitTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	this->_deviceResources->InitRasterizerState(resources->_rasterizerState);
+
+	// Temporarily disable ZWrite: we won't need it to display the HUD
+	D3D11_DEPTH_STENCIL_DESC desc;
+	ComPtr<ID3D11DepthStencilState> depthState;
+	desc.DepthEnable = FALSE;
+	desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+	desc.DepthFunc = D3D11_COMPARISON_ALWAYS;
+	desc.StencilEnable = FALSE;
+	resources->InitDepthStencilState(depthState, &desc);
+
+	float bgColor[4] = { 0.0f, 0.2f, 0.1f, 1.0f };
+	context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
+	// Clear the render target
+	//context->ClearRenderTargetView(resources->_renderTargetView, bgColor);
+
+	if (g_bUseSteamVR)
+		context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
+			resources->_depthStencilViewL.Get());
+	else
+		context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
+			resources->_depthStencilViewL.Get());
+	// VIEWPORT-LEFT
+	if (g_bEnableVR) {
+		if (g_bUseSteamVR) {
+			viewport.Width = (float)resources->_backbufferWidth;
+		}
+		else {
+			viewport.Width = (float)resources->_backbufferWidth / 2.0f;
+		}
+	}
+	else // Non-VR path
+		viewport.Width = (float)resources->_backbufferWidth;
+	viewport.Height = (float)resources->_backbufferHeight;
+	viewport.TopLeftX = 0.0f;
+	viewport.TopLeftY = 0.0f;
+	viewport.MinDepth = D3D11_MIN_DEPTH;
+	viewport.MaxDepth = D3D11_MAX_DEPTH;
+	resources->InitViewport(&viewport);
+	// Set the left projection matrix
+	g_VSMatrixCB.projEye = g_fullMatrixLeft;
+	// The viewMatrix is set at the beginning of the frame
+	resources->InitVSConstantBufferMatrix(resources->_VSMatrixBuffer.GetAddressOf(), &g_VSMatrixCB);
+	//_offscreenBufferAsInputDynCockpit
+	context->PSSetShaderResources(0, 1, resources->_offscreenAsInputSRVDynCockpit.GetAddressOf());
+	// Draw the Left Image
+	context->Draw(6, 0);
+
+	if (!g_bEnableVR) // Shortcut for the non-VR path
+		return;
+}
+
 HRESULT PrimarySurface::Flip(
 	LPDIRECTDRAWSURFACE lpDDSurfaceTargetOverride,
 	DWORD dwFlags
@@ -1556,9 +1682,21 @@ HRESULT PrimarySurface::Flip(
 		auto &resources = this->_deviceResources;
 		auto &context = resources->_d3dDeviceContext;
 
+		// This moves the external camera when in the hangar:
+		//static __int16 yaw = 0;
+		//PlayerDataTable[0].cameraYaw   += 40 * *mouseLook_X;
+		//PlayerDataTable[0].cameraPitch += 15 * *mouseLook_Y;
+		//yaw += 600;
+		//log_debug("[DBG] roll: %0.3f", PlayerDataTable[0].roll / 32768.0f * 180.0f);
+		// This looks like it's always 0:
+		//log_debug("[DBG] els Lasers: %d, Shields: %d, Beam: %d",
+		//	PlayerDataTable[0].elsLasers, PlayerDataTable[0].elsShields, PlayerDataTable[0].elsBeam);
+
 		if (this->_deviceResources->_swapChain)
 		{
 			hr = DD_OK;
+
+			DrawHUDVertices();
 
 			// Re-shade the contents of _offscreenBufferAsInputReshade
 			if (g_bReshadeEnabled) {
@@ -1615,7 +1753,8 @@ HRESULT PrimarySurface::Flip(
 					// Resolve steamVRPresentBuffer to backBuffer so that it gets presented
 					this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0,
 						this->_deviceResources->_steamVRPresentBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
-				} else { // Direct SBS mode
+				} 
+				else { // Direct SBS mode
 					if (!g_bDisableBarrelEffect) {
 						barrelEffect3D();
 						this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0,
@@ -1639,6 +1778,9 @@ HRESULT PrimarySurface::Flip(
 			g_bIsScaleableGUIElem = false;
 			g_bPrevIsScaleableGUIElem = false;
 			g_bScaleableHUDStarted = false;
+			g_bIsTrianglePointer = false;
+			g_bLastTrianglePointer = false;
+			//*g_playerInHangar = 0;
 
 			if (g_bDynCockpitEnabled) {
 				_deviceResources->_d3dDeviceContext->ResolveSubresource(_deviceResources->_offscreenBufferAsInputDynCockpit,
@@ -1859,7 +2001,7 @@ HRESULT PrimarySurface::Flip(
 			g_bRendering3D = true;
 			// Doing Present(1, 0) limits the framerate to 30fps, without it, it can go up to 60; but usually
 			// stays around 45 in my system
-			//log_debug("[DBG] Present");
+			//log_debug("[DBG] Present 3D");
 			g_iPresentCounter++;
 			if (FAILED(hr = this->_deviceResources->_swapChain->Present(0, 0)))
 			{
