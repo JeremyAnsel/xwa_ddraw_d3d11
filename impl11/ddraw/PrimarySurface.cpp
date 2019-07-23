@@ -28,8 +28,8 @@ extern bool g_bHUDVerticesReady;
 
 extern VertexShaderCBuffer g_VSCBuffer;
 extern PixelShaderCBuffer g_PSCBuffer;
-extern float g_fAspectRatio, g_fGlobalScale;
-
+extern float g_fAspectRatio, g_fGlobalScale, g_fXWAScale;
+extern D3D11_VIEWPORT g_nonVRViewport;
 
 #include <headers/openvr.h>
 const float PI = 3.141592f;
@@ -597,6 +597,15 @@ void PrimarySurface::barrelEffect2D(int iteration) {
 	auto& device = resources->_d3dDevice;
 	auto& context = resources->_d3dDeviceContext;
 
+	// Temporarily disable ZWrite: we won't need it for the barrel effect
+	D3D11_DEPTH_STENCIL_DESC desc;
+	ComPtr<ID3D11DepthStencilState> depthState;
+	desc.DepthEnable = FALSE;
+	desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+	desc.DepthFunc = D3D11_COMPARISON_ALWAYS;
+	desc.StencilEnable = FALSE;
+	resources->InitDepthStencilState(depthState, &desc);
+
 	float screen_res_x = (float)resources->_backbufferWidth;
 	float screen_res_y = (float)resources->_backbufferHeight;
 	float bgColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -668,11 +677,8 @@ void PrimarySurface::barrelEffect2D(int iteration) {
 	// Set the lens distortion constants for the barrel shader
 	resources->InitPSConstantBufferBarrel(resources->_barrelConstantBuffer.GetAddressOf(), g_fLensK1, g_fLensK2, g_fLensK3);
 
-	// Maybe it should be like this:
-	// context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
-	context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	context->ClearRenderTargetView(resources->_renderTargetViewPost, bgColor);
-	context->OMSetRenderTargets(1, resources->_renderTargetViewPost.GetAddressOf(), resources->_depthStencilViewL.Get());
+	context->OMSetRenderTargets(1, resources->_renderTargetViewPost.GetAddressOf(), NULL);
 	context->PSSetShaderResources(0, 1, resources->_offscreenAsInputShaderResourceView.GetAddressOf());
 
 	resources->InitViewport(&viewport);
@@ -727,13 +733,13 @@ void PrimarySurface::barrelEffect3D() {
 	desc.DepthFunc = D3D11_COMPARISON_ALWAYS;
 	desc.StencilEnable = FALSE;
 	resources->InitDepthStencilState(depthState, &desc);
-
-	// Create a new viewport to render the offscreen buffer as a texture
-	D3D11_VIEWPORT viewport{};
+	
 	float screen_res_x = (float)resources->_backbufferWidth;
 	float screen_res_y = (float)resources->_backbufferHeight;
 	float bgColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
+	// Create a new viewport to render the offscreen buffer as a texture
+	D3D11_VIEWPORT viewport{};
 	viewport.TopLeftX = (float)0;
 	viewport.TopLeftY = (float)0;
 	viewport.Width = (float)screen_res_x;
@@ -763,8 +769,7 @@ void PrimarySurface::barrelEffect3D() {
 	context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	// Clear the render target
 	context->ClearRenderTargetView(resources->_renderTargetViewPost, bgColor);
-	context->OMSetRenderTargets(1, resources->_renderTargetViewPost.GetAddressOf(), 
-		this->_deviceResources->_depthStencilViewL.Get());
+	context->OMSetRenderTargets(1, resources->_renderTargetViewPost.GetAddressOf(), NULL);
 	resources->InitViewport(&viewport);
 	context->IASetInputLayout(resources->_mainInputLayout);
 	context->Draw(6, 0);
@@ -886,20 +891,20 @@ void PrimarySurface::barrelEffectSteamVR() {
 	resources->InitPSConstantBufferBarrel(resources->_barrelConstantBuffer.GetAddressOf(), g_fLensK1, g_fLensK2, g_fLensK3);
 
 	// Clear the depth stencil and render target
-	context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
-	context->ClearDepthStencilView(resources->_depthStencilViewR, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
+	//context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
+	//context->ClearDepthStencilView(resources->_depthStencilViewR, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
 	context->ClearRenderTargetView(resources->_renderTargetViewPost, bgColor);
 	context->ClearRenderTargetView(resources->_renderTargetViewPostR, bgColor);
 	context->IASetInputLayout(resources->_mainInputLayout);
 
 	context->PSSetShaderResources(0, 1, resources->_offscreenAsInputShaderResourceView.GetAddressOf());
-	context->OMSetRenderTargets(1, resources->_renderTargetViewPost.GetAddressOf(),
-		resources->_depthStencilViewL.Get());
+	context->OMSetRenderTargets(1, resources->_renderTargetViewPost.GetAddressOf(), NULL);
+		//resources->_depthStencilViewL.Get());
 	context->Draw(6, 0);
 
 	context->PSSetShaderResources(0, 1, resources->_offscreenAsInputShaderResourceViewR.GetAddressOf());
-	context->OMSetRenderTargets(1, resources->_renderTargetViewPostR.GetAddressOf(),
-		resources->_depthStencilViewR.Get());
+	context->OMSetRenderTargets(1, resources->_renderTargetViewPostR.GetAddressOf(), NULL);
+		//resources->_depthStencilViewR.Get());
 	context->Draw(6, 0);
 
 #ifdef DBG_VR
@@ -1167,12 +1172,11 @@ void PrimarySurface::bloom(int pass) {
 	resources->InitDepthStencilState(depthState, &desc);
 
 	// Create a new viewport to render the offscreen buffer as a texture
-	D3D11_VIEWPORT viewport{};
 	float screen_res_x = (float)resources->_backbufferWidth;
 	float screen_res_y = (float)resources->_backbufferHeight;
-	
 	float bgColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
+	D3D11_VIEWPORT viewport{};
 	viewport.TopLeftX = (float)0;
 	viewport.TopLeftY = (float)0;
 	viewport.Width    = (float)screen_res_x;
@@ -1191,16 +1195,16 @@ void PrimarySurface::bloom(int pass) {
 			resources->InitPixelShader(resources->_bloomPrepassPS);
 			context->PSSetShaderResources(0, 1, resources->_offscreenAsInputReshadeSRV.GetAddressOf());
 			context->ClearRenderTargetView(resources->_renderTargetViewReshade1, bgColor);
-			context->OMSetRenderTargets(1, resources->_renderTargetViewReshade1.GetAddressOf(),
-				this->_deviceResources->_depthStencilViewL.Get());
+			context->OMSetRenderTargets(1, resources->_renderTargetViewReshade1.GetAddressOf(), NULL);
+				//this->_deviceResources->_depthStencilViewL.Get());
 			break;
 		case 1: // Threshold + Horizontal Gaussian Blur
 			// Output: _reshadeOutput2
 			resources->InitPixelShader(resources->_bloomHGaussPS);
 			context->PSSetShaderResources(0, 1, resources->_reshadeOutput1SRV.GetAddressOf());
 			context->ClearRenderTargetView(resources->_renderTargetViewReshade2, bgColor);
-			context->OMSetRenderTargets(1, resources->_renderTargetViewReshade2.GetAddressOf(),
-				this->_deviceResources->_depthStencilViewL.Get());
+			context->OMSetRenderTargets(1, resources->_renderTargetViewReshade2.GetAddressOf(), NULL);
+				//this->_deviceResources->_depthStencilViewL.Get());
 			break;
 		case 2: // Vertical Gaussian Blur
 			// Output: _reshadeOutput1
@@ -1208,8 +1212,8 @@ void PrimarySurface::bloom(int pass) {
 			resources->InitPixelShader(resources->_bloomVGaussPS);
 			context->PSSetShaderResources(0, 1, resources->_reshadeOutput2SRV.GetAddressOf());
 			context->ClearRenderTargetView(resources->_renderTargetViewReshade1, bgColor);
-			context->OMSetRenderTargets(1, resources->_renderTargetViewReshade1.GetAddressOf(),
-				this->_deviceResources->_depthStencilViewL.Get());
+			context->OMSetRenderTargets(1, resources->_renderTargetViewReshade1.GetAddressOf(), NULL);
+				//this->_deviceResources->_depthStencilViewL.Get());
 			break;
 		case 3: // Final pass to combine the bloom texture with the backbuffer
 			// Output: _reshadeOutput2
@@ -1218,18 +1222,13 @@ void PrimarySurface::bloom(int pass) {
 			context->PSSetShaderResources(0, 1, resources->_offscreenAsInputReshadeSRV.GetAddressOf());
 			context->PSSetShaderResources(1, 1, resources->_reshadeOutput1SRV.GetAddressOf());
 			context->ClearRenderTargetView(resources->_renderTargetViewReshade2, bgColor);
-			context->OMSetRenderTargets(1, resources->_renderTargetViewReshade2.GetAddressOf(),
-				this->_deviceResources->_depthStencilViewL.Get());
+			context->OMSetRenderTargets(1, resources->_renderTargetViewReshade2.GetAddressOf(), NULL);
+				//this->_deviceResources->_depthStencilViewL.Get());
 			break;
 	}
 
 	// Set the constant buffers
 	resources->InitVSConstantBuffer2D(resources->_mainShadersConstantBuffer.GetAddressOf(), 0.0f, 1.0f, 1.0f, 1.0f, 0.0f); // Do not use 3D projection matrices
-	//resources->InitPSConstantBufferBarrel(resources->_barrelConstantBuffer.GetAddressOf(), g_fLensK1, g_fLensK2, g_fLensK3);
-
-	// Clear the depth stencil
-	// Maybe I should be using resources->clearDepth instead of 1.0f:
-	//context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
 	resources->InitViewport(&viewport);
 	context->IASetInputLayout(resources->_mainInputLayout);
 	context->Draw(6, 0);
@@ -1290,12 +1289,143 @@ inline void WaitGetPoses() {
 	//if (error) log_debug("[DBG] WaitGetPoses error: %d", error);
 }
 
+void PrimarySurface::ClearBox(Box box, D3D11_VIEWPORT *viewport, bool fullScreen, float scale, D3DCOLOR clearColor) {
+	HRESULT hr;
+	auto& resources = _deviceResources;
+	auto& device = resources->_d3dDevice;
+	auto& context = resources->_d3dDeviceContext;
+
+	D3D11_BLEND_DESC blendDesc{};
+	blendDesc.AlphaToCoverageEnable = FALSE;
+	blendDesc.IndependentBlendEnable = FALSE;
+	blendDesc.RenderTarget[0].BlendEnable = FALSE;
+	blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
+	blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_ZERO;
+	blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+	blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+	blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+	hr = resources->InitBlendState(nullptr, &blendDesc);
+
+	//log_debug("[DBG] Clearing: (%f,%f)-(%f,%f)", viewport->TopLeftX, viewport->TopLeftY, viewport->Width, viewport->Height);
+
+	// Set the constant buffers
+	VertexShaderCBuffer tempVSBuffer = g_VSCBuffer;
+	tempVSBuffer.viewportScale[0] =  2.0f / resources->_displayWidth;
+	tempVSBuffer.viewportScale[1] = -2.0f / resources->_displayHeight;
+	tempVSBuffer.viewportScale[2] =  scale;
+	tempVSBuffer.viewportScale[3] =  g_fGlobalScale;
+	resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &tempVSBuffer);
+
+	// Set the vertex buffer
+	// D3DCOLOR seems to be AARRGGBB
+	if (!fullScreen) {
+		D3DTLVERTEX vertices[6];
+		vertices[0].sx = box.left;  vertices[0].sy = box.top;    vertices[0].sz = 0.98f; vertices[0].rhw = 34.0f; vertices[0].color = clearColor;
+		vertices[1].sx = box.right; vertices[1].sy = box.top;    vertices[1].sz = 0.98f; vertices[1].rhw = 34.0f; vertices[1].color = clearColor;
+		vertices[2].sx = box.right; vertices[2].sy = box.bottom; vertices[2].sz = 0.98f; vertices[2].rhw = 34.0f; vertices[2].color = clearColor;
+
+		vertices[3].sx = box.right; vertices[3].sy = box.bottom; vertices[3].sz = 0.98f; vertices[3].rhw = 34.0f; vertices[3].color = clearColor;
+		vertices[4].sx = box.left;  vertices[4].sy = box.bottom; vertices[4].sz = 0.98f; vertices[4].rhw = 34.0f; vertices[4].color = clearColor;
+		vertices[5].sx = box.left;  vertices[5].sy = box.top;    vertices[5].sz = 0.98f; vertices[5].rhw = 34.0f; vertices[5].color = clearColor;
+		D3D11_MAPPED_SUBRESOURCE map;
+		hr = context->Map(g_ClearHUDVertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
+		if (SUCCEEDED(hr)) {
+			memcpy(map.pData, vertices, sizeof(D3DTLVERTEX) * 6);
+			context->Unmap(g_ClearHUDVertexBuffer, 0);
+		}
+	}
+
+	//D3D11_DEPTH_STENCIL_DESC currentStencilDesc = _renderStates->GetDepthStencilDesc();
+	D3D11_DEPTH_STENCIL_DESC zDesc;
+
+	// Temporarily disable ZWrite: we won't need it to display the HUD
+	ComPtr<ID3D11DepthStencilState> depthState;
+	zDesc.DepthEnable = FALSE;
+	zDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+	zDesc.DepthFunc = D3D11_COMPARISON_ALWAYS;
+	zDesc.StencilEnable = FALSE;
+	resources->InitDepthStencilState(depthState, &zDesc);
+
+	resources->InitTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	resources->InitRasterizerState(resources->_rasterizerState);
+
+	// Change the shaders
+	resources->InitVertexShader(resources->_vertexShader);
+	resources->InitPixelShader(resources->_pixelShaderSolid);
+	// Change the render target
+	context->OMSetRenderTargets(1, resources->_renderTargetViewDynCockpitAsInput.GetAddressOf(), NULL);
+	// Set the viewport
+	resources->InitViewport(viewport);
+	// Set the vertex buffer (map the vertices from the box)
+	UINT stride = sizeof(D3DTLVERTEX);
+	UINT offset = 0;
+	if (!fullScreen)
+		resources->InitVertexBuffer(&g_ClearHUDVertexBuffer, &stride, &offset);
+	else
+		resources->InitVertexBuffer(&g_ClearFullScreenHUDVertexBuffer, &stride, &offset);
+	// Draw
+	context->Draw(6, 0);
+
+	// Restore the constant buffers
+	//resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
+	// Restore the depth stencil state
+	//resources->InitDepthStencilState(depthState, &currentStencilDesc);
+	// Restore the vertex and pixel shaders
+	//if (g_bEnableVR)
+	//	this->_deviceResources->InitVertexShader(resources->_sbsVertexShader);
+	//else
+		// The original code used _vertexShader:
+	//	this->_deviceResources->InitVertexShader(resources->_vertexShader);
+	//this->_deviceResources->InitPixelShader(resources->_pixelShaderTexture);
+	// Restore the vertex buffer
+	//UINT vertexBufferStride = sizeof(D3DTLVERTEX), vertexBufferOffset = 0;
+	//resources->InitVertexBuffer(this->_vertexBuffer.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
+	// We don't need to restore the viewport, it gets set before each draw call anyway
+}
+
+void PrimarySurface::ClearHUDRegions() {
+	if (g_DynCockpitBoxes.TargetCompLimitsComputed)
+		ClearBox(g_DynCockpitBoxes.TargetCompBox, &g_nonVRViewport, false, g_fXWAScale, 0);
+	if (g_DynCockpitBoxes.ShieldsLimitsComputed)
+		ClearBox(g_DynCockpitBoxes.ShieldsBox, &g_nonVRViewport, false, g_fXWAScale, 0);
+	if (g_DynCockpitBoxes.LasersLimitsComputed)
+		ClearBox(g_DynCockpitBoxes.LasersBox, &g_nonVRViewport, false, g_fXWAScale, 0);
+}
+
 void PrimarySurface::DrawHUDVertices() {
 	auto& resources = this->_deviceResources;
 	auto& device = resources->_d3dDevice;
 	auto& context = resources->_d3dDeviceContext;
 	D3D11_VIEWPORT viewport;
 	HRESULT hr;
+
+	D3D11_BLEND_DESC blendDesc{};
+	blendDesc.AlphaToCoverageEnable = FALSE;
+	blendDesc.IndependentBlendEnable = FALSE;
+	blendDesc.RenderTarget[0].BlendEnable = TRUE;
+	blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+	blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+	blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_SRC_ALPHA;
+	blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
+	blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+	hr = resources->InitBlendState(nullptr, &blendDesc);
+	
+	//HRESULT hr;
+
+	/*
+	// Dump the HUD offscreen buffer for debugging purposes
+	static bool bDumped = false;
+	if (g_iPresentCounter > 100 && !bDumped) {
+		hr = DirectX::SaveWICTextureToFile(context.Get(),
+			resources->_offscreenBufferAsInputDynCockpit.Get(), GUID_ContainerFormatPng, L"c://temp//dyncock-after-clear.png");
+		log_debug("[DBG] Dumping offscreenBufferDynCockpit");
+		bDumped = true;
+	}
+	*/
 
 	// We don't need to clear the current vertex and pixel constant buffers.
 	// Since we've just finished rendering 3D, they should contain values that
@@ -1760,8 +1890,12 @@ HRESULT PrimarySurface::Flip(
 			}
 
 			// Apply the HUD *after* we have re-shaded it (if necessary)
-			if (g_bDynCockpitEnabled)
+			if (g_bDynCockpitEnabled) {
+				// Clear everything we don't want to display from the HUD
+				ClearHUDRegions();
+				// Display the HUD
 				DrawHUDVertices();
+			}
 
 			// In the original code, the offscreenBuffer is resolved to the backBuffer
 			//this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0, this->_deviceResources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);

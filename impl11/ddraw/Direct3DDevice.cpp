@@ -282,6 +282,8 @@ int g_iFreePIESlot = DEFAULT_FREEPIE_SLOT;
 bool g_bFixedGUI = DEFAULT_FIXED_GUI_STATE;
 bool g_bSteamVRPosFromFreePIE = DEFAULT_STEAMVR_POS_FROM_FREEPIE;
 bool g_bDirectSBSInitialized = false;
+float g_fXWAScale = 1.0f; // This is the scale value as computed during Execute()
+D3D11_VIEWPORT g_nonVRViewport{};
 
 VertexShaderMatrixCB g_VSMatrixCB;
 VertexShaderCBuffer g_VSCBuffer;
@@ -2386,6 +2388,7 @@ void Direct3DDevice::GetBoundingBox(LPD3DINSTRUCTION instruction, UINT curIndex,
 	}
 }
 
+/*
 void Direct3DDevice::ClearBox(Box box, D3D11_VIEWPORT *viewport, bool fullScreen, float scale, D3DCOLOR clearColor) {
 	HRESULT hr;
 	auto& resources = _deviceResources;
@@ -2436,13 +2439,6 @@ void Direct3DDevice::ClearBox(Box box, D3D11_VIEWPORT *viewport, bool fullScreen
 	// Change the render target
 	context->OMSetRenderTargets(1, resources->_renderTargetViewDynCockpitAsInput.GetAddressOf(), NULL);
 	// Set the viewport
-	//D3D11_VIEWPORT viewport;
-	//viewport.Width  = (float)resources->_backbufferWidth;
-	//viewport.Height = (float)resources->_backbufferHeight;
-	//viewport.TopLeftX = 0.0f;
-	//viewport.TopLeftY = 0.0f;
-	//viewport.MinDepth = D3D11_MIN_DEPTH;
-	//viewport.MaxDepth = D3D11_MAX_DEPTH;
 	resources->InitViewport(viewport);
 	// Set the vertex buffer (map the vertices from the box)
 	UINT stride = sizeof(D3DTLVERTEX);
@@ -2453,18 +2449,6 @@ void Direct3DDevice::ClearBox(Box box, D3D11_VIEWPORT *viewport, bool fullScreen
 		resources->InitVertexBuffer(&g_ClearFullScreenHUDVertexBuffer, &stride, &offset);
 	// Draw
 	context->Draw(6, 0);
-
-	/*
-	// Save the DC buffer to disk to inspect it
-	static bool bDumped = false;
-	if (g_iPresentCounter > 100 && !bDumped) {
-		log_debug("[DBG] Cleared box: (%f, %f)-(%f, %f)", box.left, box.top, box.right, box.bottom);
-		hr = DirectX::SaveWICTextureToFile(context.Get(),
-			resources->_offscreenBufferAsInputDynCockpit.Get(), GUID_ContainerFormatPng, L"c://temp//dyncock-after-draw.png");
-		log_debug("[DBG] Dumping offscreenBufferDynCockpit after CLEAR");
-		bDumped = true;
-	}
-	*/
 
 	// Restore the constant buffers
 	resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
@@ -2482,6 +2466,7 @@ void Direct3DDevice::ClearBox(Box box, D3D11_VIEWPORT *viewport, bool fullScreen
 	resources->InitVertexBuffer(this->_vertexBuffer.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
 	// We don't need to restore the viewport, it gets set before each draw call anyway
 }
+*/
 
 HRESULT Direct3DDevice::Execute(
 	LPDIRECT3DEXECUTEBUFFER lpDirect3DExecuteBuffer,
@@ -2649,13 +2634,14 @@ HRESULT Direct3DDevice::Execute(
 		g_VSCBuffer.mult_z_override = -1.0f;
 		resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 		resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
+		g_fXWAScale = scale; // Store the current scale, the Dynamic Cockpit will use this value
 
-		// This is the original monoscopic viewport:
 		/*
+		// This is the original monoscopic viewport:
 		viewport.TopLeftX = (float)left;
 		viewport.TopLeftY = (float)top;
-		viewport.Width = (float)width;
-		viewport.Height = (float)height;
+		viewport.Width    = (float)width;
+		viewport.Height   = (float)height;
 		viewport.MinDepth = D3D11_MIN_DEPTH;
 		viewport.MaxDepth = D3D11_MAX_DEPTH;
 		resources->InitViewport(&viewport);
@@ -2824,13 +2810,13 @@ HRESULT Direct3DDevice::Execute(
 					break;
 
 				// Capture the non-VR viewport that is used with the non-VR vertexshader:
-				D3D11_VIEWPORT nonVRViewport;
-				nonVRViewport.TopLeftX = (float)left;
-				nonVRViewport.TopLeftY = (float)top;
-				nonVRViewport.Width    = (float)width;
-				nonVRViewport.Height   = (float)height;
-				nonVRViewport.MinDepth = D3D11_MIN_DEPTH;
-				nonVRViewport.MaxDepth = D3D11_MAX_DEPTH;
+				//D3D11_VIEWPORT nonVRViewport;
+				g_nonVRViewport.TopLeftX = (float)left;
+				g_nonVRViewport.TopLeftY = (float)top;
+				g_nonVRViewport.Width    = (float)width;
+				g_nonVRViewport.Height   = (float)height;
+				g_nonVRViewport.MinDepth = D3D11_MIN_DEPTH;
+				g_nonVRViewport.MaxDepth = D3D11_MAX_DEPTH;
 
 				step = "Draw";
 
@@ -3194,10 +3180,6 @@ HRESULT Direct3DDevice::Execute(
 					//context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
 				//}
 
-				// TEST: Check if the clear function is working properly
-				//if (g_bDynCockpitEnabled && g_DynCockpitBoxes.TargetCompLimitsComputed)
-				//	ClearDynCockpitBox(g_DynCockpitBoxes.TargetCompBox, scale, 0);
-
 				// Replace the targeting computer texture with our own at run-time:
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitTargetComp &&
 					g_DynCockpitBoxes.TargetCompLimitsComputed && g_NewDCTargetCompCover != NULL) {
@@ -3233,7 +3215,6 @@ HRESULT Direct3DDevice::Execute(
 					//rect.left = box.left; rect.right = box.right;
 					//rect.top = box.top; rect.bottom = box.bottom;
 					//context1->ClearView(resources->_renderTargetViewDynCockpitAsInput.Get(), black, &rect, 1);
-					ClearBox(g_DynCockpitBoxes.TargetCompBox, &nonVRViewport, false, scale, 0);
 
 					/*
 					static bool bDumped = false;
@@ -3283,17 +3264,6 @@ HRESULT Direct3DDevice::Execute(
 					// Copy the targeting computer from the offscreenBuffer to the auxiliary dynCockpit buffer:
 					context->CopySubresourceRegion(resources->_dynCockpitAuxBuffer.Get(), 0, 0, 0, 0,
 						resources->_offscreenBufferAsInputDynCockpit.Get(), 0, &box);
-
-					/*
-					static bool bDumped = false;
-					if (g_iPresentCounter > 100 && !bDumped) {
-						log_debug("[DBG] Left Radar in screen res: (%d, %d)-(%d, %d)", box.left, box.top, box.right, box.bottom);
-						hr = DirectX::SaveWICTextureToFile(context.Get(), resources->_offscreenBufferAsInputDynCockpit.Get(), 
-							GUID_ContainerFormatPng, L"c://temp//dynamic_cockpit_HUD.png");
-						log_debug("[DBG] Dumping offscreenBufferDynCockpit");
-						bDumped = true;
-					}
-					*/
 
 					// Erase this same area in the dynamic cockpit texture
 					
@@ -3369,7 +3339,23 @@ HRESULT Direct3DDevice::Execute(
 						resources->_offscreenBufferAsInputDynCockpit.Get(), 0, &box);
 
 					// Erase this same area in the dynamic cockpit texture
-					ClearBox(g_DynCockpitBoxes.ShieldsBox, &nonVRViewport, false, scale, 0);
+					//ClearBox(g_DynCockpitBoxes.ShieldsBox, &g_nonVRViewport, false, g_fXWAScale, 0);
+					/*
+					static bool bDump = false;
+					if (!bDump) {
+						D3D11_BLEND_DESC bdesc = _renderStates->GetBlendDesc();
+						log_debug("[DBG] AlphaToCoverageEnable: %d", bdesc.AlphaToCoverageEnable);
+						log_debug("[DBG] IndependentBlendEnable: %d", bdesc.IndependentBlendEnable);
+						log_debug("[DBG] BlendEnable: %d", bdesc.RenderTarget[0].BlendEnable);
+						log_debug("[DBG] SrcBlend: %d", bdesc.RenderTarget[0].SrcBlend);
+						log_debug("[DBG] DestBlend: %d", bdesc.RenderTarget[0].DestBlend);
+						log_debug("[DBG] SrcBlendAlpha: %d", bdesc.RenderTarget[0].SrcBlendAlpha);
+						log_debug("[DBG] DestBlendAlpha: %d", bdesc.RenderTarget[0].DestBlendAlpha);
+						log_debug("[DBG] BlendOpAlpha: %d", bdesc.RenderTarget[0].BlendOpAlpha);
+						log_debug("[DBG] RenderTargetWriteMask: %d", bdesc.RenderTarget[0].RenderTargetWriteMask);
+						bDump = true;
+					}
+					*/
 
 					if (g_NewDCShieldsCover) {
 						context->PSSetShaderResources(0, 1, g_NewDCShieldsCover.GetAddressOf());
@@ -3407,7 +3393,6 @@ HRESULT Direct3DDevice::Execute(
 						resources->_offscreenBufferAsInputDynCockpit.Get(), 0, &box);
 
 					// Erase this same area in the dynamic cockpit texture
-					ClearBox(g_DynCockpitBoxes.LasersBox, &nonVRViewport, false, scale, 0);
 
 					if (g_NewDCLasersCover) {
 						context->PSSetShaderResources(0, 1, g_NewDCLasersCover.GetAddressOf());
@@ -3454,6 +3439,19 @@ HRESULT Direct3DDevice::Execute(
 					}
 				}
 
+				/*
+				// Dump the HUD offscreen buffer for debugging purposes
+				static bool bDumped = false;
+				if (g_iPresentCounter > 100 && !bDumped) {
+					hr = DirectX::SaveWICTextureToFile(context.Get(),
+						resources->_offscreenBufferAsInputDynCockpit.Get(), GUID_ContainerFormatPng, L"c://temp//dyncock-after-clear.png");
+					//hr = DirectX::SaveWICTextureToFile(_deviceResources->_d3dDeviceContext.Get(),
+					//	_deviceResources->_offscreenBufferAsInputDynCockpit.Get(), GUID_ContainerFormatJpeg, L"c://temp//dyncock.jpg");
+					log_debug("[DBG] Dumping offscreenBufferDynCockpit");
+					bDumped = true;
+				}
+				*/
+
 				// Early exit 1: Render the HUD/GUI to the Dynamic Cockpit RTV and continue
 				if (bRenderToDynCockpitBuffer) {
 					// Restore the non-VR dimensions:
@@ -3468,7 +3466,7 @@ HRESULT Direct3DDevice::Execute(
 					viewport.Height   = (float)height;
 					viewport.MinDepth = D3D11_MIN_DEPTH;
 					viewport.MaxDepth = D3D11_MAX_DEPTH; */
-					resources->InitViewport(&nonVRViewport);
+					resources->InitViewport(&g_nonVRViewport);
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 					resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 					// Set the original vertex buffer and dynamic cockpit RTV:
@@ -3506,7 +3504,7 @@ HRESULT Direct3DDevice::Execute(
 					viewport.Height   = (float)height;
 					viewport.MinDepth = D3D11_MIN_DEPTH;
 					viewport.MaxDepth = D3D11_MAX_DEPTH; */
-					resources->InitViewport(&nonVRViewport);
+					resources->InitViewport(&g_nonVRViewport);
 
 					if (bModifiedShaders) {
 						resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
