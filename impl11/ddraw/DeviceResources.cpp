@@ -57,7 +57,7 @@ extern bool g_bReshadeEnabled, g_bBloomEnabled;
 extern D3DTLVERTEX g_HUDVertices[6]; // 6 vertices
 extern float g_fHUDDepth;
 extern bool g_bHUDVerticesReady;
-extern ID3D11Buffer* g_HUDVertexBuffer;
+extern ID3D11Buffer *g_HUDVertexBuffer, *g_ClearHUDVertexBuffer, *g_ClearFullScreenHUDVertexBuffer;
 
 // SteamVR
 #include <headers/openvr.h>
@@ -445,7 +445,8 @@ HRESULT DeviceResources::Initialize()
 }
 
 void BuildHUDVertexBuffer(ComPtr<ID3D11Device> device, UINT width, UINT height) {
-	D3DCOLOR color = 0xFFFFFF;
+	HRESULT hr;
+	D3DCOLOR color = 0xFFFFFFFF; // AABBGGRR
 	//float depth = g_fHUDDepth;
 	// The values for rhw_depth and sz_depth were taken from an actual sample from the X-Wing's front panel
 	float rhw_depth = 34.0f;
@@ -516,7 +517,32 @@ void BuildHUDVertexBuffer(ComPtr<ID3D11Device> device, UINT width, UINT height) 
 	D3D11_SUBRESOURCE_DATA vertexBufferData;
 	ZeroMemory(&vertexBufferData, sizeof(vertexBufferData));
 	vertexBufferData.pSysMem = g_HUDVertices;
-	device->CreateBuffer(&vertexBufferDesc, &vertexBufferData, &g_HUDVertexBuffer);
+	hr = device->CreateBuffer(&vertexBufferDesc, &vertexBufferData, &g_HUDVertexBuffer);
+	if (FAILED(hr)) {
+		log_debug("[DBG] Could not create g_HUDVertexBuffer");
+		g_bHUDVerticesReady = false;
+	}
+
+	// Change the color to 0 to create a vertex buffer that clears the whole HUD
+	for (int i = 0; i < 6; i++)
+		g_HUDVertices[i].color = 0;
+	ZeroMemory(&vertexBufferData, sizeof(vertexBufferData));
+	vertexBufferData.pSysMem = g_HUDVertices;
+	hr = device->CreateBuffer(&vertexBufferDesc, &vertexBufferData, &g_ClearFullScreenHUDVertexBuffer);
+	if (FAILED(hr)) {
+		log_debug("[DBG] Could not create g_ClearFullScreenHUDVertexBuffer");
+		g_bHUDVerticesReady = false;
+	}
+
+	// Build the vertex buffer that will be used to clear areas of the offscreen DC buffer:
+	vertexBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+	vertexBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	vertexBufferDesc.StructureByteStride = 0;
+	hr = device->CreateBuffer(&vertexBufferDesc, nullptr, &g_ClearHUDVertexBuffer);
+	if (FAILED(hr)) {
+		log_debug("[DBG] Could not create g_ClearHUDVertexBuffer");
+		g_bHUDVerticesReady = false;
+	}
 
 	g_bHUDVerticesReady = true;
 }
@@ -999,12 +1025,10 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			}
 		}
 
-		LoadNewCockpitTextures(this->_d3dDevice);
-
+		// Dynamic Cockpit: Load the new cockpit textures
+		LoadNewCockpitTextures(_d3dDevice);
 		// Build the HUD vertex buffer
-		//log_debug("[DBG] backbuffersize: %d, %d", _backbufferWidth, _backbufferHeight);
-		//log_debug("[DBG] displaySize: %d, %d", _displayWidth, _displayHeight);
-		BuildHUDVertexBuffer(this->_d3dDevice, this->_displayWidth, this->_displayHeight);
+		BuildHUDVertexBuffer(_d3dDevice, _displayWidth, _displayHeight);
 	}
 
 	if (SUCCEEDED(hr))

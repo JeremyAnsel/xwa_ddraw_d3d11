@@ -50,7 +50,7 @@ extern Matrix4 g_fullMatrixLeft, g_fullMatrixRight, g_fullMatrixHead;
 // The following is used when the Dynamic Cockpit is enabled to render the HUD separately
 D3DTLVERTEX g_HUDVertices[6] = { 0 };
 bool g_bHUDVerticesReady = false; // Set to true when the g_HUDVertices array has valid data
-ID3D11Buffer* g_HUDVertexBuffer = NULL;
+ID3D11Buffer *g_HUDVertexBuffer = NULL, *g_ClearHUDVertexBuffer = NULL, *g_ClearFullScreenHUDVertexBuffer = NULL;
 
 /*
  * Convert a rotation matrix to a normalized quaternion.
@@ -1297,8 +1297,13 @@ void PrimarySurface::DrawHUDVertices() {
 	D3D11_VIEWPORT viewport;
 	HRESULT hr;
 
-	g_VSCBuffer = { 0 };
-	g_VSCBuffer.aspect_ratio      = g_fAspectRatio;
+	// We don't need to clear the current vertex and pixel constant buffers.
+	// Since we've just finished rendering 3D, they should contain values that
+	// can be reused. So let's just overwrite those values that we need.
+	// TODO: Set the HUD at the right depth
+	// TODO: Enable the "Fixed GUI" option
+	// TODO: Check that this works in SteamVR mode too
+	g_VSCBuffer.aspect_ratio      =  g_fAspectRatio;
 	g_VSCBuffer.z_override        = -1.0f;
 	g_VSCBuffer.sz_override       = -1.0f;
 	g_VSCBuffer.mult_z_override   = -1.0f;
@@ -1313,8 +1318,8 @@ void PrimarySurface::DrawHUDVertices() {
 		g_VSCBuffer.viewportScale[0] =  2.0f / resources->_displayWidth;
 		g_VSCBuffer.viewportScale[1] = -2.0f / resources->_displayHeight;
 	}
-	g_VSCBuffer.viewportScale[2] = 1.0f; // scale;
-	g_VSCBuffer.viewportScale[3] = g_fGlobalScale;
+	//g_VSCBuffer.viewportScale[2] = 1.0f; // scale;
+	//g_VSCBuffer.viewportScale[3] = g_fGlobalScale;
 
 	g_PSCBuffer.brightness       = 1.0f;
 	g_PSCBuffer.bShadeless       = 1.0f;
@@ -1327,14 +1332,6 @@ void PrimarySurface::DrawHUDVertices() {
 
 	resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 	resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
-
-	static bool bDumped = false;
-	if (g_iPresentCounter > 100 && !bDumped) {
-		hr = DirectX::SaveWICTextureToFile(context.Get(), resources->_offscreenBufferAsInputDynCockpit.Get(),
-			GUID_ContainerFormatPng, L"c://temp//draw_dynamic_cockpit_HUD.png");
-		log_debug("[DBG] Dumping offscreenBufferDynCockpit from DrawHUDVertices");
-		bDumped = true;
-	}
 
 	UINT stride = sizeof(D3DTLVERTEX);
 	UINT offset = 0;
@@ -1358,17 +1355,17 @@ void PrimarySurface::DrawHUDVertices() {
 	desc.StencilEnable = FALSE;
 	resources->InitDepthStencilState(depthState, &desc);
 
-	float bgColor[4] = { 0.0f, 0.2f, 0.1f, 1.0f };
-	context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
-	// Clear the render target
-	//context->ClearRenderTargetView(resources->_renderTargetView, bgColor);
+	//float bgColor[4] = { 0.0f, 0.2f, 0.1f, 1.0f };
+	//context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
+	// Don't clear the render target, the offscreenBuffer already has the 3D render in it
 
+	// Render the left image
 	if (g_bUseSteamVR)
-		context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
-			resources->_depthStencilViewL.Get());
+		context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(), NULL);
+	//resources->_depthStencilViewL.Get());
 	else
-		context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
-			resources->_depthStencilViewL.Get());
+		context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(), NULL);
+			//resources->_depthStencilViewL.Get());
 	// VIEWPORT-LEFT
 	if (g_bEnableVR) {
 		if (g_bUseSteamVR) {
@@ -1397,6 +1394,34 @@ void PrimarySurface::DrawHUDVertices() {
 
 	if (!g_bEnableVR) // Shortcut for the non-VR path
 		return;
+
+	// Render the right image
+	if (g_bUseSteamVR)
+		context->OMSetRenderTargets(1, resources->_renderTargetViewR.GetAddressOf(), NULL);
+	//resources->_depthStencilViewR.Get());
+	else
+		context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(), NULL);
+			//resources->_depthStencilViewL.Get());
+
+	// VIEWPORT-RIGHT
+	if (g_bUseSteamVR) {
+		viewport.Width = (float)resources->_backbufferWidth;
+		viewport.TopLeftX = 0.0f;
+	}
+	else {
+		viewport.Width = (float)resources->_backbufferWidth / 2.0f;
+		viewport.TopLeftX = 0.0f + viewport.Width;
+	}
+	viewport.Height = (float)resources->_backbufferHeight;
+	viewport.TopLeftY = 0.0f;
+	viewport.MinDepth = D3D11_MIN_DEPTH;
+	viewport.MaxDepth = D3D11_MAX_DEPTH;
+	resources->InitViewport(&viewport);
+	// Set the right projection matrix
+	g_VSMatrixCB.projEye = g_fullMatrixRight;
+	resources->InitVSConstantBufferMatrix(resources->_VSMatrixBuffer.GetAddressOf(), &g_VSMatrixCB);
+	// Draw the Right Image
+	context->Draw(6, 0);
 }
 
 HRESULT PrimarySurface::Flip(
@@ -1696,8 +1721,6 @@ HRESULT PrimarySurface::Flip(
 		{
 			hr = DD_OK;
 
-			DrawHUDVertices();
-
 			// Re-shade the contents of _offscreenBufferAsInputReshade
 			if (g_bReshadeEnabled) {
 				// _offscreenBufferAsInputReshade is resolved during Execute() -- right before any GUI is rendered
@@ -1735,6 +1758,10 @@ HRESULT PrimarySurface::Flip(
 					context->CopyResource(resources->_offscreenBufferAsInput, resources->_reshadeOutput2);
 				}
 			}
+
+			// Apply the HUD *after* we have re-shaded it (if necessary)
+			if (g_bDynCockpitEnabled)
+				DrawHUDVertices();
 
 			// In the original code, the offscreenBuffer is resolved to the backBuffer
 			//this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0, this->_deviceResources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);

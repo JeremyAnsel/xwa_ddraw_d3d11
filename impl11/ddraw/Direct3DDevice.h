@@ -38,6 +38,8 @@ public:
 	void GetBoundingBox(LPD3DINSTRUCTION instruction, UINT curIndex,
 		float * minX, float * minY, float * maxX, float * maxY, bool debug=false);
 
+	void ClearBox(Box box, D3D11_VIEWPORT *viewport, bool fullScreen, float scale, D3DCOLOR clearColor);
+
 	STDMETHOD(Execute)(THIS_ LPDIRECT3DEXECUTEBUFFER, LPDIRECT3DVIEWPORT, DWORD);
 
 	STDMETHOD(AddViewport)(THIS_ LPDIRECT3DVIEWPORT);
@@ -74,6 +76,6 @@ public:
 
 	DWORD _maxExecuteBufferSize;
 	ComPtr<ID3D11Buffer> _vertexBuffer;
-	ComPtr<ID3D11Buffer> _vertexBuffer3D;
+	//ComPtr<ID3D11Buffer> _vertexBuffer3D;
 	ComPtr<ID3D11Buffer> _indexBuffer;
 };
