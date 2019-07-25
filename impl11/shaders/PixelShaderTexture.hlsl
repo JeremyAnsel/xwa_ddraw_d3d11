@@ -2,29 +2,27 @@
 // Licensed under the MIT license. See LICENSE.txt
 // Extended for VR by Leo Reyes (c) 2019
 
-Texture2D texture0 : register(t0);
+Texture2D    texture0 : register(t0);
 SamplerState sampler0 : register(s0);
 
 // Used for the dynamic cockpit contents, if bUseDynCockpit is set, then texture0 will be the "cover" and
 // texture1 will be the dynamic element taken from the previous frame's HUD
-Texture2D texture1 : register(t1);
+Texture2D    texture1 : register(t1);
 SamplerState sampler1 : register(s1);
 
 cbuffer ConstantBuffer : register(b0)
 {
-	float brightness;  // Used to dim some elements to prevent the Bloom effect -- mostly for ReShade compatibility
-	float bUnused;     // This setting was "bShadeless" previously
-	float2 uv_scale;   // Scale the UVs by this much
+	float brightness;      // Used to dim some elements to prevent the Bloom effect -- mostly for ReShade compatibility
+	uint DynCockpitSlots;  // How many DC slots will be used. This setting was "bShadeless" previously
+	uint bUseCoverTexture; // When set, use the first texture as cover texture for the dynamic cockpit
+	uint unused;
 	// 16 bytes
-	float2 uv_offset;       // Move the UVs by this much *after* applying uv_scale (dynamic cockpit)
-	float bUseCoverTexture; // When set, use the first texture as a cover for the dynamic cockpit
-	float bUseDynCockpit;   // Use the second texture slot for the dynamic cockpit
+	float4 bgColor;        // Background color to use (dynamic cockpit)
 	// 32 bytes
-	float4 bgColor;         // Background color to use (dynamic cockpit)
-	// 48 bytes
-	float2 uv_src_dyn0;
-	float2 uv_src_dyn1;
+	float4 src[2];         // HLSL packs each element in an array in its own 4-vector (16 bytes) slot, so .xy is src0 and .zw is src1
 	// 64 bytes
+	float4 dst[2];
+	// 96 bytes
 };
 
 struct PixelShaderInput
@@ -45,25 +43,36 @@ float4 main(PixelShaderInput input) : SV_TARGET
 	//	diffuse = 0.8 * diffuse;
 	//diffuse = float3(1.0, 1.0, 1.0);
 
-	//if (bShadeless > 0.5)
-	//	diffuse = float3(1.0, 1.0, 1.0);
-
-	if (bUseDynCockpit > 0.5) {
+	if (DynCockpitSlots > 0) {
 		//return 0.7*dc_texelColor + 0.3*texelColor; // DEBUG DEBUG DEBUG!!! Remove this later! This helps position the elements easily
-
-		// Sample the dynamic cockpit texture:
-		float2 dyn_uv = uv_scale * input.tex + uv_offset;
+				
+		// HLSL packs each element in an array in its own 4-vector (16-byte) row. So src[0].xy is the
+		// upper-left corner of the box and src[0].zw is the lower-right corner. The same applies to
+		// dst uv coords
+		int i = 0;
+		
 		float4 dc_texelColor = bgColor;
+		float2 delta = dst[i].zw - dst[i].xy;
+		float2 s = (input.tex - dst[i].xy) / delta;
+		float2 dyn_uv = lerp(src[i].xy, src[i].zw, s);
+		
+		//if (input.tex.x >= src[i].x && input.tex.y >= src[i].y &&
+		//	input.tex.x <= src[i].z && input.tex.y <= src[i].w)
+		//if (input.tex.x >= dst[i].x && input.tex.y >= dst[i].y &&
+		//	input.tex.x <= dst[i].z && input.tex.y <= dst[i].w)
+		//	texelColor = float4(1, 0, 0, 1);
+
 		if (dyn_uv.x >= 0 && dyn_uv.y >= 0 &&
 			dyn_uv.x <= 1 && dyn_uv.y <= 1) 
 		{
+			// Sample the dynamic cockpit texture:
 			dc_texelColor = texture1.Sample(sampler1, dyn_uv); // "dc" is for "dynamic cockpit"
 			float dc_alpha = dc_texelColor.w;
 			// Add the background color to the dynamic cockpit display:
 			dc_texelColor = dc_alpha * dc_texelColor + (1.0 - dc_alpha) * bgColor;
 		}
 
-		if (bUseCoverTexture > 0.5) {
+		if (bUseCoverTexture > 0) {
 			// Display the dynamic cockpit texture only where the texture cover is transparent:
 			texelColor = alpha * texelColor + (1.0 - alpha) * dc_texelColor;
 			// The diffuse value will be 1 (shadeless) wherever the cover texture is transparent:
@@ -72,6 +81,6 @@ float4 main(PixelShaderInput input) : SV_TARGET
 		else
 			texelColor = dc_texelColor;
 	}
-
+	
 	return float4(brightness * diffuse * texelColor.xyz, texelColor.w);
 }

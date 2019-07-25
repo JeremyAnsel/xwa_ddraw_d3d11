@@ -548,37 +548,31 @@ HRESULT Direct3DTexture::Load(
 			this->crc = crc32c(0, (const unsigned char *)textureData[0].pSysMem, size);
 			if (this->crc == DYN_COCKPIT_XWING_TARGET_COMP_CRC_LO_RES ||
 				this->crc == DYN_COCKPIT_XWING_TARGET_COMP_CRC_HI_RES) {
-				log_debug("[DBG] ***** FOUND DYN TARGET COMP");
 				this->is_DynCockpitTargetComp = true;
 				this->is_DynCockpitSrc = true;
 			}
 			else if (this->crc == DYN_COCKPIT_XWING_FRONT_PANEL_CRC_LO_RES ||
 				     this->crc == DYN_COCKPIT_XWING_FRONT_PANEL_CRC_HI_RES) {
-				log_debug("[DBG] ***** FOUND DYN FRONT PANEL");
 				this->is_DynCockpitFrontPanel = true;
 				this->is_DynCockpitSrc = true;
 			}
 			else if (this->crc == DYN_COCKPIT_XWING_LEFT_PANEL_CRC_LO_RES ||
 				     this->crc == DYN_COCKPIT_XWING_LEFT_PANEL_CRC_HI_RES) {
-				log_debug("[DBG] ***** FOUND DYN LEFT PANEL");
 				this->is_DynCockpitLeftRadarPanel = true;
 				this->is_DynCockpitSrc = true;
 			}
 			else if (this->crc == DYN_COCKPIT_XWING_RIGHT_PANEL_CRC_LO_RES ||
 				     this->crc == DYN_COCKPIT_XWING_RIGHT_PANEL_CRC_HI_RES) {
-				log_debug("[DBG] ***** FOUND DYN RIGHT PANEL");
 				this->is_DynCockpitRightRadarPanel = true;
 				this->is_DynCockpitSrc = true;
 			}
 			else if (this->crc == DYN_COCKPIT_XWING_SHIELDS_PANEL_CRC_LO_RES ||
 				     this->crc == DYN_COCKPIT_XWING_SHIELDS_PANEL_CRC_HI_RES) {
-				log_debug("[DBG] ***** FOUND DYN SHIELDS PANEL");
 				this->is_DynCockpitShieldsPanel = true;
 				this->is_DynCockpitSrc = true;
 			}
 			else if (this->crc == DYN_COCKPIT_XWING_LASERS_PANEL_CRC_LO_RES ||
 				     this->crc == DYN_COCKPIT_XWING_LASERS_PANEL_CRC_HI_RES) {
-				log_debug("[DBG] ***** FOUND DYN LASERS PANEL");
 				this->is_DynCockpitLasersPanel = true;
 				this->is_DynCockpitSrc = true;
 			}
@@ -588,7 +582,6 @@ HRESULT Direct3DTexture::Load(
 					 this->crc == DYN_COCKPIT_XWING_RIGHT_PANEL_CRC_ALPHA   ||
 					 this->crc == DYN_COCKPIT_XWING_SHIELDS_PANEL_CRC_ALPHA ||
 					 this->crc == DYN_COCKPIT_XWING_LASERS_PANEL_CRC_ALPHA) {
-				log_debug("[DBG] ***** FOUND DYN SRC ALPHA OVERLAY");
 				this->is_DynCockpitAlphaOverlay = true;
 			}
 			

@@ -1281,12 +1281,8 @@ void PrimarySurface::bloom(int pass) {
 inline void WaitGetPoses() {
 	// We need to call WaitGetPoses so that SteamVR gets the focus, otherwise we'll just get
 	// error 101 when doing VRCompositor->Submit()
-	//if (g_pVRCompositor == NULL) log_debug("[DBG] VRCompositor is NULL");
 	vr::EVRCompositorError error = g_pVRCompositor->WaitGetPoses(&g_rTrackedDevicePose,
 		0, NULL, 0);
-	// It's probably not a great idea to log if there was an error since this will cause a big
-	// performance hit.
-	//if (error) log_debug("[DBG] WaitGetPoses error: %d", error);
 }
 
 void PrimarySurface::ClearBox(Box box, D3D11_VIEWPORT *viewport, bool fullScreen, float scale, D3DCOLOR clearColor) {
@@ -1307,8 +1303,6 @@ void PrimarySurface::ClearBox(Box box, D3D11_VIEWPORT *viewport, bool fullScreen
 	blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
 	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
 	hr = resources->InitBlendState(nullptr, &blendDesc);
-
-	//log_debug("[DBG] Clearing: (%f,%f)-(%f,%f)", viewport->TopLeftX, viewport->TopLeftY, viewport->Width, viewport->Height);
 
 	// Set the constant buffers
 	VertexShaderCBuffer tempVSBuffer = g_VSCBuffer;
@@ -1337,9 +1331,7 @@ void PrimarySurface::ClearBox(Box box, D3D11_VIEWPORT *viewport, bool fullScreen
 		}
 	}
 
-	//D3D11_DEPTH_STENCIL_DESC currentStencilDesc = _renderStates->GetDepthStencilDesc();
 	D3D11_DEPTH_STENCIL_DESC zDesc;
-
 	// Temporarily disable ZWrite: we won't need it to display the HUD
 	ComPtr<ID3D11DepthStencilState> depthState;
 	zDesc.DepthEnable = FALSE;
@@ -1367,31 +1359,15 @@ void PrimarySurface::ClearBox(Box box, D3D11_VIEWPORT *viewport, bool fullScreen
 		resources->InitVertexBuffer(&g_ClearFullScreenHUDVertexBuffer, &stride, &offset);
 	// Draw
 	context->Draw(6, 0);
-
-	// Restore the constant buffers
-	//resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
-	// Restore the depth stencil state
-	//resources->InitDepthStencilState(depthState, &currentStencilDesc);
-	// Restore the vertex and pixel shaders
-	//if (g_bEnableVR)
-	//	this->_deviceResources->InitVertexShader(resources->_sbsVertexShader);
-	//else
-		// The original code used _vertexShader:
-	//	this->_deviceResources->InitVertexShader(resources->_vertexShader);
-	//this->_deviceResources->InitPixelShader(resources->_pixelShaderTexture);
-	// Restore the vertex buffer
-	//UINT vertexBufferStride = sizeof(D3DTLVERTEX), vertexBufferOffset = 0;
-	//resources->InitVertexBuffer(this->_vertexBuffer.GetAddressOf(), &vertexBufferStride, &vertexBufferOffset);
-	// We don't need to restore the viewport, it gets set before each draw call anyway
 }
 
 void PrimarySurface::ClearHUDRegions() {
-	if (g_DynCockpitBoxes.TargetCompLimitsComputed)
-		ClearBox(g_DynCockpitBoxes.TargetCompBox, &g_nonVRViewport, false, g_fXWAScale, 0);
-	if (g_DynCockpitBoxes.ShieldsLimitsComputed)
-		ClearBox(g_DynCockpitBoxes.ShieldsBox, &g_nonVRViewport, false, g_fXWAScale, 0);
-	if (g_DynCockpitBoxes.LasersLimitsComputed)
-		ClearBox(g_DynCockpitBoxes.LasersBox, &g_nonVRViewport, false, g_fXWAScale, 0);
+	//if (g_DynCockpitBoxes.TargetCompLimitsComputed)
+	//	ClearBox(g_DynCockpitBoxes.TargetCompBox, &g_nonVRViewport, false, g_fXWAScale, 0);
+	//if (g_DynCockpitBoxes.ShieldsLimitsComputed)
+	//	ClearBox(g_DynCockpitBoxes.ShieldsBox, &g_nonVRViewport, false, g_fXWAScale, 0);
+	//if (g_DynCockpitBoxes.LasersLimitsComputed)
+	//	ClearBox(g_DynCockpitBoxes.LasersBox, &g_nonVRViewport, false, g_fXWAScale, 0);
 }
 
 void PrimarySurface::DrawHUDVertices() {
@@ -1414,8 +1390,6 @@ void PrimarySurface::DrawHUDVertices() {
 	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
 	hr = resources->InitBlendState(nullptr, &blendDesc);
 	
-	//HRESULT hr;
-
 	/*
 	// Dump the HUD offscreen buffer for debugging purposes
 	static bool bDumped = false;
@@ -1451,14 +1425,9 @@ void PrimarySurface::DrawHUDVertices() {
 	//g_VSCBuffer.viewportScale[2] = 1.0f; // scale;
 	//g_VSCBuffer.viewportScale[3] = g_fGlobalScale;
 
-	g_PSCBuffer.brightness       = 1.0f;
-	g_PSCBuffer.bShadeless       = 1.0f;
-	g_PSCBuffer.uv_scale[0]      = 0.0f;
-	g_PSCBuffer.uv_scale[1]      = 0.0f;
-	g_PSCBuffer.uv_offset[0]     = 0.0f;
-	g_PSCBuffer.uv_offset[1]     = 0.0f;
-	g_PSCBuffer.bUseCoverTexture = 0.0f;
-	g_PSCBuffer.bUseDynCockpit   = 0.0f;
+	g_PSCBuffer.brightness        = 1.0f;
+	g_PSCBuffer.bUseCoverTexture  = 0;
+	g_PSCBuffer.DynCockpitSlots   = 0;
 
 	resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 	resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
@@ -1991,7 +1960,6 @@ HRESULT PrimarySurface::Flip(
 						headCenter[0] = g_FreePIEData.x;
 						headCenter[1] = g_FreePIEData.y;
 						headCenter[2] = g_FreePIEData.z;
-						log_debug("[DBG] New Head Center: (%0.3f, %0.3f, %0.3f)", headCenter[0], headCenter[1], headCenter[2]);
 						g_bResetHeadCenter = false;
 					}
 					x = g_FreePIEData.x - headCenter[0];
@@ -2062,7 +2030,6 @@ HRESULT PrimarySurface::Flip(
 						headCenter[0] = g_FreePIEData.x;
 						headCenter[1] = g_FreePIEData.y;
 						headCenter[2] = g_FreePIEData.z;
-						log_debug("[DBG] New Head Center: (%0.3f, %0.3f, %0.3f)", headCenter[0], headCenter[1], headCenter[2]);
 						g_bResetHeadCenter = false;
 					}
 					Vector4 pos(g_FreePIEData.x, g_FreePIEData.y, g_FreePIEData.z, 1.0f);

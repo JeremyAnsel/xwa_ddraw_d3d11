@@ -51,6 +51,7 @@ extern Matrix4 g_fullMatrixLeft, g_fullMatrixRight;
 extern VertexShaderMatrixCB g_VSMatrixCB;
 
 extern DynCockpitBoxes g_DynCockpitBoxes;
+//extern uv_coords g_DCTargetCompUVCoords;
 
 extern bool g_bReshadeEnabled, g_bBloomEnabled;
 
@@ -79,7 +80,7 @@ typedef enum {
 	PS_CONSTANT_BUFFER_NONE,
 	PS_CONSTANT_BUFFER_BARREL,
 	PS_CONSTANT_BUFFER_2D,
-	PS_CONSTANT_BUFFER_BRIGHTNESS,
+	PS_CONSTANT_BUFFER_3D,
 } PSConstantBufferType;
 PSConstantBufferType g_LastPSConstantBufferSet = PS_CONSTANT_BUFFER_NONE;
 
@@ -190,7 +191,7 @@ bool LoadNewCockpitTextures(ID3D11Device *device) {
 	}
 
 	if (g_NewDCTargetCompCover == NULL) {
-		log_debug("[DBG] [Dyn] >>>>> Loading new Cockpit Targeting Computer");
+		//log_debug("[DBG] [Dyn] >>>>> Loading new Cockpit Targeting Computer");
 		HRESULT res = DirectX::CreateWICTextureFromFile(device, L"./DynamicCockpit/x-wing-targeting-comp-cover.png",
 			NULL, &g_NewDCTargetCompCover);
 		if (FAILED(res)) {
@@ -201,7 +202,7 @@ bool LoadNewCockpitTextures(ID3D11Device *device) {
 	}
 
 	if (g_NewHUDLeftRadar == NULL) {
-		log_debug("[DBG] [Dyn] >>>>> Loading new Left Radar");
+		//log_debug("[DBG] [Dyn] >>>>> Loading new Left Radar");
 		HRESULT res = DirectX::CreateWICTextureFromFile(device, L"./DynamicCockpit/Left-Radar-Round.png",
 			NULL, &g_NewHUDLeftRadar);
 		if (FAILED(res)) {
@@ -211,7 +212,7 @@ bool LoadNewCockpitTextures(ID3D11Device *device) {
 	}
 
 	if (g_NewDCLeftRadarCover == NULL) {
-		log_debug("[DBG] [Dyn] >>>>> Loading new Left Radar Cover");
+		//log_debug("[DBG] [Dyn] >>>>> Loading new Left Radar Cover");
 		HRESULT res = DirectX::CreateWICTextureFromFile(device, L"./DynamicCockpit/x-wing-left-radar-cover.png",
 			NULL, &g_NewDCLeftRadarCover);
 		if (FAILED(res)) {
@@ -222,7 +223,7 @@ bool LoadNewCockpitTextures(ID3D11Device *device) {
 
 
 	if (g_NewHUDRightRadar == NULL) {
-		log_debug("[DBG] [Dyn] >>>>> Loading new Right Radar");
+		//log_debug("[DBG] [Dyn] >>>>> Loading new Right Radar");
 		HRESULT res = DirectX::CreateWICTextureFromFile(device, L"./DynamicCockpit/Right-Radar-Round.png",
 			NULL, &g_NewHUDRightRadar);
 		if (FAILED(res)) {
@@ -232,7 +233,7 @@ bool LoadNewCockpitTextures(ID3D11Device *device) {
 	}
 
 	if (g_NewDCRightRadarCover == NULL) {
-		log_debug("[DBG] [Dyn] >>>>> Loading new Right Radar Cover");
+		//log_debug("[DBG] [Dyn] >>>>> Loading new Right Radar Cover");
 		HRESULT res = DirectX::CreateWICTextureFromFile(device, L"./DynamicCockpit/x-wing-right-radar-cover.png",
 			NULL, &g_NewDCRightRadarCover);
 		if (FAILED(res)) {
@@ -242,7 +243,7 @@ bool LoadNewCockpitTextures(ID3D11Device *device) {
 	}
 
 	if (g_NewDCShieldsCover == NULL) {
-		log_debug("[DBG] [Dyn] >>>>> Loading new Shields Cover");
+		//log_debug("[DBG] [Dyn] >>>>> Loading new Shields Cover");
 		HRESULT res = DirectX::CreateWICTextureFromFile(device, L"./DynamicCockpit/x-wing-shields-cover.png",
 			NULL, &g_NewDCShieldsCover);
 		if (FAILED(res)) {
@@ -252,7 +253,7 @@ bool LoadNewCockpitTextures(ID3D11Device *device) {
 	}
 
 	if (g_NewDCLasersCover == NULL) {
-		log_debug("[DBG] [Dyn] >>>>> Loading new Lasers Cover");
+		//log_debug("[DBG] [Dyn] >>>>> Loading new Lasers Cover");
 		HRESULT res = DirectX::CreateWICTextureFromFile(device, L"./DynamicCockpit/x-wing-lasers-panel-cover.png",
 			NULL, &g_NewDCLasersCover);
 		if (FAILED(res)) {
@@ -262,7 +263,7 @@ bool LoadNewCockpitTextures(ID3D11Device *device) {
 	}
 
 	if (g_NewDCFrontPanelCover == NULL) {
-		log_debug("[DBG] [Dyn] >>>>> Loading new Front Panel Cover");
+		//log_debug("[DBG] [Dyn] >>>>> Loading new Front Panel Cover");
 		HRESULT res = DirectX::CreateWICTextureFromFile(device, L"./DynamicCockpit/x-wing-front-panel-cover.png",
 			NULL, &g_NewDCFrontPanelCover);
 		if (FAILED(res)) {
@@ -608,8 +609,8 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		this->_offscreenBufferDynCockpit.Release();
 		this->_offscreenBufferAsInputDynCockpit.Release();
 		this->_offscreenAsInputSRVDynCockpit.Release();
-		this->_dynCockpitAuxBuffer.Release();
-		this->_dynCockpitAuxSRV.Release();
+		//this->_dynCockpitAuxBuffer.Release();
+		//this->_dynCockpitAuxSRV.Release();
 	}
 	if (g_bReshadeEnabled) {
 		this->_offscreenBufferAsInputReshade.Release();
@@ -668,7 +669,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			//	sd.BufferDesc.Height = g_steamVRHeight;
 			//}
 			//else {
-				sd.BufferDesc.Width = 0;
+				sd.BufferDesc.Width  = 0;
 				sd.BufferDesc.Height = 0;
 			//}
 			sd.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
@@ -915,13 +916,13 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		}
 
 		if (g_bDynCockpitEnabled) {
-			step = "_dynCockpitAuxBuffer";
+			/*step = "_dynCockpitAuxBuffer";
 			hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_dynCockpitAuxBuffer);
 			if (FAILED(hr)) {
 				log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
 				log_err_desc(step, hWnd, hr, desc);
 				goto out;
-			}
+			}*/
 
 			// This guy should be the last one to be created because it modifies the BindFlags
 			// _offscreenBufferAsInputDynCockpit should have the same properties as _offscreenBufferAsInput
@@ -1015,20 +1016,22 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 				goto out;
 			}
 
-			step = "_dynCockpitAuxSRV";
+			/*step = "_dynCockpitAuxSRV";
 			hr = this->_d3dDevice->CreateShaderResourceView(this->_dynCockpitAuxBuffer,
 				&shaderResourceViewDesc, &this->_dynCockpitAuxSRV);
 			if (FAILED(hr)) {
 				log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
 				log_shaderres_view(step, hWnd, hr, shaderResourceViewDesc);
 				goto out;
-			}
+			}*/
 		}
 
 		// Dynamic Cockpit: Load the new cockpit textures
 		LoadNewCockpitTextures(_d3dDevice);
 		// Build the HUD vertex buffer
 		BuildHUDVertexBuffer(_d3dDevice, _displayWidth, _displayHeight);
+		// Normalize the coordinates for the dynamic cockpit boxes
+		
 	}
 
 	if (SUCCEEDED(hr))
@@ -1436,7 +1439,7 @@ HRESULT DeviceResources::LoadResources()
 		return hr;
 
 	// Create the constant buffer for the (3D) textured pixel shader
-	constantBufferDesc.ByteWidth = 48;
+	constantBufferDesc.ByteWidth = 96;
 	if (FAILED(hr = this->_d3dDevice->CreateBuffer(&constantBufferDesc, nullptr, &this->_PSConstantBuffer)))
 		return hr;
 
@@ -1781,11 +1784,11 @@ void DeviceResources::InitPSConstantBufferBarrel(ID3D11Buffer** buffer, const fl
 void DeviceResources::InitPSConstantBuffer3D(ID3D11Buffer** buffer, const PixelShaderCBuffer* psConstants)
 {
 	static ID3D11Buffer** currentBuffer = nullptr;
-	static PixelShaderCBuffer currentPSConstants{};
+	static PixelShaderCBuffer currentPSConstants = {0};
 	static int sizeof_constants = sizeof(PixelShaderCBuffer);
 
 	if (g_LastPSConstantBufferSet == PS_CONSTANT_BUFFER_NONE ||
-		g_LastPSConstantBufferSet != PS_CONSTANT_BUFFER_BRIGHTNESS ||
+		g_LastPSConstantBufferSet != PS_CONSTANT_BUFFER_3D ||
 		memcmp(psConstants, &currentPSConstants, sizeof_constants) != 0)
 	{
 		memcpy(&currentPSConstants, psConstants, sizeof_constants);
@@ -1793,13 +1796,13 @@ void DeviceResources::InitPSConstantBuffer3D(ID3D11Buffer** buffer, const PixelS
 	}
 
 	if (g_LastPSConstantBufferSet == PS_CONSTANT_BUFFER_NONE ||
-		g_LastPSConstantBufferSet != PS_CONSTANT_BUFFER_BRIGHTNESS ||
+		g_LastPSConstantBufferSet != PS_CONSTANT_BUFFER_3D ||
 		buffer != currentBuffer)
 	{
 		currentBuffer = buffer;
 		this->_d3dDeviceContext->PSSetConstantBuffers(0, 1, buffer);
 	}
-	g_LastPSConstantBufferSet = PS_CONSTANT_BUFFER_BRIGHTNESS;
+	g_LastPSConstantBufferSet = PS_CONSTANT_BUFFER_3D;
 }
 
 HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD bpp, RenderMainColorKeyType useColorKey)
