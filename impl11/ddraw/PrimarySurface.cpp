@@ -51,6 +51,7 @@ extern Matrix4 g_fullMatrixLeft, g_fullMatrixRight, g_fullMatrixHead;
 D3DTLVERTEX g_HUDVertices[6] = { 0 };
 bool g_bHUDVerticesReady = false; // Set to true when the g_HUDVertices array has valid data
 ID3D11Buffer *g_HUDVertexBuffer = NULL, *g_ClearHUDVertexBuffer = NULL, *g_ClearFullScreenHUDVertexBuffer = NULL;
+extern uv_coords g_DCTargetCompUVCoordsPix;
 
 /*
  * Convert a rotation matrix to a normalized quaternion.
@@ -1285,7 +1286,7 @@ inline void WaitGetPoses() {
 		0, NULL, 0);
 }
 
-void PrimarySurface::ClearBox(Box box, D3D11_VIEWPORT *viewport, bool fullScreen, float scale, D3DCOLOR clearColor) {
+void PrimarySurface::ClearBox(uvfloat4 box, D3D11_VIEWPORT *viewport, D3DCOLOR clearColor) {
 	HRESULT hr;
 	auto& resources = _deviceResources;
 	auto& device = resources->_d3dDevice;
@@ -1305,24 +1306,25 @@ void PrimarySurface::ClearBox(Box box, D3D11_VIEWPORT *viewport, bool fullScreen
 	hr = resources->InitBlendState(nullptr, &blendDesc);
 
 	// Set the constant buffers
-	VertexShaderCBuffer tempVSBuffer = g_VSCBuffer;
-	tempVSBuffer.viewportScale[0] =  2.0f / resources->_displayWidth;
-	tempVSBuffer.viewportScale[1] = -2.0f / resources->_displayHeight;
-	tempVSBuffer.viewportScale[2] =  scale;
-	tempVSBuffer.viewportScale[3] =  g_fGlobalScale;
-	resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &tempVSBuffer);
+	//VertexShaderCBuffer tempVSBuffer = g_VSCBuffer;
+	//tempVSBuffer.viewportScale[0] =  2.0f / resources->_displayWidth;
+	//tempVSBuffer.viewportScale[1] = -2.0f / resources->_displayHeight;
+	//tempVSBuffer.viewportScale[2] =  scale;
+	//tempVSBuffer.viewportScale[3] =  g_fGlobalScale;
+	//resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &tempVSBuffer);
 
 	// Set the vertex buffer
 	// D3DCOLOR seems to be AARRGGBB
-	if (!fullScreen) {
+	//if (!fullScreen)
+	{
 		D3DTLVERTEX vertices[6];
-		vertices[0].sx = box.left;  vertices[0].sy = box.top;    vertices[0].sz = 0.98f; vertices[0].rhw = 34.0f; vertices[0].color = clearColor;
-		vertices[1].sx = box.right; vertices[1].sy = box.top;    vertices[1].sz = 0.98f; vertices[1].rhw = 34.0f; vertices[1].color = clearColor;
-		vertices[2].sx = box.right; vertices[2].sy = box.bottom; vertices[2].sz = 0.98f; vertices[2].rhw = 34.0f; vertices[2].color = clearColor;
+		vertices[0].sx = box.x0; vertices[0].sy = box.y0; vertices[0].sz = 0.98f; vertices[0].rhw = 34.0f; vertices[0].color = clearColor;
+		vertices[1].sx = box.x1; vertices[1].sy = box.y0; vertices[1].sz = 0.98f; vertices[1].rhw = 34.0f; vertices[1].color = clearColor;
+		vertices[2].sx = box.x1; vertices[2].sy = box.y1; vertices[2].sz = 0.98f; vertices[2].rhw = 34.0f; vertices[2].color = clearColor;
 
-		vertices[3].sx = box.right; vertices[3].sy = box.bottom; vertices[3].sz = 0.98f; vertices[3].rhw = 34.0f; vertices[3].color = clearColor;
-		vertices[4].sx = box.left;  vertices[4].sy = box.bottom; vertices[4].sz = 0.98f; vertices[4].rhw = 34.0f; vertices[4].color = clearColor;
-		vertices[5].sx = box.left;  vertices[5].sy = box.top;    vertices[5].sz = 0.98f; vertices[5].rhw = 34.0f; vertices[5].color = clearColor;
+		vertices[3].sx = box.x1; vertices[3].sy = box.y1; vertices[3].sz = 0.98f; vertices[3].rhw = 34.0f; vertices[3].color = clearColor;
+		vertices[4].sx = box.x0; vertices[4].sy = box.y1; vertices[4].sz = 0.98f; vertices[4].rhw = 34.0f; vertices[4].color = clearColor;
+		vertices[5].sx = box.x0; vertices[5].sy = box.y0; vertices[5].sz = 0.98f; vertices[5].rhw = 34.0f; vertices[5].color = clearColor;
 		D3D11_MAPPED_SUBRESOURCE map;
 		hr = context->Map(g_ClearHUDVertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
 		if (SUCCEEDED(hr)) {
@@ -1344,7 +1346,7 @@ void PrimarySurface::ClearBox(Box box, D3D11_VIEWPORT *viewport, bool fullScreen
 	resources->InitRasterizerState(resources->_rasterizerState);
 
 	// Change the shaders
-	resources->InitVertexShader(resources->_vertexShader);
+	resources->InitVertexShader(resources->_passthroughVertexShader);
 	resources->InitPixelShader(resources->_pixelShaderSolid);
 	// Change the render target
 	context->OMSetRenderTargets(1, resources->_renderTargetViewDynCockpitAsInput.GetAddressOf(), NULL);
@@ -1353,17 +1355,25 @@ void PrimarySurface::ClearBox(Box box, D3D11_VIEWPORT *viewport, bool fullScreen
 	// Set the vertex buffer (map the vertices from the box)
 	UINT stride = sizeof(D3DTLVERTEX);
 	UINT offset = 0;
-	if (!fullScreen)
-		resources->InitVertexBuffer(&g_ClearHUDVertexBuffer, &stride, &offset);
-	else
-		resources->InitVertexBuffer(&g_ClearFullScreenHUDVertexBuffer, &stride, &offset);
+	//if (!fullScreen)
+	resources->InitVertexBuffer(&g_ClearHUDVertexBuffer, &stride, &offset);
+	//else
+	//resources->InitVertexBuffer(&g_ClearFullScreenHUDVertexBuffer, &stride, &offset);
 	// Draw
 	context->Draw(6, 0);
 }
 
 void PrimarySurface::ClearHUDRegions() {
+	D3D11_VIEWPORT viewport = { 0 };
+	viewport.TopLeftX = 0.0f;
+	viewport.TopLeftY = 0.0f;
+	viewport.Width    = (float )_deviceResources->_backbufferWidth;
+	viewport.Height   = (float )_deviceResources->_backbufferHeight;
+	viewport.MinDepth = D3D11_MIN_DEPTH;
+	viewport.MaxDepth = D3D11_MAX_DEPTH;
 	//if (g_DynCockpitBoxes.TargetCompLimitsComputed)
-	//	ClearBox(g_DynCockpitBoxes.TargetCompBox, &g_nonVRViewport, false, g_fXWAScale, 0);
+	// TODO g_fXWAScale is probably not needed anymore?
+	ClearBox(g_DCTargetCompUVCoordsPix.src, &viewport, 0);
 	//if (g_DynCockpitBoxes.ShieldsLimitsComputed)
 	//	ClearBox(g_DynCockpitBoxes.ShieldsBox, &g_nonVRViewport, false, g_fXWAScale, 0);
 	//if (g_DynCockpitBoxes.LasersLimitsComputed)

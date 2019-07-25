@@ -53,7 +53,8 @@ public:
 
 	void capture(int time_delay, ComPtr<ID3D11Texture2D> buffer, const wchar_t *filename);
 
-	void ClearBox(Box box, D3D11_VIEWPORT * viewport, bool fullScreen, float scale, D3DCOLOR clearColor);
+	//void ClearBox(Box box, D3D11_VIEWPORT * viewport, bool fullScreen, float scale, D3DCOLOR clearColor);
+	void ClearBox(uvfloat4 box, D3D11_VIEWPORT * viewport, D3DCOLOR clearColor);
 
 	void ClearHUDRegions();
 

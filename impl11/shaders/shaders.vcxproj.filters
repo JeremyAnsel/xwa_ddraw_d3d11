@@ -33,5 +33,6 @@
     <FxCompile Include="bloom\BloomHGaussPS.hlsl" />
     <FxCompile Include="bloom\BloomVGaussPS.hlsl" />
     <FxCompile Include="bloom\BloomCombinePS.hlsl" />
+    <FxCompile Include="PassthroughVertexShader.hlsl" />
   </ItemGroup>
 </Project>

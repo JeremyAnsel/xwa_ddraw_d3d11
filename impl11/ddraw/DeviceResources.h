@@ -168,7 +168,6 @@ public:
 	ComPtr<ID3D11Texture2D> _offscreenBufferAsInputR; // When SteamVR is used, this is the right eye as input buffer
 	ComPtr<ID3D11Texture2D> _offscreenBufferAsInputDynCockpit;
 	ComPtr<ID3D11Texture2D> _offscreenBufferAsInputReshade;
-	//ComPtr<ID3D11Texture2D> _dynCockpitAuxBuffer; // Aux Texture to copy portions of _offscreenBufferAsInputDynCockpit
 	ComPtr<ID3D11Texture2D> _offscreenBufferPost; // This is the output of the barrel effect
 	ComPtr<ID3D11Texture2D> _offscreenBufferPostR; // This is the output of the barrel effect for the right image when using SteamVR
 	ComPtr<ID3D11Texture2D> _steamVRPresentBuffer; // This is the buffer that will be presented for SteamVR
@@ -188,7 +187,6 @@ public:
 	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputShaderResourceViewR; // When SteamVR is enabled, this is the SRV for the right eye
 	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputSRVDynCockpit;
 	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputReshadeSRV;
-	//ComPtr<ID3D11ShaderResourceView> _dynCockpitAuxSRV;  // Aux SRV used to copy portions of the _offscreenAsInputShaderResourceViewDynCockpit
 	ComPtr<ID3D11ShaderResourceView> _reshadeOutput1SRV; // SRV for reshadeOutput1
 	ComPtr<ID3D11ShaderResourceView> _reshadeOutput2SRV; // SRV for reshadeOutput2
 	ComPtr<ID3D11Texture2D> _depthStencilL;
@@ -222,6 +220,7 @@ public:
 
 	ComPtr<ID3D11VertexShader> _vertexShader;
 	ComPtr<ID3D11VertexShader> _sbsVertexShader;
+	ComPtr<ID3D11VertexShader> _passthroughVertexShader;
 	ComPtr<ID3D11InputLayout> _inputLayout;
 	ComPtr<ID3D11PixelShader> _pixelShaderTexture;
 	ComPtr<ID3D11PixelShader> _pixelShaderSolid;

@@ -5,7 +5,7 @@
 // Shaders by Marty McFly (used with permission from the author)
 // https://github.com/martymcmodding/qUINT/tree/master/Shaders
 
-// backbuffersize: 3240, 2160 -- SCREEN Resolution
+// _deviceResources->_backbufferWidth, _backbufferHeight: 3240, 2160 -- SCREEN Resolution
 // resources->_displayWidth, resources->_displayHeight -- in-game resolution
 
 #include "common.h"
@@ -3191,7 +3191,7 @@ HRESULT Direct3DDevice::Execute(
 
 				// Replace the targeting computer texture with our own at run-time:
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitTargetComp &&
-					g_DynCockpitBoxes.TargetCompLimitsComputed && g_NewDCTargetCompCover != NULL) 
+					/* g_DynCockpitBoxes.TargetCompLimitsComputed && */ g_NewDCTargetCompCover != NULL) 
 				{
 					float bgColor[4] = { 0.07f, 0.07f, 0.2f, 0.0f };
 					bModifiedShaders = true;

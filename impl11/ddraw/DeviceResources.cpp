@@ -26,6 +26,7 @@
 #include "../Release/BarrelPixelShader.h"
 #include "../Release/SingleBarrelPixelShader.h"
 #include "../Release/VertexShader.h"
+#include "../Release/PassthroughVertexShader.h"
 #include "../Release/SBSVertexShader.h"
 #include "../Release/PixelShaderTexture.h"
 #include "../Release/PixelShaderSolid.h"
@@ -609,8 +610,6 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		this->_offscreenBufferDynCockpit.Release();
 		this->_offscreenBufferAsInputDynCockpit.Release();
 		this->_offscreenAsInputSRVDynCockpit.Release();
-		//this->_dynCockpitAuxBuffer.Release();
-		//this->_dynCockpitAuxSRV.Release();
 	}
 	if (g_bReshadeEnabled) {
 		this->_offscreenBufferAsInputReshade.Release();
@@ -916,14 +915,6 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		}
 
 		if (g_bDynCockpitEnabled) {
-			/*step = "_dynCockpitAuxBuffer";
-			hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_dynCockpitAuxBuffer);
-			if (FAILED(hr)) {
-				log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
-				log_err_desc(step, hWnd, hr, desc);
-				goto out;
-			}*/
-
 			// This guy should be the last one to be created because it modifies the BindFlags
 			// _offscreenBufferAsInputDynCockpit should have the same properties as _offscreenBufferAsInput
 			step = "_offscreenBufferAsInputDynCockpit";
@@ -1015,23 +1006,12 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 				log_shaderres_view(step, hWnd, hr, shaderResourceViewDesc);
 				goto out;
 			}
-
-			/*step = "_dynCockpitAuxSRV";
-			hr = this->_d3dDevice->CreateShaderResourceView(this->_dynCockpitAuxBuffer,
-				&shaderResourceViewDesc, &this->_dynCockpitAuxSRV);
-			if (FAILED(hr)) {
-				log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
-				log_shaderres_view(step, hWnd, hr, shaderResourceViewDesc);
-				goto out;
-			}*/
 		}
 
 		// Dynamic Cockpit: Load the new cockpit textures
 		LoadNewCockpitTextures(_d3dDevice);
 		// Build the HUD vertex buffer
 		BuildHUDVertexBuffer(_d3dDevice, _displayWidth, _displayHeight);
-		// Normalize the coordinates for the dynamic cockpit boxes
-		
 	}
 
 	if (SUCCEEDED(hr))
@@ -1364,6 +1344,9 @@ HRESULT DeviceResources::LoadResources()
 		return hr;
 
 	if (FAILED(hr = this->_d3dDevice->CreateVertexShader(g_SBSVertexShader, sizeof(g_SBSVertexShader), nullptr, &_sbsVertexShader)))
+		return hr;
+
+	if (FAILED(hr = this->_d3dDevice->CreateVertexShader(g_PassthroughVertexShader, sizeof(g_PassthroughVertexShader), nullptr, &_passthroughVertexShader)))
 		return hr;
 
 	const D3D11_INPUT_ELEMENT_DESC vertexLayoutDesc[] =
