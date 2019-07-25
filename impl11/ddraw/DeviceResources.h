@@ -78,6 +78,7 @@ typedef struct uvfloat4_struct {
 	float x0, y0, x1, y1;
 } uvfloat4;
 
+const int MAX_DC_COORDS = 4;
 typedef struct PixelShaderCBStruct {
 	float brightness;			// Used to control the brightness of some elements -- mostly for ReShade compatibility
 	uint32_t DynCockpitSlots;
@@ -86,8 +87,8 @@ typedef struct PixelShaderCBStruct {
 
 	float bgColor[4];   // Background color (dynamic cockpit)
 
-	uvfloat4 src[2];
-	uvfloat4 dst[2];
+	uvfloat4 src[MAX_DC_COORDS];
+	uvfloat4 dst[MAX_DC_COORDS];
 } PixelShaderCBuffer;
 
 typedef struct VertexShaderMatrixCBStruct
@@ -102,7 +103,8 @@ typedef struct HeadPosStruct {
 } HeadPos;
 
 typedef struct uv_coords_struct {
-	uvfloat4 src, dst;
+	uvfloat4 src[4], dst[4];
+	int numCoords;
 } uv_coords;
 
 class DeviceResources

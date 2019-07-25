@@ -51,7 +51,7 @@ extern Matrix4 g_fullMatrixLeft, g_fullMatrixRight, g_fullMatrixHead;
 D3DTLVERTEX g_HUDVertices[6] = { 0 };
 bool g_bHUDVerticesReady = false; // Set to true when the g_HUDVertices array has valid data
 ID3D11Buffer *g_HUDVertexBuffer = NULL, *g_ClearHUDVertexBuffer = NULL, *g_ClearFullScreenHUDVertexBuffer = NULL;
-extern uv_coords g_DCTargetCompUVCoordsPix;
+extern uv_coords g_DCTargetCompUVCoords;
 
 /*
  * Convert a rotation matrix to a normalized quaternion.
@@ -1373,11 +1373,11 @@ void PrimarySurface::ClearHUDRegions() {
 	viewport.MaxDepth = D3D11_MAX_DEPTH;
 	//if (g_DynCockpitBoxes.TargetCompLimitsComputed)
 	// TODO g_fXWAScale is probably not needed anymore?
-	ClearBox(g_DCTargetCompUVCoordsPix.src, &viewport, 0);
+	ClearBox(g_DCTargetCompUVCoords.src[0], &viewport, 0);
 	//if (g_DynCockpitBoxes.ShieldsLimitsComputed)
-	//	ClearBox(g_DynCockpitBoxes.ShieldsBox, &g_nonVRViewport, false, g_fXWAScale, 0);
+	//	ClearBox(g_DynCockpitBoxes.ShieldsBox, &g_nonVRViewport, 0);
 	//if (g_DynCockpitBoxes.LasersLimitsComputed)
-	//	ClearBox(g_DynCockpitBoxes.LasersBox, &g_nonVRViewport, false, g_fXWAScale, 0);
+	//	ClearBox(g_DynCockpitBoxes.LasersBox, &g_nonVRViewport, 0);
 }
 
 void PrimarySurface::DrawHUDVertices() {

@@ -229,9 +229,8 @@ int g_iPresentCounter = 0, g_iNonZBufferCounter = 0, g_iSkipNonZBufferDrawIdx = 
 float g_fZBracketOverride = 65530.0f; // 65535 is probably the maximum Z value in XWA
 DynCockpitBoxes g_DynCockpitBoxes;
 
-uv_coords g_DCTargetCompUVCoordsPix; // = { 0.325f, 0.325f, -0.01f, -0.04f };
-//uv_coords g_DCTargetCompUVCoords;
-uv_coords g_DCLeftRadarUVCoords; // = { 0.5f, 0.5f, -0.06f, -0.05f };
+uv_coords g_DCTargetCompUVCoords = { 0 };
+uv_coords g_DCLeftRadarUVCoords  = { 0 };
 uv_coords g_DCRightRadarUVCoords; // = { 0.5f, 0.5f, -0.275f, -0.05f };
 uv_coords g_DCShieldsUVCoords; // = { 1, 1, 0, 0 };
 uv_coords g_DCLasersUVCoords; // = { 1, 1, 0, 0 };
@@ -803,6 +802,50 @@ void LoadCockpitLookParams() {
 	log_debug("[DBG] Loaded %d cockpitlook params", param_read_count);
 }
 
+/* 
+ * Loads a single row of dynamic cockpit coordinates of the form:
+ * src-width,height, src-x0,y0,x1,y1, dst-x0,y0,x1,y1
+ */
+bool LoadDynCockpitCoords(char *buf, uv_coords *coords)
+{
+	float src_width, src_height, dst_width, dst_height;
+	float x0_src, y0_src, x1_src, y1_src, x0_dst, y0_dst, x1_dst, y1_dst;
+	int res = 0, idx = coords->numCoords;
+	char *c = NULL;
+	
+	if (idx >= MAX_DC_COORDS) {
+		log_debug("[DBG] Too many uv's already loaded");
+		return false;
+	}
+
+	c = strchr(buf, '=');
+	if (c != NULL) {
+		c += 1;
+		try {
+			res = sscanf_s(c, "%f, %f, %f, %f, %f, %f, "
+				"%f, %f, %f, %f, %f, %f",
+				&src_width, &src_height, &x0_src, &y0_src, &x1_src, &y1_src,
+				&dst_width, &dst_height, &x0_dst, &y0_dst, &x1_dst, &y1_dst);
+
+			coords->src[idx].x0 = x0_src / src_width;
+			coords->src[idx].y0 = y0_src / src_height;
+			coords->src[idx].x1 = x1_src / src_width;
+			coords->src[idx].y1 = y1_src / src_height;
+
+			coords->dst[idx].x0 = x0_dst / dst_width;
+			coords->dst[idx].y0 = y0_dst / dst_height;
+			coords->dst[idx].x1 = x1_dst / dst_width;
+			coords->dst[idx].y1 = y1_dst / dst_height;
+			coords->numCoords++;
+		}
+		catch (...) {
+			log_debug("[DBG] Could not read uv coords from: %s", buf);
+			return false;
+		}
+	}
+	return true;
+}
+
 /* Loads the VR parameters from vrparams.cfg */
 void LoadVRParams() {
 	log_debug("[DBG] Loading view params...");
@@ -823,6 +866,10 @@ void LoadVRParams() {
 	char buf[160], param[80], svalue[80];
 	int param_read_count = 0;
 	float value = 0.0f;
+
+	// Reset the dynamic cockpit coordinates
+	g_DCTargetCompUVCoords = { 0 };
+	g_DCLeftRadarUVCoords = { 0 };
 
 	while (fgets(buf, 160, file) != NULL) {
 		// Skip comments and blank lines
@@ -984,59 +1031,11 @@ void LoadVRParams() {
 
 			// Dynamic Cockpit params
 			else if (_stricmp(param, DC_TARGET_COMP_UV_COORDS_VRPARAM) == 0) {
-				float src_width, src_height, dst_width, dst_height;
-				float x0_src, y0_src, x1_src, y1_src, x0_dst, y0_dst, x1_dst, y1_dst;
-				int res = 0;
-				char *c = NULL;
-				c = strchr(buf, '=');
-				if (c != NULL) {
-					c += 1;
-					try {
-						res = sscanf_s(c, "%f, %f, %f, %f, %f, %f, "
-										  "%f, %f, %f, %f, %f, %f",
-							&src_width, &src_height, &x0_src, &y0_src, &x1_src, &y1_src,
-							&dst_width, &dst_height, &x0_dst, &y0_dst, &x1_dst, &y1_dst);
-
-						g_DCTargetCompUVCoordsPix.src.x0 = x0_src / src_width;
-						g_DCTargetCompUVCoordsPix.src.y0 = y0_src / src_height;
-						g_DCTargetCompUVCoordsPix.src.x1 = x1_src / src_width;
-						g_DCTargetCompUVCoordsPix.src.y1 = y1_src / src_height;
-
-						g_DCTargetCompUVCoordsPix.dst.x0 = x0_dst / dst_width;
-						g_DCTargetCompUVCoordsPix.dst.y0 = y0_dst / dst_height;
-						g_DCTargetCompUVCoordsPix.dst.x1 = x1_dst / dst_width;
-						g_DCTargetCompUVCoordsPix.dst.y1 = y1_dst / dst_height;
-
-						uv_coords *p = &g_DCTargetCompUVCoordsPix;
-						log_debug("[DBG] src: (%0.3f, %0.3f)-(%0.3f, %0.3f)", p->src.x0, p->src.y0, p->src.x1, p->src.y1);
-						log_debug("[DBG] dst: (%0.3f, %0.3f)-(%0.3f, %0.3f)", p->dst.x0, p->dst.y0, p->dst.x1, p->dst.y1);
-					}
-					catch (...) {
-						log_debug("[DBG] Could not read uv coords for the targeting computer");
-					}
-				}
+				LoadDynCockpitCoords(buf, &g_DCTargetCompUVCoords);
 			}
 			else if (_stricmp(param, DC_LEFT_RADAR_UV_COORDS_VRPARAM) == 0) {
-				float sx = 0.5f, sy = 0.5f, x = 0.0f, y = 0.0f;
-				int res = 0;
-				char *c = NULL;
-				c = strchr(buf, '=');
-				if (c != NULL) {
-					c += 1;
-					//log_debug("[DBG] Reading %s from [%s]", param, c);
-					try {
-						res = sscanf_s(c, "%f, %f, %f, %f", &sx, &sy, &x, &y);
-						//g_DCLeftRadarUVCoords.uv_scale[0] = sx;
-						//g_DCLeftRadarUVCoords.uv_scale[1] = sy;
-						//g_DCLeftRadarUVCoords.uv_offset[0] = x;
-						//g_DCLeftRadarUVCoords.uv_offset[1] = y;
-					}
-					catch (...) {
-						log_debug("[DBG] Could not read uv coords for the left radar");
-					}
-					//log_debug("[DBG] Left Radar (%d) uvcoords: %0.3f, %0.3f, %0.3f, %0.3f",
-					//	res, sx, sy, x, y);
-				}
+				if (LoadDynCockpitCoords(buf, &g_DCLeftRadarUVCoords))
+					log_debug("[DBG] Loaded %d coords for the left radar", g_DCLeftRadarUVCoords.numCoords);
 			}
 			else if (_stricmp(param, DC_RIGHT_RADAR_UV_COORDS_VRPARAM) == 0) {
 				float sx = 0.5f, sy = 0.5f, x = 0.0f, y = 0.0f;
@@ -3195,8 +3194,8 @@ HRESULT Direct3DDevice::Execute(
 				{
 					float bgColor[4] = { 0.07f, 0.07f, 0.2f, 0.0f };
 					bModifiedShaders = true;
-					g_PSCBuffer.src[0] = g_DCTargetCompUVCoordsPix.src;
-					g_PSCBuffer.dst[0] = g_DCTargetCompUVCoordsPix.dst;
+					g_PSCBuffer.src[0] = g_DCTargetCompUVCoords.src[0];
+					g_PSCBuffer.dst[0] = g_DCTargetCompUVCoords.dst[0];
 					g_PSCBuffer.DynCockpitSlots  = 1;
 					g_PSCBuffer.bUseCoverTexture = 1;
 					memcpy(g_PSCBuffer.bgColor, bgColor, 4 * sizeof(float));
@@ -3209,6 +3208,7 @@ HRESULT Direct3DDevice::Execute(
 					//context->CopySubresourceRegion(resources->_dynCockpitAuxBuffer.Get(), 0, 0, 0, 0,
 					//	resources->_offscreenBufferAsInputDynCockpit.Get(), 0, &box);
 
+					/*
 					static bool bDumped = false;
 					if (g_iPresentCounter > 100 && !bDumped) {
 						hr = DirectX::SaveWICTextureToFile(context.Get(),
@@ -3216,49 +3216,30 @@ HRESULT Direct3DDevice::Execute(
 						log_debug("[DBG] Dumping offscreenBufferDynCockpit");
 						bDumped = true;
 					}
+					*/
 
 					if (g_NewDCTargetCompCover != NULL) {
 						context->PSSetShaderResources(0, 1, g_NewDCTargetCompCover.GetAddressOf());
-						//context->PSSetShaderResources(1, 1, resources->_dynCockpitAuxSRV.GetAddressOf());
 						context->PSSetShaderResources(1, 1, resources->_offscreenAsInputSRVDynCockpit.GetAddressOf());
 					}
 				}
 
 				// Replace the left radar texture with our own at run-time:
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitLeftRadarPanel &&
-					g_DynCockpitBoxes.LeftRadarLimitsComputed && g_NewDCLeftRadarCover != NULL) {
+					/* g_DynCockpitBoxes.LeftRadarLimitsComputed && */ g_NewDCLeftRadarCover != NULL) {
 					float bgColor[4] = { 0.07f, 0.07f, 0.2f, 0.0f };
-					float black[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 					bModifiedShaders = true;
-					//g_PSCBuffer.uv_scale[0]      = g_DCLeftRadarUVCoords.uv_scale[0];
-					//g_PSCBuffer.uv_scale[1]      = g_DCLeftRadarUVCoords.uv_scale[1];
-					//g_PSCBuffer.uv_offset[0]     = g_DCLeftRadarUVCoords.uv_offset[0];
-					//g_PSCBuffer.uv_offset[1]     = g_DCLeftRadarUVCoords.uv_offset[1];
-					g_PSCBuffer.bUseCoverTexture  = 1;
-					g_PSCBuffer.DynCockpitSlots   = 0;
+					for (int i = 0; i < g_DCLeftRadarUVCoords.numCoords; i++) {
+						g_PSCBuffer.src[i] = g_DCLeftRadarUVCoords.src[i];
+						g_PSCBuffer.dst[i] = g_DCLeftRadarUVCoords.dst[i];
+					}
+					g_PSCBuffer.DynCockpitSlots = g_DCLeftRadarUVCoords.numCoords;
+					g_PSCBuffer.bUseCoverTexture = 1;
 					memcpy(g_PSCBuffer.bgColor, bgColor, 4 * sizeof(float));
 
-					/*D3D11_BOX box;
-					box.left   = left + (UINT)(g_DynCockpitBoxes.LeftRadarBox.left   / displayWidth  * width);
-					box.right  = left + (UINT)(g_DynCockpitBoxes.LeftRadarBox.right  / displayWidth  * width);
-					box.top    = top  + (UINT)(g_DynCockpitBoxes.LeftRadarBox.top    / displayHeight * height);
-					box.bottom = top  + (UINT)(g_DynCockpitBoxes.LeftRadarBox.bottom / displayHeight * height);
-					box.front  = 0;
-					box.back   = 1;*/
-
-					// _offscreenAsInputSRVDynCockpit is resolved in PrimarySurface.cpp, right before we
-					// present the backbuffer. That prevents resolving the texture multiple times (and we
-					// also don't have to resolve it here).
-
-					// Copy the targeting computer from the offscreenBuffer to the auxiliary dynCockpit buffer:
-					//context->CopySubresourceRegion(resources->_dynCockpitAuxBuffer.Get(), 0, 0, 0, 0,
-					//	resources->_offscreenBufferAsInputDynCockpit.Get(), 0, &box);
-
-					// Erase this same area in the dynamic cockpit texture
-					
 					if (g_NewDCLeftRadarCover != NULL) {
 						context->PSSetShaderResources(0, 1, g_NewDCLeftRadarCover.GetAddressOf());
-						//context->PSSetShaderResources(1, 1, resources->_dynCockpitAuxSRV.GetAddressOf());
+						context->PSSetShaderResources(1, 1, resources->_offscreenAsInputSRVDynCockpit.GetAddressOf());
 					}
 				}
 
