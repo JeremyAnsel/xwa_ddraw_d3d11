@@ -43,6 +43,7 @@ public:
 	bool is_DynCockpitShieldsPanel;
 	// This texture is the lasers-energy panel in the X-Wing cockpit.
 	bool is_DynCockpitLasersPanel;
+	int iDCElementIndex;
 	// True for all textures that can be used as sources for the dynamic cockpit.
 	bool is_DynCockpitSrc;
 	// True for the additional textures loaded in Hi-Res mode that provide additional glow

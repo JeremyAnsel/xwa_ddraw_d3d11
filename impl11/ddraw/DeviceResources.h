@@ -70,9 +70,21 @@ typedef struct VertexShaderCBStruct {
 	float mult_z_override, bPreventTransform, bFullTransform;
 } VertexShaderCBuffer;
 
+typedef struct VertexShaderMatrixCBStruct {
+	Matrix4 projEye;
+	Matrix4 viewMat;
+	Matrix4 fullViewMat;
+} VertexShaderMatrixCB;
+
+typedef struct HeadPosStruct {
+	float x, y, z;
+} HeadPos;
+
+/*
 typedef struct float2_struct {
 	float x, y;
 } float2;
+*/
 
 typedef struct uvfloat4_struct {
 	float x0, y0, x1, y1;
@@ -91,21 +103,19 @@ typedef struct PixelShaderCBStruct {
 	uvfloat4 dst[MAX_DC_COORDS];
 } PixelShaderCBuffer;
 
-typedef struct VertexShaderMatrixCBStruct
-{
-	Matrix4 projEye;
-	Matrix4 viewMat;
-	Matrix4 fullViewMat;
-} VertexShaderMatrixCB;
-
-typedef struct HeadPosStruct {
-	float x, y, z;
-} HeadPos;
-
 typedef struct uv_coords_struct {
-	uvfloat4 src[4], dst[4];
+	uvfloat4 src[MAX_DC_COORDS];
+	uvfloat4 dst[MAX_DC_COORDS];
 	int numCoords;
 } uv_coords;
+
+const int MAX_TEXTURE_NAME = 256;
+typedef struct dc_element_struct {
+	uv_coords coords;
+	char name[MAX_TEXTURE_NAME];
+	char coverTextureName[MAX_TEXTURE_NAME];
+	ID3D11ShaderResourceView *coverTexture = NULL;
+} dc_element;
 
 class DeviceResources
 {

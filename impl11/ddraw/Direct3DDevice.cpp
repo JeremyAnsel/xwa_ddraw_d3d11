@@ -143,6 +143,8 @@ const char *YAW_OFFSET_CLPARAM       = "yaw_offset";
 const char *PITCH_OFFSET_CLPARAM     = "pitch_offset";
 
 // Dynamic Cockpit vrparams
+const char *DC_UV_COORDS_PARAM			= "uv_coords";
+const char *DC_COVER_TEX_NAME_PARAM		= "cover_texture";
 const char *DC_TARGET_COMP_UV_COORDS_VRPARAM   = "dc_target_comp_uv_coords";
 const char *DC_LEFT_RADAR_UV_COORDS_VRPARAM    = "dc_left_radar_uv_coords";
 const char *DC_RIGHT_RADAR_UV_COORDS_VRPARAM   = "dc_right_radar_uv_coords";
@@ -235,6 +237,7 @@ uv_coords g_DCRightRadarUVCoords; // = { 0.5f, 0.5f, -0.275f, -0.05f };
 uv_coords g_DCShieldsUVCoords; // = { 1, 1, 0, 0 };
 uv_coords g_DCLasersUVCoords; // = { 1, 1, 0, 0 };
 uv_coords g_DCFrontPanelUVCoords; // = { 1, 1, 0, 0 };
+std::vector<dc_element> g_DCElements = {};
 
 extern bool g_bRendering3D; // Used to distinguish between 2D (Concourse/Menus) and 3D rendering (main in-flight game)
 extern ID3D11Buffer *g_HUDVertexBuffer, *g_ClearHUDVertexBuffer, *g_ClearFullScreenHUDVertexBuffer;
@@ -836,6 +839,8 @@ bool LoadDynCockpitCoords(char *buf, uv_coords *coords)
 			coords->dst[idx].y0 = y0_dst / dst_height;
 			coords->dst[idx].x1 = x1_dst / dst_width;
 			coords->dst[idx].y1 = y1_dst / dst_height;
+			//log_debug("[DBG] %f, %f - %f, %f", coords->src[idx].x0, coords->src[idx].y0,
+			//	coords->src[idx].x1, coords->src[idx].y1);
 			coords->numCoords++;
 		}
 		catch (...) {
@@ -850,7 +855,7 @@ bool LoadDynCockpitCoords(char *buf, uv_coords *coords)
 void LoadVRParams() {
 	log_debug("[DBG] Loading view params...");
 	FILE *file;
-	int error = 0;
+	int error = 0, line = 0;
 
 	try {
 		error = fopen_s(&file, "./vrparams.cfg", "rt");
@@ -863,7 +868,7 @@ void LoadVRParams() {
 		goto next;
 	}
 
-	char buf[160], param[80], svalue[80];
+	char buf[256], param[128], svalue[128];
 	int param_read_count = 0;
 	float value = 0.0f;
 
@@ -871,14 +876,15 @@ void LoadVRParams() {
 	g_DCTargetCompUVCoords = { 0 };
 	g_DCLeftRadarUVCoords = { 0 };
 
-	while (fgets(buf, 160, file) != NULL) {
+	while (fgets(buf, 256, file) != NULL) {
+		line++;
 		// Skip comments and blank lines
 		if (buf[0] == ';' || buf[0] == '#')
 			continue;
 		if (strlen(buf) == 0)
 			continue;
 
-		if (sscanf_s(buf, "%s = %s", param, 80, svalue, 80) > 0) {
+		if (sscanf_s(buf, "%s = %s", param, 128, svalue, 128) > 0) {
 			value = (float )atof(svalue);
 			if (_stricmp(param, FOCAL_DIST_VRPARAM) == 0) {
 				g_fFocalDist = value;
@@ -982,13 +988,9 @@ void LoadVRParams() {
 			else if (_stricmp(param, NATURAL_CONCOURSE_ANIM_VRPARAM) == 0) {
 				g_bNaturalConcourseAnimations = (bool)value;
 			}
-			else if (_stricmp(param, DYNAMIC_COCKPIT_TARGET_COMP_VRPARAM) == 0) {
-				g_bDynCockpitEnabled = (bool)value;
-				log_debug("[DBG] vrparam: g_bDynCockpitEnabled: %d", g_bDynCockpitEnabled);
-			}
 			else if (_stricmp(param, FIXED_GUI_VRPARAM) == 0) {
 				g_bFixedGUI = (bool)value;
-			}
+			}			
 
 			// 6dof parameters
 			else if (_stricmp(param, FREEPIE_SLOT_VRPARAM) == 0) {
@@ -1030,12 +1032,50 @@ void LoadVRParams() {
 			}
 
 			// Dynamic Cockpit params
-			else if (_stricmp(param, DC_TARGET_COMP_UV_COORDS_VRPARAM) == 0) {
-				LoadDynCockpitCoords(buf, &g_DCTargetCompUVCoords);
+			else if (_stricmp(param, DYNAMIC_COCKPIT_TARGET_COMP_VRPARAM) == 0) {
+				g_bDynCockpitEnabled = (bool)value;
+				log_debug("[DBG] vrparam: g_bDynCockpitEnabled: %d", g_bDynCockpitEnabled);
+			}
+			//else if (_stricmp(param, DC_TARGET_COMP_UV_COORDS_VRPARAM) == 0) {
+			else if (buf[0] == '[') {
+				// This is a new DC element.
+				dc_element dc_elem;
+				// Copy the name of this element
+				strcpy_s(dc_elem.name, MAX_TEXTURE_NAME, param + 1);
+				// Get rid of the trailing ']'
+				int len = strlen(dc_elem.name);
+				dc_elem.name[len - 1] = 0;
+				// Initialize this dc_elem:
+				dc_elem.coverTextureName[0] = 0;
+				dc_elem.coverTexture = NULL;
+				dc_elem.coords = { 0 };
+				g_DCElements.push_back(dc_elem);
+				log_debug("[DBG] Adding DC elem: '%s'", dc_elem.name);
+				//LoadDynCockpitCoords(buf, &g_DCTargetCompUVCoords);
+			}
+			else if (_stricmp(param, DC_UV_COORDS_PARAM) == 0) {
+				if (g_DCElements.size() == 0) {
+					log_debug("[DBG] ERROR. LINE %d, g_DCElements is empty, cannot add uv_coord", line, param);
+					continue;
+				}
+				//dc_element dc_elem = g_DCElements.back();
+				//log_debug("[DBG] Adding uv_coords to '%s'", dc_elem.name);
+				if (LoadDynCockpitCoords(buf, &(g_DCElements.back().coords)))
+					log_debug("[DBG] Added uv_coords to '%s'", g_DCElements.back().name);
+				// CHECK
+				/*dc_element dc_elem = g_DCElements.back();
+				int i = dc_elem.coords.numCoords - 1;
+				log_debug("[DBG] coords-src: %f, %f - %f, %f",
+					dc_elem.coords.src[i].x0, dc_elem.coords.src[i].y0,
+					dc_elem.coords.src[i].x1, dc_elem.coords.src[i].y1);*/
+			}
+			else if (_stricmp(param, DC_COVER_TEX_NAME_PARAM) == 0) {
+				strcpy_s(g_DCElements.back().coverTextureName, MAX_TEXTURE_NAME, svalue);
+				const dc_element dc_elem = g_DCElements.back();
+				log_debug("[DBG] '%s' covered by '%s'", dc_elem.name, dc_elem.coverTextureName);
 			}
 			else if (_stricmp(param, DC_LEFT_RADAR_UV_COORDS_VRPARAM) == 0) {
-				if (LoadDynCockpitCoords(buf, &g_DCLeftRadarUVCoords))
-					log_debug("[DBG] Loaded %d coords for the left radar", g_DCLeftRadarUVCoords.numCoords);
+				LoadDynCockpitCoords(buf, &g_DCLeftRadarUVCoords);
 			}
 			else if (_stricmp(param, DC_RIGHT_RADAR_UV_COORDS_VRPARAM) == 0) {
 				float sx = 0.5f, sy = 0.5f, x = 0.0f, y = 0.0f;
@@ -3189,44 +3229,51 @@ HRESULT Direct3DDevice::Execute(
 				//}
 
 				// Replace the targeting computer texture with our own at run-time:
-				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitTargetComp &&
-					/* g_DynCockpitBoxes.TargetCompLimitsComputed && */ g_NewDCTargetCompCover != NULL) 
+				//if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitTargetComp &&
+				//    g_NewDCTargetCompCover != NULL) 
+				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitSrc)
 				{
-					float bgColor[4] = { 0.07f, 0.07f, 0.2f, 0.0f };
-					bModifiedShaders = true;
-					g_PSCBuffer.src[0] = g_DCTargetCompUVCoords.src[0];
-					g_PSCBuffer.dst[0] = g_DCTargetCompUVCoords.dst[0];
-					g_PSCBuffer.DynCockpitSlots  = 1;
-					g_PSCBuffer.bUseCoverTexture = 1;
-					memcpy(g_PSCBuffer.bgColor, bgColor, 4 * sizeof(float));
+					int idx = lastTextureSelected->iDCElementIndex;
+					if (idx > -1) {
+						//dc_element dc_element = g_DCElements[idx];
+						float bgColor[4] = { 0.07f, 0.07f, 0.2f, 0.0f };
+						bModifiedShaders = true;
+						g_PSCBuffer.src[0] = g_DCElements[idx].coords.src[0];
+						g_PSCBuffer.dst[0] = g_DCElements[idx].coords.dst[0];
+						g_PSCBuffer.DynCockpitSlots = 1;
+						g_PSCBuffer.bUseCoverTexture = (g_DCElements[idx].coverTexture != NULL) ? 1 : 0;
+						memcpy(g_PSCBuffer.bgColor, bgColor, 4 * sizeof(float));
 
-					// _offscreenAsInputSRVDynCockpit is resolved in PrimarySurface.cpp, right before we
-					// present the backbuffer. That prevents resolving the texture multiple times (and we
-					// also don't have to resolve it here).
+						// _offscreenAsInputSRVDynCockpit is resolved in PrimarySurface.cpp, right before we
+						// present the backbuffer. That prevents resolving the texture multiple times (and we
+						// also don't have to resolve it here).
 
-					// Copy the targeting computer from the offscreenBuffer to the auxiliary dynCockpit buffer:
-					//context->CopySubresourceRegion(resources->_dynCockpitAuxBuffer.Get(), 0, 0, 0, 0,
-					//	resources->_offscreenBufferAsInputDynCockpit.Get(), 0, &box);
+						// Copy the targeting computer from the offscreenBuffer to the auxiliary dynCockpit buffer:
+						//context->CopySubresourceRegion(resources->_dynCockpitAuxBuffer.Get(), 0, 0, 0, 0,
+						//	resources->_offscreenBufferAsInputDynCockpit.Get(), 0, &box);
 
-					/*
-					static bool bDumped = false;
-					if (g_iPresentCounter > 100 && !bDumped) {
-						hr = DirectX::SaveWICTextureToFile(context.Get(),
-							resources->_offscreenBufferAsInputDynCockpit.Get(), GUID_ContainerFormatPng, L"c://temp//dyncock.png");
-						log_debug("[DBG] Dumping offscreenBufferDynCockpit");
-						bDumped = true;
-					}
-					*/
+						/*
+						static bool bDumped = false;
+						if (g_iPresentCounter > 100 && !bDumped) {
+							hr = DirectX::SaveWICTextureToFile(context.Get(),
+								resources->_offscreenBufferAsInputDynCockpit.Get(), GUID_ContainerFormatPng, L"c://temp//dyncock.png");
+							log_debug("[DBG] Dumping offscreenBufferDynCockpit");
+							bDumped = true;
+						}
+						*/
 
-					if (g_NewDCTargetCompCover != NULL) {
-						context->PSSetShaderResources(0, 1, g_NewDCTargetCompCover.GetAddressOf());
-						context->PSSetShaderResources(1, 1, resources->_offscreenAsInputSRVDynCockpit.GetAddressOf());
+						if (g_PSCBuffer.bUseCoverTexture) {
+							context->PSSetShaderResources(0, 1, &g_DCElements[idx].coverTexture);
+							context->PSSetShaderResources(1, 1, resources->_offscreenAsInputSRVDynCockpit.GetAddressOf());
+						}
 					}
 				}
 
 				// Replace the left radar texture with our own at run-time:
-				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitLeftRadarPanel &&
-					/* g_DynCockpitBoxes.LeftRadarLimitsComputed && */ g_NewDCLeftRadarCover != NULL) {
+				//if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitLeftRadarPanel &&
+				//    g_NewDCLeftRadarCover != NULL) 
+				if (false)
+				{
 					float bgColor[4] = { 0.07f, 0.07f, 0.2f, 0.0f };
 					bModifiedShaders = true;
 					for (int i = 0; i < g_DCLeftRadarUVCoords.numCoords; i++) {
@@ -3244,8 +3291,10 @@ HRESULT Direct3DDevice::Execute(
 				}
 
 				// Replace the right radar texture with our own at run-time:
-				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitRightRadarPanel &&
-					g_DynCockpitBoxes.RightRadarLimitsComputed && g_NewDCRightRadarCover != NULL) {
+				//if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitRightRadarPanel &&
+				//	g_DynCockpitBoxes.RightRadarLimitsComputed && g_NewDCRightRadarCover != NULL) 
+				if (false)
+				{
 					float bgColor[4] = { 0.07f, 0.07f, 0.2f, 0.0f };
 					float black[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 					bModifiedShaders = true;
@@ -3279,8 +3328,10 @@ HRESULT Direct3DDevice::Execute(
 				}
 
 				// Replace the shields panel texture with our own at run-time:
-				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitShieldsPanel &&
-					g_DynCockpitBoxes.ShieldsLimitsComputed && g_NewDCShieldsCover != NULL) {
+				//if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitShieldsPanel &&
+				//	g_DynCockpitBoxes.ShieldsLimitsComputed && g_NewDCShieldsCover != NULL) 
+				if (false)
+				{
 					float bgColor[4] = { 0.07f, 0.07f, 0.2f, 0.0f };
 					bModifiedShaders = true;
 					//g_PSCBuffer.uv_scale[0]  = g_DCShieldsUVCoords.uv_scale[0];
@@ -3329,9 +3380,10 @@ HRESULT Direct3DDevice::Execute(
 				}
 
 				// Replace the lasers panel texture with our own at run-time:
-				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitLasersPanel &&
-					g_DynCockpitBoxes.LasersLimitsComputed && g_NewDCLasersCover != NULL &&
-					g_DynCockpitBoxes.LasersBox.right > -1 && g_DynCockpitBoxes.LasersBox.bottom > -1)
+				//if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitLasersPanel &&
+				//	g_DynCockpitBoxes.LasersLimitsComputed && g_NewDCLasersCover != NULL &&
+				//	g_DynCockpitBoxes.LasersBox.right > -1 && g_DynCockpitBoxes.LasersBox.bottom > -1)
+				if (false)
 				{
 					float bgColor[4] = { 0.07f, 0.07f, 0.2f, 0.0f };
 					float black[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -3365,8 +3417,10 @@ HRESULT Direct3DDevice::Execute(
 				}
 
 				// Replace the front panel texture with our own at run-time:
-				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitFrontPanel &&
-					g_DynCockpitBoxes.LeftRadarLimitsComputed && g_NewDCFrontPanelCover != NULL) {
+				//if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitFrontPanel &&
+				//	g_DynCockpitBoxes.LeftRadarLimitsComputed && g_NewDCFrontPanelCover != NULL) 
+				if (false)
+				{
 					float bgColor[4] = { 0.07f, 0.07f, 0.2f, 0.0f };
 					//float black[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 					bModifiedShaders = true;

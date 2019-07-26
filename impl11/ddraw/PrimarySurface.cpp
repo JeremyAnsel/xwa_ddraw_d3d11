@@ -1871,7 +1871,7 @@ HRESULT PrimarySurface::Flip(
 			// Apply the HUD *after* we have re-shaded it (if necessary)
 			if (g_bDynCockpitEnabled) {
 				// Clear everything we don't want to display from the HUD
-				ClearHUDRegions();
+				//ClearHUDRegions();
 				// Display the HUD
 				DrawHUDVertices();
 			}

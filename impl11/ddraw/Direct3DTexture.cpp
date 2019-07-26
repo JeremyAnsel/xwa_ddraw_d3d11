@@ -10,6 +10,7 @@
 #include <comdef.h>
 
 #include <ScreenGrab.h>
+#include <WICTextureLoader.h>
 #include <wincodec.h>
 #include <vector>
 
@@ -84,6 +85,20 @@ const uint32_t DYN_COCKPIT_XWING_FRONT_PANEL_CRC_HI_RES = 0xfee7db3b; // 256x256
 const uint32_t DYN_COCKPIT_XWING_FRONT_PANEL_CRC_LO_RES = 0xc5894992; // 128x128
 const uint32_t DYN_COCKPIT_XWING_FRONT_PANEL_CRC_ALPHA  = 0x7c66376a;
 
+/*
+  Target comp tex:		'opt,FlightModels\XwingCockpit.opt,TEX00097,color,0' img-270, size: 256x128
+  In low-res mode, this texture is:
+	size: 128, 64, name: opt,FlightModels\XwingCockpit.opt,TEX00097,color,0  <-- This is half the size; but still Mipmap 0
+  
+  Target comp tex:		'opt,FlightModels\XwingCockpit.opt,TEX00097,color,0' img-270, size: 256x128
+  Left radar panel:		'opt,FlightModels\XwingCockpit.opt,TEX00096,color,0'
+  Right radar panel:		'opt,FlightModels\XwingCockpit.opt,TEX00095,color,0'
+  Front panel:			'opt,FlightModels\XwingCockpit.opt,TEX00076,color,0'
+  Shields panel:			'opt,FlightModels\XwingCockpit.opt,TEX00098,color,0'
+  Lasers panel:			'opt,FlightModels\XwingCockpit.opt,TEX00094,color,0'
+*/
+// TODO: Do we need g_DCElements here?
+extern std::vector<dc_element> g_DCElements;
 extern bool g_bDynCockpitEnabled;
 
 bool isInVector(uint32_t crc, std::vector<uint32_t> &vector) {
@@ -91,6 +106,15 @@ bool isInVector(uint32_t crc, std::vector<uint32_t> &vector) {
 		if (x == crc)
 			return true;
 	return false;
+}
+
+int isInVector(char *name, std::vector<dc_element> dc_elements) {
+	int size = (int)dc_elements.size();
+	for (int i = 0; i < size; i++) {
+		if (strstr(name, dc_elements[i].name) != NULL)
+			return i;
+	}
+	return -1;
 }
 
 bool Reload_CRC_vector(std::vector<uint32_t> &data, char *filename) {
@@ -212,6 +236,7 @@ Direct3DTexture::Direct3DTexture(DeviceResources* deviceResources, TextureSurfac
 	this->is_GUI = false;
 	this->is_TargetingComp = false;
 	// Dynamic cockpit data
+	this->iDCElementIndex = -1;
 	this->is_DynCockpitSrc = false;
 	this->is_DynCockpitTargetComp = false;
 	this->is_DynCockpitFrontPanel = false;
@@ -544,6 +569,37 @@ HRESULT Direct3DTexture::Load(
 		int height = surface->_height;
 		if (width == 64 || width == 128 || width == 256) { // || width == 512 || width == 1024) {
 			unsigned int size = width * height * (useBuffers ? 4 : bpp);
+			//surface->_deviceResources->_d3dDevice
+
+			int idx = isInVector(surface->_name, g_DCElements);
+			if (idx > -1) {
+				log_debug("[DBG] [Dyn] '%s' found in '%s'", g_DCElements[idx].name, surface->_name);
+				// "light" and "color" textures are processed differently
+				if (strstr(surface->_name, "color") != NULL) {
+					this->is_DynCockpitSrc = true;
+					this->iDCElementIndex  = idx;
+					// Load the cover texture if necessary
+					if (g_DCElements[idx].coverTexture == NULL) {
+						wchar_t wTexName[MAX_TEXTURE_NAME];
+						size_t len = 0;
+						mbstowcs_s(&len, wTexName, MAX_TEXTURE_NAME, g_DCElements[idx].coverTextureName, MAX_TEXTURE_NAME);
+						HRESULT res = DirectX::CreateWICTextureFromFile(surface->_deviceResources->_d3dDevice,
+							wTexName, NULL, &g_DCElements[idx].coverTexture);
+						if (FAILED(res)) {
+							log_debug("[DBG] [Dyn] ***** Could not load cover texture '%s': 0x%x",
+								g_DCElements[idx].coverTextureName, res);
+							g_DCElements[idx].coverTexture = NULL;
+						}
+						else {
+							log_debug("[DBG] [Dyn] ***** Loaded cover texture: '%s'", g_DCElements[idx].coverTextureName);
+						}
+					}
+				}
+				else if (strstr(surface->_name, "light") != NULL) {
+					this->is_DynCockpitAlphaOverlay = true;
+					log_debug("[DBG] [Dyn] This is an alpha overlay texture");
+				}
+			}
 
 			// Compute the CRC
 			this->crc = crc32c(0, (const unsigned char *)textureData[0].pSysMem, size);

@@ -6,13 +6,9 @@
 class MipmapSurface;
 class Direct3DTexture;
 
-const int MAX_TEXTURE_NAME = 256;
-
 class TextureSurface : public IDirectDrawSurface
 {
 public:
-	char name[MAX_TEXTURE_NAME];
-
 	TextureSurface(DeviceResources* deviceResources, bool allocOnLoad, DWORD width, DWORD height, DDPIXELFORMAT& pixelFormat, DWORD mipmapCount);
 
 	virtual ~TextureSurface();
@@ -106,6 +102,7 @@ public:
 
 	DWORD _bufferSize;
 	char* _buffer;
+	char _name[MAX_TEXTURE_NAME];
 
 	ComPtr<MipmapSurface> _mipmap;
 	ComPtr<Direct3DTexture> _d3dTexture;

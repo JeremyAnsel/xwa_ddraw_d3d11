@@ -349,9 +349,9 @@ HRESULT DirectDraw::CreateSurface(
 
 		TextureSurface* textureSurface = new TextureSurface(this->_deviceResources, allocOnLoad, lpDDSurfaceDesc->dwWidth, lpDDSurfaceDesc->dwHeight, lpDDSurfaceDesc->ddpfPixelFormat, mipmapCount);
 		*lplpDDSurface = textureSurface;
-		textureSurface->name[0] = 0;
+		textureSurface->_name[0] = 0;
 		if (bTexNameAvailable)
-			strcpy_s(textureSurface->name, MAX_TEXTURE_NAME, texName);		
+			strcpy_s(textureSurface->_name, MAX_TEXTURE_NAME, texName);		
 
 #if LOGGER
 		str.str("");
