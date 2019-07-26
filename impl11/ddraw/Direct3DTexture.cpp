@@ -381,6 +381,7 @@ HRESULT Direct3DTexture::Load(
 
 	Direct3DTexture* d3dTexture = (Direct3DTexture*)lpD3DTexture;
 	TextureSurface* surface = d3dTexture->_surface;
+	//log_debug("[DBG] Loading %s", surface->name);
 
 	if (d3dTexture->_textureView)
 	{
@@ -499,18 +500,18 @@ HRESULT Direct3DTexture::Load(
 			// Capture the textures
 			{
 				static int TexIndex = 0;
-				wchar_t filename[80];
-				swprintf_s(filename, 80, L"c:\\temp\\master-img-%d.png", TexIndex);
+				wchar_t filename[300];
+				swprintf_s(filename, 300, L"c:\\XWA-Tex-w-names-1\\img-%d.png", TexIndex);
 
 				saveSurface(filename, (char *)textureData[0].pSysMem, surface->_width, surface->_height, bpp);
-				log_debug("[DBG] Master Tex: %d, 0x%x, size: %d, %d",
-					TexIndex, crc, surface->_width, surface->_height);
+				//log_debug("[DBG] Master Tex: %d, 0x%x, size: %d, %d",
+				//	TexIndex, crc, surface->_width, surface->_height);
 
-				char buf[80];
-				sprintf_s(buf, 80, "c:\\temp\\master-crc-%d.txt", TexIndex);
+				char buf[300];
+				sprintf_s(buf, 300, "c:\\XWA-Tex-w-names-1\\data-%d.txt", TexIndex);
 				FILE *file;
 				fopen_s(&file, buf, "wt");
-				fprintf(file, "0x%x\n", crc);
+				fprintf(file, "0x%x, size: %d, %d, name: '%s'\n", crc, surface->_width, surface->_height, surface->name);
 				fclose(file);
 
 				TexIndex++;
@@ -589,24 +590,24 @@ HRESULT Direct3DTexture::Load(
 #ifdef DBG_VR
 			// Capture the textures
 			{
-				static int TexIndex = 0;
+				static int MipTexIndex = 0;
 				unsigned int size = surface->_width * surface->_height * (useBuffers ? 4 : bpp);
 				uint32_t crc = crc32c(0, (const unsigned char *)textureData[0].pSysMem, size);
-				wchar_t filename[80];
-				swprintf_s(filename, 80, L"c:\\temp\\dyncockpit-img-%d.png", TexIndex);
+				wchar_t filename[300];
+				swprintf_s(filename, 300, L"c:\\XWA-Tex-w-names-2\\img-%d.png", MipTexIndex);
 
 				saveSurface(filename, (char *)textureData[0].pSysMem, surface->_width, surface->_height, bpp);
-				log_debug("[DBG] DynCockpit Tex: %d, 0x%x, size: %d, %d",
-					TexIndex, crc, surface->_width, surface->_height);
+				//log_debug("[DBG] DynCockpit Tex: %d, 0x%x, size: %d, %d",
+				//	MipTexIndex, crc, surface->_width, surface->_height);
 
-				char buf[80];
-				sprintf_s(buf, 80, "c:\\temp\\dyncockpit-crc-%d.txt", TexIndex);
+				char buf[300];
+				sprintf_s(buf, 300, "c:\\XWA-Tex-w-names-2\\data-%d.txt", MipTexIndex);
 				FILE *file;
 				fopen_s(&file, buf, "wt");
-				fprintf(file, "0x%x, width: %d, height: %d\n", crc, width, height);
+				fprintf(file, "0x%x, size: %d, %d, name: '%s'\n", crc, surface->_width, surface->_height, surface->name);
 				fclose(file);
 
-				TexIndex++;
+				MipTexIndex++;
 			}
 #endif
 		}

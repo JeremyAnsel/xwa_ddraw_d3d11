@@ -677,9 +677,10 @@ void saveSurface(std::wstring name, char* buffer, DWORD width, DWORD height, DWO
 	if (g_gdiInitializer.hasError())
 		return;
 
-	static int index = 0;
-	std::wstring filename = name + std::to_wstring(index) + L".png";
-	index++;
+	//static int index = 0;
+	//std::wstring filename = name + std::to_wstring(index) + L".png";
+	//index++;
+	std::wstring filename = name;
 
 	char* image;
 
