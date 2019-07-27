@@ -226,8 +226,8 @@ Direct3DTexture::Direct3DTexture(DeviceResources* deviceResources, TextureSurfac
 {
 	this->_refCount = 1;
 	this->_deviceResources = deviceResources;
-
 	this->_surface = surface;
+
 	this->crc = 0;
 	this->is_HUD = false;
 	this->is_TrianglePointer = false;
@@ -236,16 +236,9 @@ Direct3DTexture::Direct3DTexture(DeviceResources* deviceResources, TextureSurfac
 	this->is_GUI = false;
 	this->is_TargetingComp = false;
 	// Dynamic cockpit data
-	this->iDCElementIndex = -1;
-	this->is_DynCockpitSrc = false;
-	this->is_DynCockpitTargetComp = false;
-	this->is_DynCockpitFrontPanel = false;
-	this->is_DynCockpitLeftRadarPanel = false;
-	this->is_DynCockpitRightRadarPanel = false;
-	this->is_DynCockpitShieldsPanel = false;
-	this->is_DynCockpitLasersPanel = false;
+	this->DCElementIndex = -1;
+	this->is_DynCockpitDst = false;
 	this->is_DynCockpitAlphaOverlay = false;
-	this->boundingBox = { 0 };
 }
 
 int Direct3DTexture::GetWidth() {
@@ -576,8 +569,8 @@ HRESULT Direct3DTexture::Load(
 				log_debug("[DBG] [Dyn] '%s' found in '%s'", g_DCElements[idx].name, surface->_name);
 				// "light" and "color" textures are processed differently
 				if (strstr(surface->_name, "color") != NULL) {
-					this->is_DynCockpitSrc = true;
-					this->iDCElementIndex  = idx;
+					this->is_DynCockpitDst = true;
+					this->DCElementIndex  = idx;
 					// Load the cover texture if necessary
 					if (g_DCElements[idx].coverTexture == NULL) {
 						wchar_t wTexName[MAX_TEXTURE_NAME];
@@ -605,33 +598,27 @@ HRESULT Direct3DTexture::Load(
 			this->crc = crc32c(0, (const unsigned char *)textureData[0].pSysMem, size);
 			if (this->crc == DYN_COCKPIT_XWING_TARGET_COMP_CRC_LO_RES ||
 				this->crc == DYN_COCKPIT_XWING_TARGET_COMP_CRC_HI_RES) {
-				this->is_DynCockpitTargetComp = true;
-				this->is_DynCockpitSrc = true;
+				this->is_DynCockpitDst = true;
 			}
 			else if (this->crc == DYN_COCKPIT_XWING_FRONT_PANEL_CRC_LO_RES ||
 				     this->crc == DYN_COCKPIT_XWING_FRONT_PANEL_CRC_HI_RES) {
-				this->is_DynCockpitFrontPanel = true;
-				this->is_DynCockpitSrc = true;
+				this->is_DynCockpitDst = true;
 			}
 			else if (this->crc == DYN_COCKPIT_XWING_LEFT_PANEL_CRC_LO_RES ||
 				     this->crc == DYN_COCKPIT_XWING_LEFT_PANEL_CRC_HI_RES) {
-				this->is_DynCockpitLeftRadarPanel = true;
-				this->is_DynCockpitSrc = true;
+				this->is_DynCockpitDst = true;
 			}
 			else if (this->crc == DYN_COCKPIT_XWING_RIGHT_PANEL_CRC_LO_RES ||
 				     this->crc == DYN_COCKPIT_XWING_RIGHT_PANEL_CRC_HI_RES) {
-				this->is_DynCockpitRightRadarPanel = true;
-				this->is_DynCockpitSrc = true;
+				this->is_DynCockpitDst = true;
 			}
 			else if (this->crc == DYN_COCKPIT_XWING_SHIELDS_PANEL_CRC_LO_RES ||
 				     this->crc == DYN_COCKPIT_XWING_SHIELDS_PANEL_CRC_HI_RES) {
-				this->is_DynCockpitShieldsPanel = true;
-				this->is_DynCockpitSrc = true;
+				this->is_DynCockpitDst = true;
 			}
 			else if (this->crc == DYN_COCKPIT_XWING_LASERS_PANEL_CRC_LO_RES ||
 				     this->crc == DYN_COCKPIT_XWING_LASERS_PANEL_CRC_HI_RES) {
-				this->is_DynCockpitLasersPanel = true;
-				this->is_DynCockpitSrc = true;
+				this->is_DynCockpitDst = true;
 			}
 			else if (this->crc == DYN_COCKPIT_XWING_TARGET_COMP_CRC_ALPHA   ||
 					 this->crc == DYN_COCKPIT_XWING_FRONT_PANEL_CRC_ALPHA   ||

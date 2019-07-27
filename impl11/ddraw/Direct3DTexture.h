@@ -26,34 +26,17 @@ public:
 	bool is_Floating_GUI;
 	// This flag is set to true if this is a regular GUI element
 	bool is_GUI;
-	// This flag is set to true if this is the main targeting computer (center, low)
+	// This flag is set to true if this is the main targeting computer HUD background (center, low)
 	bool is_TargetingComp;
 
 	// **** DYNAMIC COCKPIT MEMBERS **** //
 	// Textures in the cockpit that can be replaced with new textures
-	// This texture is the static targeting computer that can be replaced with the actual targeting data
-	bool is_DynCockpitTargetComp;
-	// This texture is the left panel that can be used for the left radar
-	bool is_DynCockpitLeftRadarPanel;
-	// This texture is the right panel that can be used for the left radar
-	bool is_DynCockpitRightRadarPanel;
-	// This texture is the panel right in the middle of the X-Wing. I don't have a better name for now...
-	bool is_DynCockpitFrontPanel;
-	// This texture is the shields panel to the right of the targeting computer panel in the X-Wing.
-	bool is_DynCockpitShieldsPanel;
-	// This texture is the lasers-energy panel in the X-Wing cockpit.
-	bool is_DynCockpitLasersPanel;
-	int iDCElementIndex;
-	// True for all textures that can be used as sources for the dynamic cockpit.
-	bool is_DynCockpitSrc;
+	// Index into g_DCElements that holds the Dynamic Cockpit information for this texture
+	int DCElementIndex;
+	// True for all textures that can be used as destinations for the dynamic cockpit.
+	bool is_DynCockpitDst;
 	// True for the additional textures loaded in Hi-Res mode that provide additional glow
 	bool is_DynCockpitAlphaOverlay;
-	// True when the vertex limits in pixels for this element have been computed and stored
-	//bool bBoundingBoxComputed;
-	// If bPixelLimitsComputed is true, then the following viewport will contain the limits of this
-	// element in pixels:
-	Box boundingBox;
-
 
 	Direct3DTexture(DeviceResources* deviceResources, TextureSurface* surface);
 

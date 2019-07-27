@@ -15,6 +15,8 @@
 
 #define DBG_MAX_PRESENT_LOGS 0
 
+#include <vector>
+
 #include "XWAObject.h"
 extern PlayerDataEntry* PlayerDataTable;
 const auto mouseLook_Y = (int*)0x9E9624;
@@ -25,10 +27,11 @@ extern bool g_bNaturalConcourseAnimations;
 extern bool g_bIsTrianglePointer, g_bLastTrianglePointer;
 extern D3DTLVERTEX g_HUDVertices[6]; // 6 vertices
 extern bool g_bHUDVerticesReady;
+extern std::vector<dc_element> g_DCElements;
 
 extern VertexShaderCBuffer g_VSCBuffer;
 extern PixelShaderCBuffer g_PSCBuffer;
-extern float g_fAspectRatio, g_fGlobalScale, g_fXWAScale;
+extern float g_fAspectRatio, g_fGlobalScale;
 extern D3D11_VIEWPORT g_nonVRViewport;
 
 #include <headers/openvr.h>
@@ -44,14 +47,13 @@ extern Vector3 g_headCenter;
 extern bool g_bResetHeadCenter, g_bSteamVRPosFromFreePIE, g_bReshadeEnabled, g_bBloomEnabled;
 extern vr::IVRSystem *g_pHMD;
 extern int g_iFreePIESlot;
-extern DynCockpitBoxes g_DynCockpitBoxes;
+//extern DynCockpitBoxes g_DynCockpitBoxes;
 extern Matrix4 g_fullMatrixLeft, g_fullMatrixRight, g_fullMatrixHead;
 
 // The following is used when the Dynamic Cockpit is enabled to render the HUD separately
 D3DTLVERTEX g_HUDVertices[6] = { 0 };
 bool g_bHUDVerticesReady = false; // Set to true when the g_HUDVertices array has valid data
 ID3D11Buffer *g_HUDVertexBuffer = NULL, *g_ClearHUDVertexBuffer = NULL, *g_ClearFullScreenHUDVertexBuffer = NULL;
-extern uv_coords g_DCTargetCompUVCoords;
 
 /*
  * Convert a rotation matrix to a normalized quaternion.
@@ -1371,13 +1373,14 @@ void PrimarySurface::ClearHUDRegions() {
 	viewport.Height   = (float )_deviceResources->_backbufferHeight;
 	viewport.MinDepth = D3D11_MIN_DEPTH;
 	viewport.MaxDepth = D3D11_MAX_DEPTH;
-	//if (g_DynCockpitBoxes.TargetCompLimitsComputed)
-	// TODO g_fXWAScale is probably not needed anymore?
-	ClearBox(g_DCTargetCompUVCoords.src[0], &viewport, 0);
-	//if (g_DynCockpitBoxes.ShieldsLimitsComputed)
-	//	ClearBox(g_DynCockpitBoxes.ShieldsBox, &g_nonVRViewport, 0);
-	//if (g_DynCockpitBoxes.LasersLimitsComputed)
-	//	ClearBox(g_DynCockpitBoxes.LasersBox, &g_nonVRViewport, 0);
+
+	int size = (int)g_DCElements.size();
+	for (int i = 0; i < size; i++) {
+		dc_element *dc_elem = &g_DCElements[i];
+		int numCoords = dc_elem->coords.numCoords;
+		for (int j = 0; j < numCoords; j++)
+			ClearBox(dc_elem->coords.src[j], &viewport, 0);
+	}
 }
 
 void PrimarySurface::DrawHUDVertices() {
@@ -1871,7 +1874,7 @@ HRESULT PrimarySurface::Flip(
 			// Apply the HUD *after* we have re-shaded it (if necessary)
 			if (g_bDynCockpitEnabled) {
 				// Clear everything we don't want to display from the HUD
-				//ClearHUDRegions();
+				ClearHUDRegions();
 				// Display the HUD
 				DrawHUDVertices();
 			}
@@ -1925,14 +1928,15 @@ HRESULT PrimarySurface::Flip(
 			if (g_bDynCockpitEnabled) {
 				_deviceResources->_d3dDeviceContext->ResolveSubresource(_deviceResources->_offscreenBufferAsInputDynCockpit,
 					0, _deviceResources->_offscreenBufferDynCockpit, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
-				//this->_deviceResources->_d3dDeviceContext->ClearRenderTargetView(this->_deviceResources->_renderTargetViewDynCockpit, 
-				//	this->_deviceResources->clearColor);
+
+				/*
 				if (!g_DynCockpitBoxes.LasersLimitsComputed && g_iPresentCounter == 10) { // The limits for the laser boxes were not updated in the last frame, stop updating it
 					g_DynCockpitBoxes.LasersLimitsComputed = true;
 					log_debug("[DBG] Lasers Indicator FINAL limits: (%0.3f, %0.3f)-(%0.3f, %0.3f)",
 						g_DynCockpitBoxes.LasersBox.left, g_DynCockpitBoxes.LasersBox.top,
 						g_DynCockpitBoxes.LasersBox.right, g_DynCockpitBoxes.LasersBox.bottom);
 				}
+				*/
 			}
 
 			// Perform the lean left/right etc animations

@@ -23,23 +23,6 @@ typedef struct Box_struct {
 	float top, bottom;
 } Box;
 
-typedef struct DynCockpitBoxesComputedStruct {
-	bool TargetCompLimitsComputed = false;
-	bool LeftRadarLimitsComputed  = false;
-	bool RightRadarLimitsComputed = false;
-	bool ShieldsLimitsComputed    = false;
-	bool LasersLimitsComputed     = false;
-	bool LeftMsgLimitsComputed    = false;
-	bool RightMsgLimitsComputed   = false;
-	Box TargetCompBox    = { 0 };
-	Box LeftRadarBox     = { 0 };
-	Box RightRadarBox    = { 0 };
-	Box ShieldsBox       = { 0 };
-	Box LasersBox        = { 1000000, -1000000, 1000000, -1000000 };
-	Box LeftMsgPanelBox  = { 0 };
-	Box RightMsgPanelBox = { 0 };
-} DynCockpitBoxes;
-
 enum RenderMainColorKeyType
 {
 	RENDERMAIN_NO_COLORKEY,

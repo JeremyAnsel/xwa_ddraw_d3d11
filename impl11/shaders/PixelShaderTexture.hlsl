@@ -84,8 +84,10 @@ float4 main(PixelShaderInput input) : SV_TARGET
 			//diffuse = alpha * input.color.xyz + (1.0 - alpha) * float3(1.0, 1.0, 1.0);
 			diffuse = lerp(float3(1, 1, 1), input.color.xyz, alpha);
 		}
-		else
+		else {
 			texelColor = dc_texelColor;
+			diffuse = float3(1, 1, 1);
+		}
 	}
 	
 	return float4(brightness * diffuse * texelColor.xyz, texelColor.w);
