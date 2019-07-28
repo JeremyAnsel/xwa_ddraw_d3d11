@@ -1377,6 +1377,9 @@ void PrimarySurface::ClearHUDRegions() {
 	int size = (int)g_DCElements.size();
 	for (int i = 0; i < size; i++) {
 		dc_element *dc_elem = &g_DCElements[i];
+		// Only clear HUD regions for active dc_elements
+		if (!dc_elem->bActive)
+			continue;
 		int numCoords = dc_elem->coords.numCoords;
 		for (int j = 0; j < numCoords; j++)
 			ClearBox(dc_elem->coords.src[j], &viewport, 0);

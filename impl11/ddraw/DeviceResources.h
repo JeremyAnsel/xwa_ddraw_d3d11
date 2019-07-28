@@ -6,17 +6,18 @@
 #include "Matrices.h"
 
 // Also found in the Floating_GUI_CRCs list:
-const uint32_t DYN_COCKPIT_TARGET_COMP_SRC_CRC = 0x3b9a3741;
-const uint32_t DYN_COCKPIT_LEFT_RADAR_SRC_CRC  = 0x75b9e062;
-const uint32_t DYN_COCKPIT_RIGHT_RADAR_SRC_CRC = 0x1ec963a9;
-const uint32_t DYN_COCKPIT_SHIELDS_SRC_CRC     = 0x3188119f;
-const uint32_t DYN_COCKPIT_SOLID_MSG_SRC_CRC   = 0x7e1b021d;
-const uint32_t DYN_COCKPIT_BORDER_MSG_SRC_CRC  = 0x771a714c;
-const uint32_t DYN_COCKPIT_LASER_BOX_SRC_CRC   = 0xd0168df9;
-const uint32_t DYN_COCKPIT_ION_BOX_SRC_CRC	   = 0xe321d785;
-const uint32_t DYN_COCKPIT_BEAM_BOX_SRC_CRC    = 0x75082e5e;
-const uint32_t DYN_COCKPIT_TOP_LEFT_SRC_CRC    = 0xc2416bf9;
-const uint32_t DYN_COCKPIT_TOP_RIGHT_SRC_CRC   = 0x71ce88f1;
+const uint32_t DYN_COCKPIT_TARGET_COMP_SRC_CRC   = 0x3b9a3741;
+const uint32_t DYN_COCKPIT_LEFT_RADAR_SRC_CRC    = 0x75b9e062;
+const uint32_t DYN_COCKPIT_RIGHT_RADAR_SRC_CRC   = 0x1ec963a9;
+const uint32_t DYN_COCKPIT_RIGHT_RADAR_2_SRC_CRC = 0xbe6846fb;
+const uint32_t DYN_COCKPIT_SHIELDS_SRC_CRC       = 0x3188119f;
+const uint32_t DYN_COCKPIT_SOLID_MSG_SRC_CRC     = 0x7e1b021d;
+const uint32_t DYN_COCKPIT_BORDER_MSG_SRC_CRC    = 0x771a714c;
+const uint32_t DYN_COCKPIT_LASER_BOX_SRC_CRC     = 0xd0168df9;
+const uint32_t DYN_COCKPIT_ION_BOX_SRC_CRC	     = 0xe321d785;
+const uint32_t DYN_COCKPIT_BEAM_BOX_SRC_CRC      = 0x75082e5e;
+const uint32_t DYN_COCKPIT_TOP_LEFT_SRC_CRC      = 0xc2416bf9;
+const uint32_t DYN_COCKPIT_TOP_RIGHT_SRC_CRC     = 0x71ce88f1;
 
 typedef struct Box_struct {
 	float left, right;
@@ -98,6 +99,7 @@ typedef struct dc_element_struct {
 	char name[MAX_TEXTURE_NAME];
 	char coverTextureName[MAX_TEXTURE_NAME];
 	ID3D11ShaderResourceView *coverTexture = NULL;
+	bool bActive;
 } dc_element;
 
 class DeviceResources

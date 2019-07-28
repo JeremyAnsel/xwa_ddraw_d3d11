@@ -51,39 +51,12 @@ std::vector<uint32_t> Floating_GUI_CRCs = {
 std::vector<uint32_t> GUI_CRCs = {
 	0xc2416bf9, // (256x32) Top-left bracket (master branch)
 	0x71ce88f1, // (256x32) Top-right bracket (master branch)
-	0x75b9e062, // (128x128) Left radar (?) (master branch)
-	0x1ec963a9, // (128x128) Right radar (?) (master branch)
+	0x75b9e062, // (128x128) Left radar (master branch)
+	0x1ec963a9, // (128x128) Right radar (master branch)
+	0xbe6846fb, // Right radar when no tractor beam is present
 	0x3188119f, // (128x128) Left Shield Display (master branch)
 	0x75082e5e, // (128x128) Right Tractor Beam Display (master branch)
 };
-
-// CONFIRMED:
-// 0x5b27f370 --> Targeting computer texture, 128x64 -- The full res version is 256x128 
-// 0xc5894992 --> Second targeting computer, 128x128 -- The full res version is 256x256
-// In high res mode, XWA loads additional "alpha" overlays to make certain elements brighter
-const uint32_t DYN_COCKPIT_XWING_TARGET_COMP_CRC_LO_RES = 0x5b27f370;
-const uint32_t DYN_COCKPIT_XWING_TARGET_COMP_CRC_HI_RES = 0x1671ea5b;
-const uint32_t DYN_COCKPIT_XWING_TARGET_COMP_CRC_ALPHA  = 0xdb6a55a4;
-
-const uint32_t DYN_COCKPIT_XWING_LEFT_PANEL_CRC_LO_RES = 0xbe3c6620;
-const uint32_t DYN_COCKPIT_XWING_LEFT_PANEL_CRC_HI_RES = 0x58993346;
-const uint32_t DYN_COCKPIT_XWING_LEFT_PANEL_CRC_ALPHA  = 0x90ac07f;
-
-const uint32_t DYN_COCKPIT_XWING_RIGHT_PANEL_CRC_LO_RES = 0xdb210014;
-const uint32_t DYN_COCKPIT_XWING_RIGHT_PANEL_CRC_HI_RES = 0xc1538ae7;
-const uint32_t DYN_COCKPIT_XWING_RIGHT_PANEL_CRC_ALPHA  = 0x3d328022;
-
-const uint32_t DYN_COCKPIT_XWING_SHIELDS_PANEL_CRC_LO_RES = 0xb094e68f; // 64x64
-const uint32_t DYN_COCKPIT_XWING_SHIELDS_PANEL_CRC_HI_RES = 0x747af065; // 128x128
-const uint32_t DYN_COCKPIT_XWING_SHIELDS_PANEL_CRC_ALPHA  = 0xa63ea601;
-
-const uint32_t DYN_COCKPIT_XWING_LASERS_PANEL_CRC_HI_RES = 0x7def05c;  // 256x64
-const uint32_t DYN_COCKPIT_XWING_LASERS_PANEL_CRC_LO_RES = 0x6b57bcd7; // 128x32
-const uint32_t DYN_COCKPIT_XWING_LASERS_PANEL_CRC_ALPHA  = 0xb7850e28;
-
-const uint32_t DYN_COCKPIT_XWING_FRONT_PANEL_CRC_HI_RES = 0xfee7db3b; // 256x256
-const uint32_t DYN_COCKPIT_XWING_FRONT_PANEL_CRC_LO_RES = 0xc5894992; // 128x128
-const uint32_t DYN_COCKPIT_XWING_FRONT_PANEL_CRC_ALPHA  = 0x7c66376a;
 
 /*
   Target comp tex:		'opt,FlightModels\XwingCockpit.opt,TEX00097,color,0' img-270, size: 256x128
@@ -97,7 +70,7 @@ const uint32_t DYN_COCKPIT_XWING_FRONT_PANEL_CRC_ALPHA  = 0x7c66376a;
   Shields panel:			'opt,FlightModels\XwingCockpit.opt,TEX00098,color,0'
   Lasers panel:			'opt,FlightModels\XwingCockpit.opt,TEX00094,color,0'
 */
-// TODO: Do we need g_DCElements here?
+// g_DCElements is used when loading textures to load the cover texture.
 extern std::vector<dc_element> g_DCElements;
 extern bool g_bDynCockpitEnabled;
 
@@ -519,17 +492,14 @@ HRESULT Direct3DTexture::Load(
 			{
 				static int TexIndex = 0;
 				wchar_t filename[300];
-				swprintf_s(filename, 300, L"c:\\XWA-Tex-w-names-1\\img-%d.png", TexIndex);
-
+				swprintf_s(filename, 300, L"c:\\XWA-Tex-w-names-3\\img-%d.png", TexIndex);
 				saveSurface(filename, (char *)textureData[0].pSysMem, surface->_width, surface->_height, bpp);
-				//log_debug("[DBG] Master Tex: %d, 0x%x, size: %d, %d",
-				//	TexIndex, crc, surface->_width, surface->_height);
 
 				char buf[300];
-				sprintf_s(buf, 300, "c:\\XWA-Tex-w-names-1\\data-%d.txt", TexIndex);
+				sprintf_s(buf, 300, "c:\\XWA-Tex-w-names-3\\data-%d.txt", TexIndex);
 				FILE *file;
 				fopen_s(&file, buf, "wt");
-				fprintf(file, "0x%x, size: %d, %d, name: '%s'\n", crc, surface->_width, surface->_height, surface->name);
+				fprintf(file, "0x%x, size: %d, %d, name: '%s'\n", crc, surface->_width, surface->_height, surface->_name);
 				fclose(file);
 
 				TexIndex++;
@@ -560,17 +530,21 @@ HRESULT Direct3DTexture::Load(
 		// Check the surface with the smallest resolution
 		int width = surface->_width;
 		int height = surface->_height;
-		if (width == 64 || width == 128 || width == 256) { // || width == 512 || width == 1024) {
+		//if (width == 64 || width == 128 || width == 256) { // || width == 512 || width == 1024) {
+		{
 			unsigned int size = width * height * (useBuffers ? 4 : bpp);
-			//surface->_deviceResources->_d3dDevice
 
 			int idx = isInVector(surface->_name, g_DCElements);
 			if (idx > -1) {
 				log_debug("[DBG] [Dyn] '%s' found in '%s'", g_DCElements[idx].name, surface->_name);
 				// "light" and "color" textures are processed differently
 				if (strstr(surface->_name, "color") != NULL) {
+					// This texture is a Dynamic Cockpit destination texture
 					this->is_DynCockpitDst = true;
-					this->DCElementIndex  = idx;
+					// Make this texture "point back" to the right dc_element
+					this->DCElementIndex   = idx;
+					// Activate this dc_element
+					g_DCElements[idx].bActive = true;					
 					// Load the cover texture if necessary
 					if (g_DCElements[idx].coverTexture == NULL) {
 						wchar_t wTexName[MAX_TEXTURE_NAME];
@@ -594,42 +568,6 @@ HRESULT Direct3DTexture::Load(
 				}
 			}
 
-			// Compute the CRC
-			this->crc = crc32c(0, (const unsigned char *)textureData[0].pSysMem, size);
-			if (this->crc == DYN_COCKPIT_XWING_TARGET_COMP_CRC_LO_RES ||
-				this->crc == DYN_COCKPIT_XWING_TARGET_COMP_CRC_HI_RES) {
-				this->is_DynCockpitDst = true;
-			}
-			else if (this->crc == DYN_COCKPIT_XWING_FRONT_PANEL_CRC_LO_RES ||
-				     this->crc == DYN_COCKPIT_XWING_FRONT_PANEL_CRC_HI_RES) {
-				this->is_DynCockpitDst = true;
-			}
-			else if (this->crc == DYN_COCKPIT_XWING_LEFT_PANEL_CRC_LO_RES ||
-				     this->crc == DYN_COCKPIT_XWING_LEFT_PANEL_CRC_HI_RES) {
-				this->is_DynCockpitDst = true;
-			}
-			else if (this->crc == DYN_COCKPIT_XWING_RIGHT_PANEL_CRC_LO_RES ||
-				     this->crc == DYN_COCKPIT_XWING_RIGHT_PANEL_CRC_HI_RES) {
-				this->is_DynCockpitDst = true;
-			}
-			else if (this->crc == DYN_COCKPIT_XWING_SHIELDS_PANEL_CRC_LO_RES ||
-				     this->crc == DYN_COCKPIT_XWING_SHIELDS_PANEL_CRC_HI_RES) {
-				this->is_DynCockpitDst = true;
-			}
-			else if (this->crc == DYN_COCKPIT_XWING_LASERS_PANEL_CRC_LO_RES ||
-				     this->crc == DYN_COCKPIT_XWING_LASERS_PANEL_CRC_HI_RES) {
-				this->is_DynCockpitDst = true;
-			}
-			else if (this->crc == DYN_COCKPIT_XWING_TARGET_COMP_CRC_ALPHA   ||
-					 this->crc == DYN_COCKPIT_XWING_FRONT_PANEL_CRC_ALPHA   ||
-					 this->crc == DYN_COCKPIT_XWING_LEFT_PANEL_CRC_ALPHA    ||
-					 this->crc == DYN_COCKPIT_XWING_RIGHT_PANEL_CRC_ALPHA   ||
-					 this->crc == DYN_COCKPIT_XWING_SHIELDS_PANEL_CRC_ALPHA ||
-					 this->crc == DYN_COCKPIT_XWING_LASERS_PANEL_CRC_ALPHA) {
-				this->is_DynCockpitAlphaOverlay = true;
-			}
-			
-
 #ifdef DBG_VR
 			// Capture the textures
 			{
@@ -638,16 +576,13 @@ HRESULT Direct3DTexture::Load(
 				uint32_t crc = crc32c(0, (const unsigned char *)textureData[0].pSysMem, size);
 				wchar_t filename[300];
 				swprintf_s(filename, 300, L"c:\\XWA-Tex-w-names-2\\img-%d.png", MipTexIndex);
-
 				saveSurface(filename, (char *)textureData[0].pSysMem, surface->_width, surface->_height, bpp);
-				//log_debug("[DBG] DynCockpit Tex: %d, 0x%x, size: %d, %d",
-				//	MipTexIndex, crc, surface->_width, surface->_height);
 
 				char buf[300];
 				sprintf_s(buf, 300, "c:\\XWA-Tex-w-names-2\\data-%d.txt", MipTexIndex);
 				FILE *file;
 				fopen_s(&file, buf, "wt");
-				fprintf(file, "0x%x, size: %d, %d, name: '%s'\n", crc, surface->_width, surface->_height, surface->name);
+				fprintf(file, "0x%x, size: %d, %d, name: '%s'\n", crc, surface->_width, surface->_height, surface->_name);
 				fclose(file);
 
 				MipTexIndex++;

@@ -328,6 +328,7 @@ bool isInVector(uint32_t crc, std::vector<uint32_t> &vector);
 bool InitDirectSBS();
 bool LoadNewCockpitTextures(ID3D11Device *device);
 void UnloadNewCockpitTextures();
+int isInVector(char *name, std::vector<dc_element> dc_elements);
 
 /* Maps (-6, 6) to (-0.5, 0.5) using a sigmoid function */
 float centeredSigmoid(float x) {
@@ -797,6 +798,18 @@ void LoadCockpitLookParams() {
 	log_debug("[DBG] Loaded %d cockpitlook params", param_read_count);
 }
 
+void ClearDynCockpitVector(std::vector<dc_element> &DCElements) {
+	int size = (int)DCElements.size();
+	for (int i = 0; i < size; i++) {
+		DCElements[i].coverTextureName[0] = 0;
+		if (DCElements[i].coverTexture != NULL) {
+			DCElements[i].coverTexture->Release();
+			DCElements[i].coverTexture = NULL;
+		}
+	}
+	DCElements.clear();
+}
+
 /* 
  * Loads a single row of dynamic cockpit coordinates of the form:
  * src-width,height, src-x0,y0,x1,y1, dst-x0,y0,x1,y1
@@ -848,6 +861,7 @@ void LoadVRParams() {
 	log_debug("[DBG] Loading view params...");
 	FILE *file;
 	int error = 0, line = 0;
+	static int lastDCElemSelected = -1;
 
 	try {
 		error = fopen_s(&file, "./vrparams.cfg", "rt");
@@ -864,9 +878,11 @@ void LoadVRParams() {
 	int param_read_count = 0;
 	float value = 0.0f;
 
-	// Reset the dynamic cockpit coordinates
-	//g_DCTargetCompUVCoords = { 0 };
-	//g_DCLeftRadarUVCoords = { 0 };
+	// Reset the dynamic cockpit vector if we're not rendering in 3D
+	if (!g_bRendering3D && g_DCElements.size() > 0) {
+		log_debug("[DBG] [DC] Clearing g_DCElements");
+		ClearDynCockpitVector(g_DCElements);
+	}
 
 	while (fgets(buf, 256, file) != NULL) {
 		line++;
@@ -1026,9 +1042,8 @@ void LoadVRParams() {
 			// Dynamic Cockpit params
 			else if (_stricmp(param, DYNAMIC_COCKPIT_TARGET_COMP_VRPARAM) == 0) {
 				g_bDynCockpitEnabled = (bool)value;
-				log_debug("[DBG] vrparam: g_bDynCockpitEnabled: %d", g_bDynCockpitEnabled);
+				log_debug("[DBG] [DC] vrparam: g_bDynCockpitEnabled: %d", g_bDynCockpitEnabled);
 			}
-			//else if (_stricmp(param, DC_TARGET_COMP_UV_COORDS_VRPARAM) == 0) {
 			else if (buf[0] == '[') {
 				// This is a new DC element.
 				dc_element dc_elem;
@@ -1037,23 +1052,36 @@ void LoadVRParams() {
 				char *end = strstr(dc_elem.name, "]");
 				if (end != NULL)
 					*end = 0;
-				// Initialize this dc_elem:
-				dc_elem.coverTextureName[0] = 0;
-				dc_elem.coverTexture = NULL;
-				dc_elem.coords = { 0 };
-				g_DCElements.push_back(dc_elem);
-				log_debug("[DBG] Adding DC elem: '%s'", dc_elem.name);
+				// See if we have this DC element already
+				lastDCElemSelected = isInVector(dc_elem.name, g_DCElements);
+				if (lastDCElemSelected > -1) {
+					g_DCElements[lastDCElemSelected].coords.numCoords = 0;
+					log_debug("[DBG] [DC] Resetting coords of exisiting DC elem @ idx: %d", lastDCElemSelected);
+				} else {
+					// Initialize this dc_elem:
+					dc_elem.coverTextureName[0] = 0;
+					dc_elem.coverTexture = NULL;
+					dc_elem.coords = { 0 };
+					dc_elem.bActive = false;
+					g_DCElements.push_back(dc_elem);
+					lastDCElemSelected = (int)g_DCElements.size() - 1;
+					log_debug("[DBG] [DC] Adding new DC elem: '%s'", dc_elem.name);
+				}
 				//LoadDynCockpitCoords(buf, &g_DCTargetCompUVCoords);
 			}
 			else if (_stricmp(param, DC_UV_COORDS_PARAM) == 0) {
 				if (g_DCElements.size() == 0) {
-					log_debug("[DBG] ERROR. LINE %d, g_DCElements is empty, cannot add uv_coord", line, param);
+					log_debug("[DBG] [DC] ERROR. Line %d, g_DCElements is empty, cannot add uv_coord", line, param);
+					continue;
+				}
+				if (lastDCElemSelected == -1) {
+					log_debug("[DBG] [DC] ERROR. Line %d, %s without a corresponding texture section.", line, DC_UV_COORDS_PARAM);
 					continue;
 				}
 				//dc_element dc_elem = g_DCElements.back();
 				//log_debug("[DBG] Adding uv_coords to '%s'", dc_elem.name);
-				if (LoadDynCockpitCoords(buf, &(g_DCElements.back().coords)))
-					log_debug("[DBG] Added uv_coords to '%s'", g_DCElements.back().name);
+				if (LoadDynCockpitCoords(buf, &(g_DCElements[lastDCElemSelected].coords)))
+					log_debug("[DBG] [DC] Added uv_coords to '%s'", g_DCElements[lastDCElemSelected].name);
 				// CHECK
 				/*dc_element dc_elem = g_DCElements.back();
 				int i = dc_elem.coords.numCoords - 1;
@@ -1062,9 +1090,13 @@ void LoadVRParams() {
 					dc_elem.coords.src[i].x1, dc_elem.coords.src[i].y1);*/
 			}
 			else if (_stricmp(param, DC_COVER_TEX_NAME_PARAM) == 0) {
-				strcpy_s(g_DCElements.back().coverTextureName, MAX_TEXTURE_NAME, svalue);
-				const dc_element dc_elem = g_DCElements.back();
-				log_debug("[DBG] '%s' covered by '%s'", dc_elem.name, dc_elem.coverTextureName);
+				if (lastDCElemSelected == -1) {
+					log_debug("[DBG] [DC] ERROR. Line %d, %s without a corresponding texture section.", line, DC_COVER_TEX_NAME_PARAM);
+					continue;
+				}
+				strcpy_s(g_DCElements[lastDCElemSelected].coverTextureName, MAX_TEXTURE_NAME, svalue);
+				const dc_element dc_elem = g_DCElements[lastDCElemSelected];
+				log_debug("[DBG] [DC] '%s' covered by '%s'", dc_elem.name, dc_elem.coverTextureName);
 			}
 
 			/*
@@ -2899,7 +2931,8 @@ HRESULT Direct3DDevice::Execute(
 
 				// Replace the right radar background:
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL &&
-					lastTextureSelected->crc == DYN_COCKPIT_RIGHT_RADAR_SRC_CRC)
+					(lastTextureSelected->crc == DYN_COCKPIT_RIGHT_RADAR_SRC_CRC ||
+					 lastTextureSelected->crc == DYN_COCKPIT_RIGHT_RADAR_2_SRC_CRC))
 				{
 					// Replace this element with our own round radar HUD texture
 					if (g_NewHUDRightRadar != NULL)
