@@ -87,15 +87,21 @@ typedef struct PixelShaderCBStruct {
 	uvfloat4 dst[MAX_DC_COORDS];
 } PixelShaderCBuffer;
 
-typedef struct uv_coords_struct {
+typedef struct uv_coords_src_dst_struct {
 	uvfloat4 src[MAX_DC_COORDS];
 	uvfloat4 dst[MAX_DC_COORDS];
+	int numCoords;
+} uv_src_dst_coords;
+
+typedef struct uv_coords_struct {
+	uvfloat4 src[MAX_DC_COORDS];
 	int numCoords;
 } uv_coords;
 
 const int MAX_TEXTURE_NAME = 256;
 typedef struct dc_element_struct {
-	uv_coords coords;
+	uv_src_dst_coords coords;
+	uv_coords eraseCoords;
 	char name[MAX_TEXTURE_NAME];
 	char coverTextureName[MAX_TEXTURE_NAME];
 	ID3D11ShaderResourceView *coverTexture = NULL;

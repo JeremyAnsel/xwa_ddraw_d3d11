@@ -72,6 +72,10 @@ float4 main(PixelShaderInput input) : SV_TARGET
 	//diffuse = float3(1.0, 1.0, 1.0);
 
 	if (DynCockpitSlots > 0) {
+		// DEBUG: Display uvs as colors. Some meshes have UVs beyond the range [0..1]
+		//if (input.tex.x > 1.0) 	return float4(1, 0, 1, 1);
+		//if (input.tex.y > 1.0) 	return float4(0, 0, 1, 1);
+		//return float4(input.tex.xy, 0, 1); // DEBUG: Display the uvs as colors
 		//return 0.7*dc_texelColor + 0.3*texelColor; // DEBUG DEBUG DEBUG!!! Remove this later! This helps position the elements easily
 				
 		// HLSL packs each element in an array in its own 4-vector (16-byte) row. So src[0].xy is the
@@ -79,7 +83,7 @@ float4 main(PixelShaderInput input) : SV_TARGET
 		// dst uv coords
 			
 		float4 dc_texelColor = bgColor;
-		for (int i = 0; i < DynCockpitSlots; i++) {
+		for (uint i = 0; i < DynCockpitSlots; i++) {
 			float2 delta = dst[i].zw - dst[i].xy;
 			float2 s = (input.tex - dst[i].xy) / delta;
 			float2 dyn_uv = lerp(src[i].xy, src[i].zw, s);
@@ -107,12 +111,12 @@ float4 main(PixelShaderInput input) : SV_TARGET
 		if (bUseCoverTexture > 0) {
 			// We don't have an alpha overlay texture anymore; but we can fake it by disabling shading
 			// on areas with a high lightness value
-			float3 HSL = RGBtoHSV(texelColor);
+			float3 HSV = RGBtoHSV(texelColor.xyz);
 			// Display the dynamic cockpit texture only where the texture cover is transparent:
 			texelColor = lerp(dc_texelColor, texelColor, alpha);
 			// The diffuse value will be 1 (shadeless) wherever the cover texture is transparent:
 			diffuse = lerp(float3(1, 1, 1), input.color.xyz, alpha);
-			if (HSL.z >= 0.80)
+			if (HSV.z >= 0.80)
 				diffuse = float3(1, 1, 1);
 		}
 		else {

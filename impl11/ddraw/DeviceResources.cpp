@@ -14,9 +14,14 @@
 #include "../Debug/BarrelPixelShader.h"
 #include "../Debug/SingleBarrelPixelShader.h"
 #include "../Debug/VertexShader.h"
+#include "../Release/PassthroughVertexShader.h"
 #include "../Debug/SBSVertexShader.h"
 #include "../Debug/PixelShaderTexture.h"
 #include "../Debug/PixelShaderSolid.h"
+#include "../Release/BloomPrePassPS.h"
+#include "../Release/BloomHGaussPS.h"
+#include "../Release/BloomVGaussPS.h"
+#include "../Release/BloomCombinePS.h"
 #else
 #include "../Release/MainVertexShader.h"
 #include "../Release/MainPixelShader.h"
@@ -38,6 +43,7 @@
 
 #include <WICTextureLoader.h>
 #include <headers/openvr.h>
+#include <vector>
 
 bool g_bWndProcReplaced = false;
 bool ReplaceWindowProc(HWND ThisWindow);
@@ -50,13 +56,13 @@ int g_iDraw2DCounter = 0;
 extern bool g_bEnableVR, g_bForceViewportChange;
 extern Matrix4 g_fullMatrixLeft, g_fullMatrixRight;
 extern VertexShaderMatrixCB g_VSMatrixCB;
+extern std::vector<dc_element> g_DCElements;
 
 //extern DynCockpitBoxes g_DynCockpitBoxes;
 //extern uv_coords g_DCTargetCompUVCoords;
 
 extern bool g_bReshadeEnabled, g_bBloomEnabled;
 
-extern D3DTLVERTEX g_HUDVertices[6]; // 6 vertices
 extern float g_fHUDDepth;
 extern bool g_bHUDVerticesReady;
 extern ID3D11Buffer *g_HUDVertexBuffer, *g_ClearHUDVertexBuffer, *g_ClearFullScreenHUDVertexBuffer;
@@ -105,6 +111,8 @@ extern vr::IVRCompositor *g_pVRCompositor;
 extern bool g_bSteamVREnabled, g_bUseSteamVR;
 //void ProcessVREvent(const vr::VREvent_t & event);
 //vr::TrackedDevicePose_t m_rTrackedDevicePose[vr::k_unMaxTrackedDeviceCount];
+
+void ClearDynCockpitVector(std::vector<dc_element> &DCElements);
 
 void log_err(const char *format, ...)
 {
@@ -210,7 +218,7 @@ bool LoadNewCockpitTextures(ID3D11Device *device) {
 	}
 
 	g_bNewCockpitTexturesLoaded = (g_NewHUDLeftRadar != NULL && g_NewHUDRightRadar != NULL);
-	log_debug("[DBG} [Dyn] New cockpit textures loaded: %d", g_bNewCockpitTexturesLoaded);
+	log_debug("[DBG} [Dyn] New cockpit textures loaded");
 out:
 	return g_bNewCockpitTexturesLoaded;
 }
@@ -363,54 +371,55 @@ void BuildHUDVertexBuffer(ComPtr<ID3D11Device> device, UINT width, UINT height) 
 	// The values for rhw_depth and sz_depth were taken from an actual sample from the X-Wing's front panel
 	float rhw_depth = 34.0f;
 	float sz_depth  = 0.98f;
+	D3DTLVERTEX HUDVertices[6] = { 0 };
 
-	g_HUDVertices[0].sx  = 0;
-	g_HUDVertices[0].sy  = 0;
-	g_HUDVertices[0].sz  = sz_depth;
-	g_HUDVertices[0].rhw = rhw_depth;
-	g_HUDVertices[0].tu  = 0;
-	g_HUDVertices[0].tv  = 0;
-	g_HUDVertices[0].color = color;
+	HUDVertices[0].sx  = 0;
+	HUDVertices[0].sy  = 0;
+	HUDVertices[0].sz  = sz_depth;
+	HUDVertices[0].rhw = rhw_depth;
+	HUDVertices[0].tu  = 0;
+	HUDVertices[0].tv  = 0;
+	HUDVertices[0].color = color;
 
-	g_HUDVertices[1].sx = (float)width;
-	g_HUDVertices[1].sy = 0;
-	g_HUDVertices[1].sz  = sz_depth;
-	g_HUDVertices[1].rhw = rhw_depth;
-	g_HUDVertices[1].tu  = 1;
-	g_HUDVertices[1].tv  = 0;
-	g_HUDVertices[1].color = color;
+	HUDVertices[1].sx = (float)width;
+	HUDVertices[1].sy = 0;
+	HUDVertices[1].sz  = sz_depth;
+	HUDVertices[1].rhw = rhw_depth;
+	HUDVertices[1].tu  = 1;
+	HUDVertices[1].tv  = 0;
+	HUDVertices[1].color = color;
 	
-	g_HUDVertices[2].sx = (float)width;
-	g_HUDVertices[2].sy = (float)height;
-	g_HUDVertices[2].sz  = sz_depth;
-	g_HUDVertices[2].rhw = rhw_depth;
-	g_HUDVertices[2].tu  = 1;
-	g_HUDVertices[2].tv  = 1;
-	g_HUDVertices[2].color = color;
+	HUDVertices[2].sx = (float)width;
+	HUDVertices[2].sy = (float)height;
+	HUDVertices[2].sz  = sz_depth;
+	HUDVertices[2].rhw = rhw_depth;
+	HUDVertices[2].tu  = 1;
+	HUDVertices[2].tv  = 1;
+	HUDVertices[2].color = color;
 	
-	g_HUDVertices[3].sx = (float)width;
-	g_HUDVertices[3].sy = (float)height;
-	g_HUDVertices[3].sz  = sz_depth;
-	g_HUDVertices[3].rhw = rhw_depth;
-	g_HUDVertices[3].tu  = 1;
-	g_HUDVertices[3].tv  = 1;
-	g_HUDVertices[3].color = color;
+	HUDVertices[3].sx = (float)width;
+	HUDVertices[3].sy = (float)height;
+	HUDVertices[3].sz  = sz_depth;
+	HUDVertices[3].rhw = rhw_depth;
+	HUDVertices[3].tu  = 1;
+	HUDVertices[3].tv  = 1;
+	HUDVertices[3].color = color;
 	
-	g_HUDVertices[4].sx = 0;
-	g_HUDVertices[4].sy = (float)height;
-	g_HUDVertices[4].sz  = sz_depth;
-	g_HUDVertices[4].rhw = rhw_depth;
-	g_HUDVertices[4].tu  = 0;
-	g_HUDVertices[4].tv  = 1;
-	g_HUDVertices[4].color = color;
+	HUDVertices[4].sx = 0;
+	HUDVertices[4].sy = (float)height;
+	HUDVertices[4].sz  = sz_depth;
+	HUDVertices[4].rhw = rhw_depth;
+	HUDVertices[4].tu  = 0;
+	HUDVertices[4].tv  = 1;
+	HUDVertices[4].color = color;
 	
-	g_HUDVertices[5].sx  = 0;
-	g_HUDVertices[5].sy  = 0;
-	g_HUDVertices[5].sz  = sz_depth;
-	g_HUDVertices[5].rhw = rhw_depth;
-	g_HUDVertices[5].tu  = 0;
-	g_HUDVertices[5].tv  = 0;
-	g_HUDVertices[5].color = color;	
+	HUDVertices[5].sx  = 0;
+	HUDVertices[5].sy  = 0;
+	HUDVertices[5].sz  = sz_depth;
+	HUDVertices[5].rhw = rhw_depth;
+	HUDVertices[5].tu  = 0;
+	HUDVertices[5].tv  = 0;
+	HUDVertices[5].color = color;	
 
 	/* Create the VertexBuffer if necessary */
 	if (g_HUDVertexBuffer != NULL) {
@@ -418,17 +427,27 @@ void BuildHUDVertexBuffer(ComPtr<ID3D11Device> device, UINT width, UINT height) 
 		g_HUDVertexBuffer = NULL;
 	}
 
+	if (g_ClearFullScreenHUDVertexBuffer != NULL) {
+		g_ClearFullScreenHUDVertexBuffer->Release();
+		g_ClearFullScreenHUDVertexBuffer = NULL;
+	}
+
+	if (g_ClearHUDVertexBuffer != NULL) {
+		g_ClearHUDVertexBuffer->Release();
+		g_ClearHUDVertexBuffer = NULL;
+	}
+
 	D3D11_BUFFER_DESC vertexBufferDesc;
 	ZeroMemory(&vertexBufferDesc, sizeof(vertexBufferDesc));
 	vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-	vertexBufferDesc.ByteWidth = sizeof(D3DTLVERTEX) * ARRAYSIZE(g_HUDVertices);
+	vertexBufferDesc.ByteWidth = sizeof(D3DTLVERTEX) * ARRAYSIZE(HUDVertices);
 	vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	vertexBufferDesc.CPUAccessFlags = 0;
 	vertexBufferDesc.MiscFlags = 0;
 
 	D3D11_SUBRESOURCE_DATA vertexBufferData;
 	ZeroMemory(&vertexBufferData, sizeof(vertexBufferData));
-	vertexBufferData.pSysMem = g_HUDVertices;
+	vertexBufferData.pSysMem = HUDVertices;
 	hr = device->CreateBuffer(&vertexBufferDesc, &vertexBufferData, &g_HUDVertexBuffer);
 	if (FAILED(hr)) {
 		log_debug("[DBG] Could not create g_HUDVertexBuffer");
@@ -437,9 +456,9 @@ void BuildHUDVertexBuffer(ComPtr<ID3D11Device> device, UINT width, UINT height) 
 
 	// Change the color to 0 to create a vertex buffer that clears the whole HUD
 	for (int i = 0; i < 6; i++)
-		g_HUDVertices[i].color = 0;
+		HUDVertices[i].color = 0;
 	ZeroMemory(&vertexBufferData, sizeof(vertexBufferData));
-	vertexBufferData.pSysMem = g_HUDVertices;
+	vertexBufferData.pSysMem = HUDVertices;
 	hr = device->CreateBuffer(&vertexBufferDesc, &vertexBufferData, &g_ClearFullScreenHUDVertexBuffer);
 	if (FAILED(hr)) {
 		log_debug("[DBG] Could not create g_ClearFullScreenHUDVertexBuffer");
@@ -463,6 +482,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 {
 	HRESULT hr;
 	char* step = "";
+	log_debug("[DBG] OnSizeChanged called");
 	// Generic VR Initialization
 	// Replace the game's WndProc
 	if (!g_bWndProcReplaced) {
@@ -501,20 +521,20 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		this->_renderTargetViewSteamVRResize.Release();
 	}
 	if (g_bDynCockpitEnabled) {
-		// Re-compute the Dynamic cockpit limits for all source images:
-		//g_DynCockpitBoxes.TargetCompLimitsComputed = false;
-		//g_DynCockpitBoxes.LeftRadarLimitsComputed = false;
-		//g_DynCockpitBoxes.RightRadarLimitsComputed = false;
-		//g_DynCockpitBoxes.ShieldsLimitsComputed = false;
-		//g_DynCockpitBoxes.LasersLimitsComputed = false;
-		//g_DynCockpitBoxes.LeftMsgLimitsComputed = false;
-		//g_DynCockpitBoxes.RightMsgLimitsComputed = false;
-		//log_debug("[DBG] Resetting Laser Box limits");
-		//g_DynCockpitBoxes.LasersBox.left   =  1000000;
-		//g_DynCockpitBoxes.LasersBox.right  = -1000000;
-		//g_DynCockpitBoxes.LasersBox.bottom = -1000000;
-		//g_DynCockpitBoxes.LasersBox.top    =  1000000;
-		// No need to zero-out the boxes: the booleans above state whether the boxes are valid or not.
+		// Reset the active slots in g_DCElements
+		int size = (int)g_DCElements.size();
+		for (int i = 0; i < size; i++)
+		{
+			dc_element *elem = &g_DCElements[i];
+			if (elem->bActive) {
+				if (elem->coverTexture != NULL) {
+					log_debug("[DBG] [DC] Releasing %s", elem->coverTextureName);
+					elem->coverTexture->Release();
+					elem->coverTexture = NULL;
+				}
+				elem->bActive = false;
+			}
+		}
 		this->_renderTargetViewDynCockpit.Release();
 		this->_renderTargetViewDynCockpitAsInput.Release();
 		this->_offscreenBufferDynCockpit.Release();

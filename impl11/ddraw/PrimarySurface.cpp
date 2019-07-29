@@ -25,7 +25,6 @@ extern uint32_t *g_playerInHangar;
 
 extern bool g_bNaturalConcourseAnimations;
 extern bool g_bIsTrianglePointer, g_bLastTrianglePointer;
-extern D3DTLVERTEX g_HUDVertices[6]; // 6 vertices
 extern bool g_bHUDVerticesReady;
 extern std::vector<dc_element> g_DCElements;
 
@@ -51,7 +50,6 @@ extern int g_iFreePIESlot;
 extern Matrix4 g_fullMatrixLeft, g_fullMatrixRight, g_fullMatrixHead;
 
 // The following is used when the Dynamic Cockpit is enabled to render the HUD separately
-D3DTLVERTEX g_HUDVertices[6] = { 0 };
 bool g_bHUDVerticesReady = false; // Set to true when the g_HUDVertices array has valid data
 ID3D11Buffer *g_HUDVertexBuffer = NULL, *g_ClearHUDVertexBuffer = NULL, *g_ClearFullScreenHUDVertexBuffer = NULL;
 
@@ -1380,9 +1378,9 @@ void PrimarySurface::ClearHUDRegions() {
 		// Only clear HUD regions for active dc_elements
 		if (!dc_elem->bActive)
 			continue;
-		int numCoords = dc_elem->coords.numCoords;
+		int numCoords = dc_elem->eraseCoords.numCoords;
 		for (int j = 0; j < numCoords; j++)
-			ClearBox(dc_elem->coords.src[j], &viewport, 0);
+			ClearBox(dc_elem->eraseCoords.src[j], &viewport, 0);
 	}
 }
 

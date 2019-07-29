@@ -145,6 +145,7 @@ const char *PITCH_OFFSET_CLPARAM     = "pitch_offset";
 // Dynamic Cockpit vrparams
 const char *DC_UV_COORDS_PARAM			= "uv_coords";
 const char *DC_COVER_TEX_NAME_PARAM		= "cover_texture";
+const char *DC_ERASE_COORDS_PARAM		= "erase_coords";
 const char *DC_TARGET_COMP_UV_COORDS_VRPARAM   = "dc_target_comp_uv_coords";
 const char *DC_LEFT_RADAR_UV_COORDS_VRPARAM    = "dc_left_radar_uv_coords";
 const char *DC_RIGHT_RADAR_UV_COORDS_VRPARAM   = "dc_right_radar_uv_coords";
@@ -799,6 +800,7 @@ void LoadCockpitLookParams() {
 }
 
 void ClearDynCockpitVector(std::vector<dc_element> &DCElements) {
+	log_debug("[DBG] [DC] Clearing ALL DCElements");
 	int size = (int)DCElements.size();
 	for (int i = 0; i < size; i++) {
 		DCElements[i].coverTextureName[0] = 0;
@@ -814,7 +816,7 @@ void ClearDynCockpitVector(std::vector<dc_element> &DCElements) {
  * Loads a single row of dynamic cockpit coordinates of the form:
  * src-width,height, src-x0,y0,x1,y1, dst-x0,y0,x1,y1
  */
-bool LoadDynCockpitCoords(char *buf, uv_coords *coords)
+bool LoadDynCockpitCoords(char *buf, uv_src_dst_coords *coords)
 {
 	float src_width, src_height, dst_width, dst_height;
 	float x0_src, y0_src, x1_src, y1_src, x0_dst, y0_dst, x1_dst, y1_dst;
@@ -822,7 +824,7 @@ bool LoadDynCockpitCoords(char *buf, uv_coords *coords)
 	char *c = NULL;
 	
 	if (idx >= MAX_DC_COORDS) {
-		log_debug("[DBG] Too many uv's already loaded");
+		log_debug("[DBG] Too many coords already loaded");
 		return false;
 	}
 
@@ -850,6 +852,43 @@ bool LoadDynCockpitCoords(char *buf, uv_coords *coords)
 		}
 		catch (...) {
 			log_debug("[DBG] Could not read uv coords from: %s", buf);
+			return false;
+		}
+	}
+	return true;
+}
+
+/*
+ * Loads a single row of dynamic cockpit erase coordinates of the form:
+ * width,height, x0,y0,x1,y1
+ */
+bool LoadDynCockpitEraseCoords(char *buf, uv_coords *coords)
+{
+	float width, height;
+	float x0, y0, x1, y1;
+	int res = 0, idx = coords->numCoords;
+	char *c = NULL;
+
+	if (idx >= MAX_DC_COORDS) {
+		log_debug("[DBG] [DC] Too many coords already loaded");
+		return false;
+	}
+
+	c = strchr(buf, '=');
+	if (c != NULL) {
+		c += 1;
+		try {
+			res = sscanf_s(c, "%f, %f, %f, %f, %f, %f",
+				&width, &height, &x0, &y0, &x1, &y1);
+
+			coords->src[idx].x0 = x0 / width;
+			coords->src[idx].y0 = y0 / height;
+			coords->src[idx].x1 = x1 / width;
+			coords->src[idx].y1 = y1 / height;
+			coords->numCoords++;
+		}
+		catch (...) {
+			log_debug("[DBG] [DC] Could not read oords from: %s", buf);
 			return false;
 		}
 	}
@@ -1056,30 +1095,29 @@ void LoadVRParams() {
 				lastDCElemSelected = isInVector(dc_elem.name, g_DCElements);
 				if (lastDCElemSelected > -1) {
 					g_DCElements[lastDCElemSelected].coords.numCoords = 0;
+					g_DCElements[lastDCElemSelected].eraseCoords.numCoords = 0;
 					log_debug("[DBG] [DC] Resetting coords of exisiting DC elem @ idx: %d", lastDCElemSelected);
 				} else {
 					// Initialize this dc_elem:
 					dc_elem.coverTextureName[0] = 0;
 					dc_elem.coverTexture = NULL;
 					dc_elem.coords = { 0 };
+					dc_elem.eraseCoords = { 0 };
 					dc_elem.bActive = false;
 					g_DCElements.push_back(dc_elem);
 					lastDCElemSelected = (int)g_DCElements.size() - 1;
 					log_debug("[DBG] [DC] Adding new DC elem: '%s'", dc_elem.name);
 				}
-				//LoadDynCockpitCoords(buf, &g_DCTargetCompUVCoords);
 			}
 			else if (_stricmp(param, DC_UV_COORDS_PARAM) == 0) {
 				if (g_DCElements.size() == 0) {
-					log_debug("[DBG] [DC] ERROR. Line %d, g_DCElements is empty, cannot add uv_coord", line, param);
+					log_debug("[DBG] [DC] ERROR. Line %d, g_DCElements is empty, cannot add %s", line, param, DC_UV_COORDS_PARAM);
 					continue;
 				}
 				if (lastDCElemSelected == -1) {
 					log_debug("[DBG] [DC] ERROR. Line %d, %s without a corresponding texture section.", line, DC_UV_COORDS_PARAM);
 					continue;
 				}
-				//dc_element dc_elem = g_DCElements.back();
-				//log_debug("[DBG] Adding uv_coords to '%s'", dc_elem.name);
 				if (LoadDynCockpitCoords(buf, &(g_DCElements[lastDCElemSelected].coords)))
 					log_debug("[DBG] [DC] Added uv_coords to '%s'", g_DCElements[lastDCElemSelected].name);
 				// CHECK
@@ -1088,6 +1126,18 @@ void LoadVRParams() {
 				log_debug("[DBG] coords-src: %f, %f - %f, %f",
 					dc_elem.coords.src[i].x0, dc_elem.coords.src[i].y0,
 					dc_elem.coords.src[i].x1, dc_elem.coords.src[i].y1);*/
+			}
+			else if (_stricmp(param, DC_ERASE_COORDS_PARAM) == 0) {
+				if (g_DCElements.size() == 0) {
+					log_debug("[DBG] [DC] ERROR. Line %d, g_DCElements is empty, cannot add %s", line, param, DC_ERASE_COORDS_PARAM);
+					continue;
+				}
+				if (lastDCElemSelected == -1) {
+					log_debug("[DBG] [DC] ERROR. Line %d, %s without a corresponding texture section.", line, DC_ERASE_COORDS_PARAM);
+					continue;
+				}
+				if (LoadDynCockpitEraseCoords(buf, &(g_DCElements[lastDCElemSelected].eraseCoords)))
+					log_debug("[DBG] [DC] Added erase_coords to '%s'", g_DCElements[lastDCElemSelected].name);
 			}
 			else if (_stricmp(param, DC_COVER_TEX_NAME_PARAM) == 0) {
 				if (lastDCElemSelected == -1) {
