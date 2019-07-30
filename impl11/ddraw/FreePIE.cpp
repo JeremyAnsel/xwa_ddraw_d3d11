@@ -9,7 +9,7 @@ typedef INT32(__cdecl *freepie_io_6dof_read_fun_type)(UINT32 index, UINT32 lengt
 freepie_io_6dof_slots_fun_type freepie_io_6dof_slots = NULL;
 freepie_io_6dof_read_fun_type freepie_io_6dof_read = NULL;
 
-bool g_bFreePIELoaded = false, g_bFreePIEInitialized = false;
+bool bFreePIEInitialized = false;
 freepie_io_6dof_data g_FreePIEData;
 HMODULE hFreePIE = NULL;
 
@@ -18,10 +18,12 @@ bool InitFreePIE() {
 	char regvalue[1024];
 	DWORD size = 1024;
 	log_debug("Initializing FreePIE");
+	bFreePIEInitialized = false;
 
 	lRes = RegGetValueA(HKEY_CURRENT_USER, "Software\\FreePIE", "path", RRF_RT_ANY, NULL, regvalue, &size);
 	if (lRes != ERROR_SUCCESS) {
 		log_debug("Registry key for FreePIE was not found, error: 0x%x", lRes);
+		bFreePIEInitialized = false;
 		return false;
 	}
 
@@ -31,6 +33,7 @@ bool InitFreePIE() {
 	}
 	else {
 		log_debug("Cannot load FreePIE, registry path is empty!");
+		bFreePIEInitialized = false;
 		return false;
 	}
 
@@ -43,9 +46,9 @@ bool InitFreePIE() {
 
 		if (freepie_io_6dof_slots == NULL || freepie_io_6dof_read == NULL) {
 			log_debug("Could not load all of FreePIE's functions");
+			bFreePIEInitialized = false;
 			return false;
 		}
-		g_bFreePIELoaded = true;
 
 		UINT32 num_slots = freepie_io_6dof_slots();
 		log_debug("num_slots: %d", num_slots);
@@ -53,8 +56,10 @@ bool InitFreePIE() {
 	}
 	else {
 		log_debug("Could not load FreePIE");
+		bFreePIEInitialized = false;
+		return false;
 	}
-	g_bFreePIEInitialized = true;
+	bFreePIEInitialized = true;
 	return true;
 }
 
@@ -65,6 +70,8 @@ void ShutdownFreePIE() {
 }
 
 bool ReadFreePIE(int slot) {
+	if (!bFreePIEInitialized)
+		return false;
 	// Check how many slots (values) the current FreePIE implementation provides.
 	int error = freepie_io_6dof_read(slot, 1, &g_FreePIEData);
 	if (error < 0) {

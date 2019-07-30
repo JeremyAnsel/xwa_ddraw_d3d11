@@ -24,13 +24,13 @@ const auto mouseLook_X = (int*)0x9E9620;
 extern uint32_t *g_playerInHangar;
 
 extern bool g_bNaturalConcourseAnimations;
-extern bool g_bIsTrianglePointer, g_bLastTrianglePointer;
+extern bool g_bIsTrianglePointer, g_bLastTrianglePointer, g_bFixedGUI;
 extern bool g_bHUDVerticesReady;
 extern std::vector<dc_element> g_DCElements;
 
 extern VertexShaderCBuffer g_VSCBuffer;
 extern PixelShaderCBuffer g_PSCBuffer;
-extern float g_fAspectRatio, g_fGlobalScale;
+extern float g_fAspectRatio, g_fGlobalScale, g_fBrightness, g_fGUIElemsScale, g_fFloatingGUIDepth;
 extern D3D11_VIEWPORT g_nonVRViewport;
 
 #include <headers/openvr.h>
@@ -198,7 +198,7 @@ extern Matrix4 g_viewMatrix;
 extern VertexShaderMatrixCB g_VSMatrixCB;
 
 
-extern HeadPos g_HeadPos;
+extern HeadPos g_HeadPosAnim, g_HeadPos;
 void animTickX();
 void animTickY();
 void animTickZ();
@@ -1418,9 +1418,10 @@ void PrimarySurface::DrawHUDVertices() {
 	// We don't need to clear the current vertex and pixel constant buffers.
 	// Since we've just finished rendering 3D, they should contain values that
 	// can be reused. So let's just overwrite those values that we need.
-	// TODO: Set the HUD at the right depth
-	// TODO: Enable the "Fixed GUI" option
-	// TODO: Check that this works in SteamVR mode too
+	// TODO: Set the HUD at the right depth -- Some VS params have been updated; need to confirm
+	// TODO: Enable the "Fixed GUI" option  -- Some VS params have been updated; need to confirm
+	// TODO: Check that this works in SteamVR mode too -- confirmation needed.
+	// Ctrl-Z (Zoom-out mode) seems to work in DirectSBS mode
 	g_VSCBuffer.aspect_ratio      =  g_fAspectRatio;
 	g_VSCBuffer.z_override        = -1.0f;
 	g_VSCBuffer.sz_override       = -1.0f;
@@ -1439,7 +1440,16 @@ void PrimarySurface::DrawHUDVertices() {
 	//g_VSCBuffer.viewportScale[2] = 1.0f; // scale;
 	//g_VSCBuffer.viewportScale[3] = g_fGlobalScale;
 
-	g_PSCBuffer.brightness        = 1.0f;
+	// Reduce the scale for GUI elements, except for the HUD
+	g_VSCBuffer.viewportScale[3] = g_fGUIElemsScale;
+	// Enable the fixed GUI
+	if (g_bFixedGUI)
+		g_VSCBuffer.bFullTransform = 1.0f;
+	// Since the HUD is all rendered on a flat surface, so we lose vrparams that make the 3D object
+	// and text float
+	g_VSCBuffer.z_override = g_fFloatingGUIDepth;
+
+	g_PSCBuffer.brightness        = g_fBrightness;
 	g_PSCBuffer.bUseCoverTexture  = 0;
 	g_PSCBuffer.DynCockpitSlots   = 0;
 
@@ -2040,12 +2050,16 @@ HRESULT PrimarySurface::Flip(
 				Vector3 headPosFromKeyboard(g_HeadPos.x, g_HeadPos.y, g_HeadPos.z); // Regular keyboard functionality
 				//Vector3 headPosFromKeyboard(-g_HeadPos.x, g_HeadPos.y, -g_HeadPos.z);
 				
+				if (g_bResetHeadCenter) {
+					g_HeadPos = { 0 };
+					g_HeadPosAnim = { 0 };
+				}
+
 				if (ReadFreePIE(g_iFreePIESlot)) {
 					if (g_bResetHeadCenter) {
 						headCenter[0] = g_FreePIEData.x;
 						headCenter[1] = g_FreePIEData.y;
 						headCenter[2] = g_FreePIEData.z;
-						g_bResetHeadCenter = false;
 					}
 					Vector4 pos(g_FreePIEData.x, g_FreePIEData.y, g_FreePIEData.z, 1.0f);
 					yaw   = g_FreePIEData.yaw   * g_fYawMultiplier;
@@ -2056,7 +2070,11 @@ HRESULT PrimarySurface::Flip(
 					headPos = (pos - headCenter);
 				}
 
-				headPos[0] = headPos[0] * g_fPosXMultiplier + headPosFromKeyboard[0];
+				if (g_bResetHeadCenter)
+					g_bResetHeadCenter = false;
+
+				headPos[0] = headPos[0] * g_fPosXMultiplier + headPosFromKeyboard[0]; 
+				//headPos[0] = headPos[0] * g_fPosXMultiplier; // HACK to roll-through-keyboard
 				headPos[1] = headPos[1] * g_fPosYMultiplier + headPosFromKeyboard[1];
 				headPos[2] = headPos[2] * g_fPosZMultiplier + headPosFromKeyboard[2];
 
@@ -2088,7 +2106,8 @@ HRESULT PrimarySurface::Flip(
 				headPos = rotMatrixYaw * headPos;
 
 				g_viewMatrix.identity();
-				g_viewMatrix.rotateZ(roll);
+				g_viewMatrix.rotateZ(roll); 
+				//g_viewMatrix.rotateZ(roll + 30.0f * headPosFromKeyboard[0]); // HACK to enable roll-through keyboard
 				g_viewMatrix[12] = headPos[0];
 				g_viewMatrix[13] = headPos[1];
 				g_viewMatrix[14] = headPos[2];

@@ -122,6 +122,7 @@ const char *FLOATING_AIMING_HUD_VRPARAM = "floating_aiming_HUD";
 const char *NATURAL_CONCOURSE_ANIM_VRPARAM = "concourse_animations_at_25fps";
 const char *DYNAMIC_COCKPIT_TARGET_COMP_VRPARAM = "dynamic_cockpit_enabled";
 const char *FIXED_GUI_VRPARAM = "fixed_GUI";
+const char *STICKY_ARROW_KEYS_VRPARAM = "sticky_arrow_keys";
 // 6dof vrparams
 const char *FREEPIE_SLOT_VRPARAM = "freepie_slot";
 const char *ROLL_MULTIPLIER_VRPARAM = "roll_multiplier";
@@ -143,9 +144,9 @@ const char *YAW_OFFSET_CLPARAM       = "yaw_offset";
 const char *PITCH_OFFSET_CLPARAM     = "pitch_offset";
 
 // Dynamic Cockpit vrparams
-const char *DC_UV_COORDS_PARAM			= "uv_coords";
-const char *DC_COVER_TEX_NAME_PARAM		= "cover_texture";
-const char *DC_ERASE_COORDS_PARAM		= "erase_coords";
+const char *UV_COORDS_DCPARAM			= "uv_coords";
+const char *COVER_TEX_NAME_DCPARAM		= "cover_texture";
+const char *ERASE_COORDS_DCPARAM		= "erase_coords";
 const char *DC_TARGET_COMP_UV_COORDS_VRPARAM   = "dc_target_comp_uv_coords";
 const char *DC_LEFT_RADAR_UV_COORDS_VRPARAM    = "dc_left_radar_uv_coords";
 const char *DC_RIGHT_RADAR_UV_COORDS_VRPARAM   = "dc_right_radar_uv_coords";
@@ -192,6 +193,7 @@ float g_fPosZMultiplier  = DEFAULT_POS_Z_MULTIPLIER;
 float g_fMinPositionX = DEFAULT_MIN_POS_X, g_fMaxPositionX = DEFAULT_MAX_POS_X;
 float g_fMinPositionY = DEFAULT_MIN_POS_Y, g_fMaxPositionY = DEFAULT_MAX_POS_Y;
 float g_fMinPositionZ = DEFAULT_MIN_POS_Z, g_fMaxPositionZ = DEFAULT_MAX_POS_Z;
+bool g_bStickyArrowKeys = false;
 Vector3 g_headCenter; // The head's center: this value should be re-calibrated whenever we set the headset
 void projectSteamVR(float X, float Y, float Z, vr::EVREye eye, float &x, float &y, float &z);
 
@@ -346,12 +348,12 @@ void animTickX() {
 		g_HeadPosAnim.x -= ANIM_INCR;
 	else if (g_bLeftKeyDown)
 		g_HeadPosAnim.x += ANIM_INCR;
-	/*else if (!g_bRightKeyDown && !g_bLeftKeyDown) {
+	else if (!g_bRightKeyDown && !g_bLeftKeyDown && !g_bStickyArrowKeys) {
 		if (g_HeadPosAnim.x < 0.0001)
 			g_HeadPosAnim.x += ANIM_INCR;
 		if (g_HeadPosAnim.x > 0.0001)
 			g_HeadPosAnim.x -= ANIM_INCR;
-	}*/
+	}
 
 	// Range clamping
 	if (g_HeadPosAnim.x >  6.0f)  g_HeadPosAnim.x =  6.0f;
@@ -365,12 +367,12 @@ void animTickY() {
 		g_HeadPosAnim.y += ANIM_INCR;
 	else if (g_bUpKeyDown)
 		g_HeadPosAnim.y -= ANIM_INCR;
-	/*else if (!g_bDownKeyDown && !g_bUpKeyDown) {
+	else if (!g_bDownKeyDown && !g_bUpKeyDown && !g_bStickyArrowKeys) {
 		if (g_HeadPosAnim.y < 0.0001)
 			g_HeadPosAnim.y += ANIM_INCR;
 		if (g_HeadPosAnim.y > 0.0001)
 			g_HeadPosAnim.y -= ANIM_INCR;
-	}*/
+	}
 
 	// Range clamping
 	if (g_HeadPosAnim.y >  6.0f)  g_HeadPosAnim.y =  6.0f;
@@ -384,12 +386,12 @@ void animTickZ() {
 		g_HeadPosAnim.z -= ANIM_INCR;
 	else if (g_bUpKeyDownShift)
 		g_HeadPosAnim.z += ANIM_INCR;
-	/*else if (!g_bDownKeyDownShift && !g_bUpKeyDownShift) {
+	else if (!g_bDownKeyDownShift && !g_bUpKeyDownShift && !g_bStickyArrowKeys) {
 		if (g_HeadPosAnim.z < 0.0001)
 			g_HeadPosAnim.z += ANIM_INCR;
 		if (g_HeadPosAnim.z > 0.0001)
 			g_HeadPosAnim.z -= ANIM_INCR;
-	}*/
+	}
 
 	// Range clamping
 	if (g_HeadPosAnim.z >  6.0f)  g_HeadPosAnim.z =  6.0f;
@@ -569,6 +571,7 @@ void ResetVRParams() {
 	g_bNaturalConcourseAnimations = DEFAULT_NATURAL_CONCOURSE_ANIM;
 
 	g_fBrightness = DEFAULT_BRIGHTNESS;
+	g_bStickyArrowKeys = false;
 
 	g_bInterleavedReprojection = DEFAULT_INTERLEAVED_REPROJECTION;
 	if (g_bUseSteamVR)
@@ -832,26 +835,31 @@ bool LoadDynCockpitCoords(char *buf, uv_src_dst_coords *coords)
 	if (c != NULL) {
 		c += 1;
 		try {
-			res = sscanf_s(c, "%f, %f, %f, %f, %f, %f, "
+			res = sscanf_s(c, "%f, %f, %f, %f, %f, %f; "
 				"%f, %f, %f, %f, %f, %f",
 				&src_width, &src_height, &x0_src, &y0_src, &x1_src, &y1_src,
 				&dst_width, &dst_height, &x0_dst, &y0_dst, &x1_dst, &y1_dst);
+			if (res != 12) {
+				log_debug("[DBG] [DC] Error (skipping), expected 12 elements in '%s'", c);
+			} else {
+				//log_debug("[DBG] [DC] scanned %d from '%s'", res);
 
-			coords->src[idx].x0 = x0_src / src_width;
-			coords->src[idx].y0 = y0_src / src_height;
-			coords->src[idx].x1 = x1_src / src_width;
-			coords->src[idx].y1 = y1_src / src_height;
+				coords->src[idx].x0 = x0_src / src_width;
+				coords->src[idx].y0 = y0_src / src_height;
+				coords->src[idx].x1 = x1_src / src_width;
+				coords->src[idx].y1 = y1_src / src_height;
 
-			coords->dst[idx].x0 = x0_dst / dst_width;
-			coords->dst[idx].y0 = y0_dst / dst_height;
-			coords->dst[idx].x1 = x1_dst / dst_width;
-			coords->dst[idx].y1 = y1_dst / dst_height;
-			//log_debug("[DBG] %f, %f - %f, %f", coords->src[idx].x0, coords->src[idx].y0,
-			//	coords->src[idx].x1, coords->src[idx].y1);
-			coords->numCoords++;
+				coords->dst[idx].x0 = x0_dst / dst_width;
+				coords->dst[idx].y0 = y0_dst / dst_height;
+				coords->dst[idx].x1 = x1_dst / dst_width;
+				coords->dst[idx].y1 = y1_dst / dst_height;
+				//log_debug("[DBG] %f, %f - %f, %f", coords->src[idx].x0, coords->src[idx].y0,
+				//	coords->src[idx].x1, coords->src[idx].y1);
+				coords->numCoords++;
+			}
 		}
 		catch (...) {
-			log_debug("[DBG] Could not read uv coords from: %s", buf);
+			log_debug("[DBG] [DC] Could not read uv coords from: %s", buf);
 			return false;
 		}
 	}
@@ -892,6 +900,122 @@ bool LoadDynCockpitEraseCoords(char *buf, uv_coords *coords)
 			return false;
 		}
 	}
+	return true;
+}
+
+/* Loads the Dynamic Cockpit CFG file */
+bool LoadDCParams() {
+	log_debug("[DBG] Loading Dynamic Cockpit params...");
+	FILE *file;
+	int error = 0, line = 0;
+	static int lastDCElemSelected = -1;
+
+	try {
+		error = fopen_s(&file, "./dynamic_cockpit.cfg", "rt");
+	}
+	catch (...) {
+		log_debug("[DBG] Could not load dynamic_cockpit.cfg");
+	}
+
+	if (error != 0) {
+		log_debug("[DBG] Error %d when loading dynamic_cockpit.cfg", error);
+		return false;
+	}
+
+	char buf[256], param[128], svalue[128];
+	int param_read_count = 0;
+	float value = 0.0f;
+
+	// Reset the dynamic cockpit vector if we're not rendering in 3D
+	if (!g_bRendering3D && g_DCElements.size() > 0) {
+		log_debug("[DBG] [DC] Clearing g_DCElements");
+		ClearDynCockpitVector(g_DCElements);
+	}
+
+	while (fgets(buf, 256, file) != NULL) {
+		line++;
+		// Skip comments and blank lines
+		if (buf[0] == ';' || buf[0] == '#')
+			continue;
+		if (strlen(buf) == 0)
+			continue;
+
+		if (sscanf_s(buf, "%s = %s", param, 128, svalue, 128) > 0) {
+			value = (float)atof(svalue);
+
+			if (_stricmp(param, DYNAMIC_COCKPIT_TARGET_COMP_VRPARAM) == 0) {
+				g_bDynCockpitEnabled = (bool)value;
+				log_debug("[DBG] [DC] g_bDynCockpitEnabled: %d", g_bDynCockpitEnabled);
+			}
+			else if (buf[0] == '[') {
+				// This is a new DC element.
+				dc_element dc_elem;
+				strcpy_s(dc_elem.name, MAX_TEXTURE_NAME, buf + 1);
+				// Get rid of the trailing ']'
+				char *end = strstr(dc_elem.name, "]");
+				if (end != NULL)
+					*end = 0;
+				// See if we have this DC element already
+				lastDCElemSelected = isInVector(dc_elem.name, g_DCElements);
+				if (lastDCElemSelected > -1) {
+					g_DCElements[lastDCElemSelected].coords.numCoords = 0;
+					g_DCElements[lastDCElemSelected].eraseCoords.numCoords = 0;
+					log_debug("[DBG] [DC] Resetting coords of exisiting DC elem @ idx: %d", lastDCElemSelected);
+				}
+				else {
+					// Initialize this dc_elem:
+					dc_elem.coverTextureName[0] = 0;
+					dc_elem.coverTexture = NULL;
+					dc_elem.coords = { 0 };
+					dc_elem.eraseCoords = { 0 };
+					dc_elem.bActive = false;
+					g_DCElements.push_back(dc_elem);
+					lastDCElemSelected = (int)g_DCElements.size() - 1;
+					log_debug("[DBG] [DC] Adding new DC elem: '%s'", dc_elem.name);
+				}
+			}
+			else if (_stricmp(param, UV_COORDS_DCPARAM) == 0) {
+				if (g_DCElements.size() == 0) {
+					log_debug("[DBG] [DC] ERROR. Line %d, g_DCElements is empty, cannot add %s", line, param, UV_COORDS_DCPARAM);
+					continue;
+				}
+				if (lastDCElemSelected == -1) {
+					log_debug("[DBG] [DC] ERROR. Line %d, %s without a corresponding texture section.", line, UV_COORDS_DCPARAM);
+					continue;
+				}
+				if (LoadDynCockpitCoords(buf, &(g_DCElements[lastDCElemSelected].coords)))
+					log_debug("[DBG] [DC] Added uv_coords to '%s'", g_DCElements[lastDCElemSelected].name);
+				// CHECK
+				/*dc_element dc_elem = g_DCElements.back();
+				int i = dc_elem.coords.numCoords - 1;
+				log_debug("[DBG] coords-src: %f, %f - %f, %f",
+					dc_elem.coords.src[i].x0, dc_elem.coords.src[i].y0,
+					dc_elem.coords.src[i].x1, dc_elem.coords.src[i].y1);*/
+			}
+			else if (_stricmp(param, ERASE_COORDS_DCPARAM) == 0) {
+				if (g_DCElements.size() == 0) {
+					log_debug("[DBG] [DC] ERROR. Line %d, g_DCElements is empty, cannot add %s", line, param, ERASE_COORDS_DCPARAM);
+					continue;
+				}
+				if (lastDCElemSelected == -1) {
+					log_debug("[DBG] [DC] ERROR. Line %d, %s without a corresponding texture section.", line, ERASE_COORDS_DCPARAM);
+					continue;
+				}
+				if (LoadDynCockpitEraseCoords(buf, &(g_DCElements[lastDCElemSelected].eraseCoords)))
+					log_debug("[DBG] [DC] Added erase_coords to '%s'", g_DCElements[lastDCElemSelected].name);
+			}
+			else if (_stricmp(param, COVER_TEX_NAME_DCPARAM) == 0) {
+				if (lastDCElemSelected == -1) {
+					log_debug("[DBG] [DC] ERROR. Line %d, %s without a corresponding texture section.", line, COVER_TEX_NAME_DCPARAM);
+					continue;
+				}
+				strcpy_s(g_DCElements[lastDCElemSelected].coverTextureName, MAX_TEXTURE_NAME, svalue);
+				const dc_element dc_elem = g_DCElements[lastDCElemSelected];
+				log_debug("[DBG] [DC] '%s' covered by '%s'", dc_elem.name, dc_elem.coverTextureName);
+			}
+		}
+	}
+	fclose(file);
 	return true;
 }
 
@@ -1001,6 +1125,9 @@ void LoadVRParams() {
 			else if (_stricmp(param, BRIGHTNESS_VRPARAM) == 0) {
 				g_fBrightness = value;
 			}
+			else if (_stricmp(param, STICKY_ARROW_KEYS_VRPARAM) == 0) {
+				g_bStickyArrowKeys = (bool)value;
+			}
 			else if (_stricmp(param, VR_MODE_VRPARAM) == 0) {
 				if (_stricmp(svalue, VR_MODE_NONE_SVAL) == 0) {
 					//g_VRMode = VR_MODE_NONE;
@@ -1078,77 +1205,6 @@ void LoadVRParams() {
 				g_bSteamVRPosFromFreePIE = (bool)value;
 			}
 
-			// Dynamic Cockpit params
-			else if (_stricmp(param, DYNAMIC_COCKPIT_TARGET_COMP_VRPARAM) == 0) {
-				g_bDynCockpitEnabled = (bool)value;
-				log_debug("[DBG] [DC] vrparam: g_bDynCockpitEnabled: %d", g_bDynCockpitEnabled);
-			}
-			else if (buf[0] == '[') {
-				// This is a new DC element.
-				dc_element dc_elem;
-				strcpy_s(dc_elem.name, MAX_TEXTURE_NAME, buf + 1);
-				// Get rid of the trailing ']'
-				char *end = strstr(dc_elem.name, "]");
-				if (end != NULL)
-					*end = 0;
-				// See if we have this DC element already
-				lastDCElemSelected = isInVector(dc_elem.name, g_DCElements);
-				if (lastDCElemSelected > -1) {
-					g_DCElements[lastDCElemSelected].coords.numCoords = 0;
-					g_DCElements[lastDCElemSelected].eraseCoords.numCoords = 0;
-					log_debug("[DBG] [DC] Resetting coords of exisiting DC elem @ idx: %d", lastDCElemSelected);
-				} else {
-					// Initialize this dc_elem:
-					dc_elem.coverTextureName[0] = 0;
-					dc_elem.coverTexture = NULL;
-					dc_elem.coords = { 0 };
-					dc_elem.eraseCoords = { 0 };
-					dc_elem.bActive = false;
-					g_DCElements.push_back(dc_elem);
-					lastDCElemSelected = (int)g_DCElements.size() - 1;
-					log_debug("[DBG] [DC] Adding new DC elem: '%s'", dc_elem.name);
-				}
-			}
-			else if (_stricmp(param, DC_UV_COORDS_PARAM) == 0) {
-				if (g_DCElements.size() == 0) {
-					log_debug("[DBG] [DC] ERROR. Line %d, g_DCElements is empty, cannot add %s", line, param, DC_UV_COORDS_PARAM);
-					continue;
-				}
-				if (lastDCElemSelected == -1) {
-					log_debug("[DBG] [DC] ERROR. Line %d, %s without a corresponding texture section.", line, DC_UV_COORDS_PARAM);
-					continue;
-				}
-				if (LoadDynCockpitCoords(buf, &(g_DCElements[lastDCElemSelected].coords)))
-					log_debug("[DBG] [DC] Added uv_coords to '%s'", g_DCElements[lastDCElemSelected].name);
-				// CHECK
-				/*dc_element dc_elem = g_DCElements.back();
-				int i = dc_elem.coords.numCoords - 1;
-				log_debug("[DBG] coords-src: %f, %f - %f, %f",
-					dc_elem.coords.src[i].x0, dc_elem.coords.src[i].y0,
-					dc_elem.coords.src[i].x1, dc_elem.coords.src[i].y1);*/
-			}
-			else if (_stricmp(param, DC_ERASE_COORDS_PARAM) == 0) {
-				if (g_DCElements.size() == 0) {
-					log_debug("[DBG] [DC] ERROR. Line %d, g_DCElements is empty, cannot add %s", line, param, DC_ERASE_COORDS_PARAM);
-					continue;
-				}
-				if (lastDCElemSelected == -1) {
-					log_debug("[DBG] [DC] ERROR. Line %d, %s without a corresponding texture section.", line, DC_ERASE_COORDS_PARAM);
-					continue;
-				}
-				if (LoadDynCockpitEraseCoords(buf, &(g_DCElements[lastDCElemSelected].eraseCoords)))
-					log_debug("[DBG] [DC] Added erase_coords to '%s'", g_DCElements[lastDCElemSelected].name);
-			}
-			else if (_stricmp(param, DC_COVER_TEX_NAME_PARAM) == 0) {
-				if (lastDCElemSelected == -1) {
-					log_debug("[DBG] [DC] ERROR. Line %d, %s without a corresponding texture section.", line, DC_COVER_TEX_NAME_PARAM);
-					continue;
-				}
-				strcpy_s(g_DCElements[lastDCElemSelected].coverTextureName, MAX_TEXTURE_NAME, svalue);
-				const dc_element dc_elem = g_DCElements[lastDCElemSelected];
-				log_debug("[DBG] [DC] '%s' covered by '%s'", dc_elem.name, dc_elem.coverTextureName);
-			}
-
 			/*
 			// ReShade state
 			else if (_stricmp(param, BLOOM_ENABLED_VRPARAM) == 0) {
@@ -1171,6 +1227,8 @@ next:
 	ReloadCRCs();
 	// Load cockpit look params
 	LoadCockpitLookParams();
+	// Load Dynamic Cockpit params
+	LoadDCParams();
 }
 
 /*
@@ -2948,12 +3006,9 @@ HRESULT Direct3DDevice::Execute(
 					//*g_playerInHangar = 1;
 					// We're about to render the scaleable HUD, time to clear the dynamic cockpit texture
 					if (g_bDynCockpitEnabled) {
-						//float bgColor[4] = { 0.1f, 0.1f, 0.2f, 0.0f };
 						float bgColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-						//float bgColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-						//context->ClearRenderTargetView(resources->_renderTargetViewDynCockpit, resources->clearColor);
 						context->ClearRenderTargetView(resources->_renderTargetViewDynCockpit, bgColor);
-						//log_debug("[DBG] CLEARING DYN COCKPIT RTV");
+						// I think we need to clear the depth buffer here so that the targeted craft is drawn properly
 						context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
 					}
 				}

@@ -536,7 +536,7 @@ HRESULT Direct3DTexture::Load(
 
 			int idx = isInVector(surface->_name, g_DCElements);
 			if (idx > -1) {
-				log_debug("[DBG] [Dyn] '%s' found in '%s'", g_DCElements[idx].name, surface->_name);
+				//log_debug("[DBG] [Dyn] '%s' found in '%s'", g_DCElements[idx].name, surface->_name);
 				// "light" and "color" textures are processed differently
 				if (strstr(surface->_name, "color") != NULL) {
 					// This texture is a Dynamic Cockpit destination texture
@@ -564,7 +564,7 @@ HRESULT Direct3DTexture::Load(
 				}
 				else if (strstr(surface->_name, "light") != NULL) {
 					this->is_DynCockpitAlphaOverlay = true;
-					log_debug("[DBG] [Dyn] This is an alpha overlay texture");
+					//log_debug("[DBG] [Dyn] This is an alpha overlay texture");
 				}
 			}
 
