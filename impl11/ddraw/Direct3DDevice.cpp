@@ -3161,6 +3161,14 @@ HRESULT Direct3DDevice::Execute(
 
 				// Early exit 1: Render the HUD/GUI to the Dynamic Cockpit (BG) RTV and continue
 				if (bRenderToDynCockpitBuffer || bRenderToDynCockpitBGBuffer) {
+					// Looks like we don't need to restore the blend/depth state
+					//D3D11_BLEND_DESC curBlendDesc = _renderStates->GetBlendDesc();
+					//D3D11_DEPTH_STENCIL_DESC curDepthDesc = _renderStates->GetDepthStencilDesc();
+					//if (!g_bPrevIsFloatingGUI3DObject && g_bIsFloating3DObject) {
+						// The targeted craft is about to be drawn! Clear both depth stencils?
+						//context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
+					//}
+
 					// Restore the non-VR dimensions:
 					g_VSCBuffer.viewportScale[0] =  2.0f / displayWidth;
 					g_VSCBuffer.viewportScale[1] = -2.0f / displayHeight;
@@ -3178,10 +3186,13 @@ HRESULT Direct3DDevice::Execute(
 					else
 						context->OMSetRenderTargets(1, resources->_renderTargetViewDynCockpit.GetAddressOf(),
 							resources->_depthStencilViewL.Get());
+					// Enable Z-Buffer if we're drawing the targeted craft
+					if (g_bIsFloating3DObject)
+						QuickSetZWriteEnabled(TRUE);
 					// Render
 					context->DrawIndexed(3 * instruction->wCount, currentIndexLocation, 0);
 
-					// Restore the regular texture, RTV and vertex shader:
+					// Restore the regular texture, RTV, shaders, etc:
 					context->PSSetShaderResources(0, 1, lastTextureSelected->_textureView.GetAddressOf());
 					context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
 						resources->_depthStencilViewL.Get());
@@ -3199,6 +3210,9 @@ HRESULT Direct3DDevice::Execute(
 					g_PSCBuffer.brightness = MAX_BRIGHTNESS;
 					//g_PSCBuffer.bAlphaOnly = 0;
 					resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
+					// Restore the original blend state
+					//if (g_bIsFloating3DObject)
+					//	hr = resources->InitBlendState(nullptr, &curBlendDesc);
 					goto out;
 				}
 
@@ -3228,10 +3242,6 @@ HRESULT Direct3DDevice::Execute(
 				/********************************************************************
 				   Modify the state of the render for VR
 				 ********************************************************************/
-
-				/* if (bRenderToDynCockpitBuffer) {
-					goto apply_constant_buffers;
-				} */
 
 				// Elements that are drawn with ZBuffer disabled:
 				// * All GUI HUD elements except for the targetting computer (why?)

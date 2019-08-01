@@ -1384,16 +1384,18 @@ void PrimarySurface::ClearHUDRegions() {
 	int size = (int)g_DCElements.size();
 	for (int i = 0; i < size; i++) {
 		dc_element *dc_elem = &g_DCElements[i];
-		if (!dc_elem->bNameHasBeenTested)
+		if (g_sCurrentCockpit[0] != 0 && !dc_elem->bNameHasBeenTested)
 		{
 			if (strstr(dc_elem->name, g_sCurrentCockpit) != NULL) {
 				dc_elem->bActive = true;
 				dc_elem->bNameHasBeenTested = true;
+				//log_debug("[DBG] [DC] ACTIVATED: '%s'", dc_elem->name);
 			}
 		}
 		// Only clear HUD regions for active dc_elements
 		if (!dc_elem->bActive)
 			continue;
+
 		int numCoords = dc_elem->eraseCoords.numCoords;
 		for (int j = 0; j < numCoords; j++)
 			ClearBox(dc_elem->eraseCoords.src[j], &viewport, 0);
@@ -1479,13 +1481,13 @@ void PrimarySurface::DrawHUDVertices() {
 	resources->InitVertexBuffer(&g_HUDVertexBuffer, &stride, &offset);
 	resources->InitInputLayout(resources->_inputLayout);
 	if (g_bEnableVR)
-		this->_deviceResources->InitVertexShader(resources->_sbsVertexShader);
+		resources->InitVertexShader(resources->_sbsVertexShader);
 	else
 		// The original code used _vertexShader:
-		this->_deviceResources->InitVertexShader(resources->_vertexShader);
-	this->_deviceResources->InitPixelShader(resources->_pixelShaderTexture);
-	this->_deviceResources->InitTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	this->_deviceResources->InitRasterizerState(resources->_rasterizerState);
+		resources->InitVertexShader(resources->_vertexShader);
+	resources->InitPixelShader(resources->_pixelShaderTexture);
+	resources->InitTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	resources->InitRasterizerState(resources->_rasterizerState);
 
 	// Temporarily disable ZWrite: we won't need it to display the HUD
 	D3D11_DEPTH_STENCIL_DESC desc;
