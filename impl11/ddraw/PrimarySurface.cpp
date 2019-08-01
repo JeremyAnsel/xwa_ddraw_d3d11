@@ -1349,7 +1349,15 @@ void PrimarySurface::ClearBox(uvfloat4 box, D3D11_VIEWPORT *viewport, D3DCOLOR c
 	resources->InitVertexShader(resources->_passthroughVertexShader);
 	resources->InitPixelShader(resources->_pixelShaderSolid);
 	// Change the render target
-	context->OMSetRenderTargets(1, resources->_renderTargetViewDynCockpitAsInput.GetAddressOf(), NULL);
+	// Set two RTVs: one for the foreground HUD and one for the HUD background
+	// Binding 2 RTVs implies that _pixelShaderSolid can output to 2 SV_TARGETs
+	ID3D11RenderTargetView *rtvs[2] = {
+		resources->_renderTargetViewDynCockpitAsInput.Get(),
+		resources->_renderTargetViewDynCockpitAsInputBG.Get() 
+	};
+	context->OMSetRenderTargets(2, rtvs, NULL);
+	//context->OMSetRenderTargets(1, resources->_renderTargetViewDynCockpitAsInput.GetAddressOf(), NULL);
+	//context->OMSetRenderTargets(1, resources->_renderTargetViewDynCockpitAsInputBG.GetAddressOf(), NULL);
 	// Set the viewport
 	resources->InitViewport(viewport);
 	// Set the vertex buffer (map the vertices from the box)
@@ -1449,9 +1457,11 @@ void PrimarySurface::DrawHUDVertices() {
 	// and text float
 	g_VSCBuffer.z_override = g_fFloatingGUIDepth;
 
-	g_PSCBuffer.brightness        = g_fBrightness;
+	//g_PSCBuffer.brightness        = g_fBrightness;
+	g_PSCBuffer.brightness		  = 1.0f; // TODO: Check if g_fBrightness is already applied when the textures are rendered
 	g_PSCBuffer.bUseCoverTexture  = 0;
 	g_PSCBuffer.DynCockpitSlots   = 0;
+	g_PSCBuffer.bRenderHUD		  = 1;
 
 	resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 	resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
@@ -1485,10 +1495,8 @@ void PrimarySurface::DrawHUDVertices() {
 	// Render the left image
 	if (g_bUseSteamVR)
 		context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(), NULL);
-	//resources->_depthStencilViewL.Get());
 	else
 		context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(), NULL);
-			//resources->_depthStencilViewL.Get());
 	// VIEWPORT-LEFT
 	if (g_bEnableVR) {
 		if (g_bUseSteamVR) {
@@ -1510,8 +1518,9 @@ void PrimarySurface::DrawHUDVertices() {
 	g_VSMatrixCB.projEye = g_fullMatrixLeft;
 	// The viewMatrix is set at the beginning of the frame
 	resources->InitVSConstantBufferMatrix(resources->_VSMatrixBuffer.GetAddressOf(), &g_VSMatrixCB);
-	//_offscreenBufferAsInputDynCockpit
+	// Set the HUD foreground and background textures:
 	context->PSSetShaderResources(0, 1, resources->_offscreenAsInputSRVDynCockpit.GetAddressOf());
+	context->PSSetShaderResources(1, 1, resources->_offscreenAsInputSRVDynCockpitBG.GetAddressOf());
 	// Draw the Left Image
 	context->Draw(6, 0);
 
@@ -1886,6 +1895,19 @@ HRESULT PrimarySurface::Flip(
 			if (g_bDynCockpitEnabled) {
 				// Clear everything we don't want to display from the HUD
 				ClearHUDRegions();
+
+				/*
+				static bool bDumped = false;
+				if (!bDumped && g_iPresentCounter == 100) {
+					hr = DirectX::SaveWICTextureToFile(context.Get(),
+						resources->_offscreenBufferAsInputDynCockpit.Get(), GUID_ContainerFormatPng, L"c://temp//HUD-FG.png");
+					hr = DirectX::SaveWICTextureToFile(context.Get(),
+						resources->_offscreenBufferAsInputDynCockpitBG.Get(), GUID_ContainerFormatPng, L"c://temp//HUD-BG.png");
+					log_debug("[DBG] Dumping offscreenBufferDynCockpitBG");
+					bDumped = true;
+				}
+				*/
+
 				// Display the HUD
 				DrawHUDVertices();
 			}
@@ -1939,13 +1961,16 @@ HRESULT PrimarySurface::Flip(
 			if (g_bDynCockpitEnabled) {
 				_deviceResources->_d3dDeviceContext->ResolveSubresource(_deviceResources->_offscreenBufferAsInputDynCockpit,
 					0, _deviceResources->_offscreenBufferDynCockpit, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+				_deviceResources->_d3dDeviceContext->ResolveSubresource(_deviceResources->_offscreenBufferAsInputDynCockpitBG,
+					0, _deviceResources->_offscreenBufferDynCockpitBG, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
 
 				/*
-				if (!g_DynCockpitBoxes.LasersLimitsComputed && g_iPresentCounter == 10) { // The limits for the laser boxes were not updated in the last frame, stop updating it
-					g_DynCockpitBoxes.LasersLimitsComputed = true;
-					log_debug("[DBG] Lasers Indicator FINAL limits: (%0.3f, %0.3f)-(%0.3f, %0.3f)",
-						g_DynCockpitBoxes.LasersBox.left, g_DynCockpitBoxes.LasersBox.top,
-						g_DynCockpitBoxes.LasersBox.right, g_DynCockpitBoxes.LasersBox.bottom);
+				static bool bDumped = false;
+				if (!bDumped && g_iPresentCounter == 100) {
+					hr = DirectX::SaveWICTextureToFile(context.Get(),
+						resources->_offscreenBufferAsInputDynCockpitBG.Get(), GUID_ContainerFormatPng, L"c://temp//HUD-BG.png");
+					log_debug("[DBG] Dumping offscreenBufferDynCockpitBG");
+					bDumped = true;
 				}
 				*/
 			}

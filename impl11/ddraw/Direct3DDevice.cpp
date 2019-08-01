@@ -2623,6 +2623,8 @@ HRESULT Direct3DDevice::Execute(
 	g_PSCBuffer.brightness       = MAX_BRIGHTNESS;
 	g_PSCBuffer.DynCockpitSlots  = 0;
 	g_PSCBuffer.bUseCoverTexture = 0;
+	g_PSCBuffer.bRenderHUD		 = 0;
+	//g_PSCBuffer.bAlphaOnly		 = 0;
 
 	// Save the current viewMatrix: if the Dynamic Cockpit is enabled, we'll need it later to restore the transform
 	Matrix4 currentViewMat = g_VSMatrixCB.viewMat;
@@ -3014,6 +3016,7 @@ HRESULT Direct3DDevice::Execute(
 				}
 				bool bRenderToDynCockpitBuffer = g_bDynCockpitEnabled && lastTextureSelected != NULL &&
 					g_bScaleableHUDStarted && g_bIsScaleableGUIElem;
+				bool bRenderToDynCockpitBGBuffer = false;
 
 				/*************************************************************************
 					State management ends here
@@ -3027,11 +3030,12 @@ HRESULT Direct3DDevice::Execute(
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL &&
 					lastTextureSelected->crc == DYN_COCKPIT_LEFT_RADAR_SRC_CRC)
 				{
+					bRenderToDynCockpitBGBuffer = true;
 					// Replace this element with our own round radar HUD texture
-					if (g_NewHUDLeftRadar != NULL)
-						context->PSSetShaderResources(0, 1, g_NewHUDLeftRadar.GetAddressOf());
-					else
-						goto out;
+					//if (g_NewHUDLeftRadar != NULL)
+					//	context->PSSetShaderResources(0, 1, g_NewHUDLeftRadar.GetAddressOf());
+					//else
+					//	goto out;
 				}
 
 				// Replace the right radar background:
@@ -3039,26 +3043,27 @@ HRESULT Direct3DDevice::Execute(
 					(lastTextureSelected->crc == DYN_COCKPIT_RIGHT_RADAR_SRC_CRC ||
 					 lastTextureSelected->crc == DYN_COCKPIT_RIGHT_RADAR_2_SRC_CRC))
 				{
+					bRenderToDynCockpitBGBuffer = true;
 					// Replace this element with our own round radar HUD texture
-					if (g_NewHUDRightRadar != NULL)
-						context->PSSetShaderResources(0, 1, g_NewHUDRightRadar.GetAddressOf());
-					else
-						goto out;
+					//if (g_NewHUDRightRadar != NULL)
+					//	context->PSSetShaderResources(0, 1, g_NewHUDRightRadar.GetAddressOf());
+					//else
+					//	goto out;
 				}
 
 				// Skip HUD background elements
-				if (g_bDynCockpitEnabled && lastTextureSelected != NULL) 
-					if (lastTextureSelected->crc == DYN_COCKPIT_SOLID_MSG_SRC_CRC   ||
-						lastTextureSelected->crc == DYN_COCKPIT_BORDER_MSG_SRC_CRC  ||
+				if (g_bDynCockpitEnabled && lastTextureSelected != NULL)
+					if (lastTextureSelected->crc == DYN_COCKPIT_SOLID_MSG_SRC_CRC ||
+						lastTextureSelected->crc == DYN_COCKPIT_BORDER_MSG_SRC_CRC ||
 						lastTextureSelected->crc == DYN_COCKPIT_TARGET_COMP_SRC_CRC ||
-						lastTextureSelected->crc == DYN_COCKPIT_SHIELDS_SRC_CRC     ||
-						lastTextureSelected->crc == DYN_COCKPIT_LASER_BOX_SRC_CRC   ||
-						lastTextureSelected->crc == DYN_COCKPIT_ION_BOX_SRC_CRC     ||
-						lastTextureSelected->crc == DYN_COCKPIT_TOP_LEFT_SRC_CRC    ||
-						lastTextureSelected->crc == DYN_COCKPIT_TOP_RIGHT_SRC_CRC   ||
+						lastTextureSelected->crc == DYN_COCKPIT_SHIELDS_SRC_CRC ||
+						lastTextureSelected->crc == DYN_COCKPIT_LASER_BOX_SRC_CRC ||
+						lastTextureSelected->crc == DYN_COCKPIT_ION_BOX_SRC_CRC ||
+						lastTextureSelected->crc == DYN_COCKPIT_TOP_LEFT_SRC_CRC ||
+						lastTextureSelected->crc == DYN_COCKPIT_TOP_RIGHT_SRC_CRC ||
 						lastTextureSelected->crc == DYN_COCKPIT_BEAM_BOX_SRC_CRC)
 						// Don't render these elements
-						goto out;
+						bRenderToDynCockpitBGBuffer = true;
 
 				//if (bIsNoZWrite && _renderStates->GetZFunc() == D3DCMP_GREATER) {
 				//	goto out;
@@ -3117,7 +3122,7 @@ HRESULT Direct3DDevice::Execute(
 				// _offscreenAsInputSRVDynCockpit is resolved in PrimarySurface.cpp, right before we
 				// present the backbuffer. That prevents resolving the texture multiple times (and we
 				// also don't have to resolve it here).
-				// Replace the targeting computer texture with our own at run-time:
+				// Replace the destination textures with our own at run-time:
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitDst)
 				{
 					int idx = lastTextureSelected->DCElementIndex;
@@ -3152,29 +3157,28 @@ HRESULT Direct3DDevice::Execute(
 					}
 				}
 
-				// Early exit 1: Render the HUD/GUI to the Dynamic Cockpit RTV and continue
-				if (bRenderToDynCockpitBuffer) {
+				// Early exit 1: Render the HUD/GUI to the Dynamic Cockpit (BG) RTV and continue
+				if (bRenderToDynCockpitBuffer || bRenderToDynCockpitBGBuffer) {
 					// Restore the non-VR dimensions:
 					g_VSCBuffer.viewportScale[0] =  2.0f / displayWidth;
 					g_VSCBuffer.viewportScale[1] = -2.0f / displayHeight;
 					// Apply the brightness settings to the pixel shader
 					g_PSCBuffer.brightness = g_fBrightness;
-
-					/* viewport.TopLeftX = (float)left;
-					viewport.TopLeftY = (float)top;
-					viewport.Width    = (float)width;
-					viewport.Height   = (float)height;
-					viewport.MinDepth = D3D11_MIN_DEPTH;
-					viewport.MaxDepth = D3D11_MAX_DEPTH; */
+					//g_PSCBuffer.bAlphaOnly = 1;
 					resources->InitViewport(&g_nonVRViewport);
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 					resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 					// Set the original vertex buffer and dynamic cockpit RTV:
 					resources->InitVertexShader(resources->_vertexShader);
-					context->OMSetRenderTargets(1, resources->_renderTargetViewDynCockpit.GetAddressOf(),
-						resources->_depthStencilViewL.Get());
+					if (bRenderToDynCockpitBGBuffer)
+						context->OMSetRenderTargets(1, resources->_renderTargetViewDynCockpitBG.GetAddressOf(),
+							resources->_depthStencilViewL.Get());
+					else
+						context->OMSetRenderTargets(1, resources->_renderTargetViewDynCockpit.GetAddressOf(),
+							resources->_depthStencilViewL.Get());
 					// Render
 					context->DrawIndexed(3 * instruction->wCount, currentIndexLocation, 0);
+
 					// Restore the regular texture, RTV and vertex shader:
 					context->PSSetShaderResources(0, 1, lastTextureSelected->_textureView.GetAddressOf());
 					context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(),
@@ -3191,6 +3195,7 @@ HRESULT Direct3DDevice::Execute(
 
 					// Restore the Pixel Shader constant buffers:
 					g_PSCBuffer.brightness = MAX_BRIGHTNESS;
+					//g_PSCBuffer.bAlphaOnly = 0;
 					resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 					goto out;
 				}
@@ -3442,6 +3447,8 @@ HRESULT Direct3DDevice::Execute(
 					g_PSCBuffer.brightness        = MAX_BRIGHTNESS;
 					g_PSCBuffer.bUseCoverTexture  = 0;
 					g_PSCBuffer.DynCockpitSlots   = 0;
+					g_PSCBuffer.bRenderHUD		  = 0;
+					//g_PSCBuffer.bAlphaOnly		  = 0;
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 					resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 				}

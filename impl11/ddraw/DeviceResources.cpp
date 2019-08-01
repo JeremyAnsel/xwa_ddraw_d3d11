@@ -44,6 +44,7 @@
 #include <WICTextureLoader.h>
 #include <headers/openvr.h>
 #include <vector>
+#include <assert.h>
 
 bool g_bWndProcReplaced = false;
 bool ReplaceWindowProc(HWND ThisWindow);
@@ -536,10 +537,15 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			}
 		}
 		this->_renderTargetViewDynCockpit.Release();
+		this->_renderTargetViewDynCockpitBG.Release();
 		this->_renderTargetViewDynCockpitAsInput.Release();
+		this->_renderTargetViewDynCockpitAsInputBG.Release();
 		this->_offscreenBufferDynCockpit.Release();
+		this->_offscreenBufferDynCockpitBG.Release();
 		this->_offscreenBufferAsInputDynCockpit.Release();
+		this->_offscreenBufferAsInputDynCockpitBG.Release();
 		this->_offscreenAsInputSRVDynCockpit.Release();
+		this->_offscreenAsInputSRVDynCockpitBG.Release();
 	}
 	if (g_bReshadeEnabled) {
 		this->_offscreenBufferAsInputReshade.Release();
@@ -718,6 +724,15 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 				log_err_desc(step, hWnd, hr, desc);
 				goto out;
 			}
+
+			step = "_offscreenBufferDynCockpitBG";
+			// _offscreenBufferDynCockpit should be just like offscreenBuffer because it will be used as a renderTarget
+			hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBufferDynCockpitBG);
+			if (FAILED(hr)) {
+				log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
+				log_err_desc(step, hWnd, hr, desc);
+				goto out;
+			}
 		}
 
 		if (g_bUseSteamVR) {
@@ -847,11 +862,12 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		if (g_bDynCockpitEnabled) {
 			// This guy should be the last one to be created because it modifies the BindFlags
 			// _offscreenBufferAsInputDynCockpit should have the same properties as _offscreenBufferAsInput
-			step = "_offscreenBufferAsInputDynCockpit";
 			UINT curFlags = desc.BindFlags;
 			desc.BindFlags |= D3D11_BIND_RENDER_TARGET;
 			log_err("_offscreenBufferAsInputDynCockpit: Added D3D11_BIND_RENDER_TARGET flag\n");
 			log_err("Flags: 0x%x\n", desc.BindFlags);
+
+			step = "_offscreenBufferAsInputDynCockpit";
 			hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBufferAsInputDynCockpit);
 			if (FAILED(hr)) {
 				log_err("Failed to create _offscreenBufferAsInputDynCockpit, error: 0x%x\n", hr);
@@ -862,6 +878,19 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			} else {
 				log_err("Successfully created _offscreenBufferAsInputDynCockpit with combined flags\n");
 			}
+
+			step = "_offscreenBufferAsInputDynCockpitBG";
+			hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBufferAsInputDynCockpitBG);
+			if (FAILED(hr)) {
+				log_err("Failed to create _offscreenBufferAsInputDynCockpitBG, error: 0x%x\n", hr);
+				log_err("GetDeviceRemovedReason: 0x%x\n", this->_d3dDevice->GetDeviceRemovedReason());
+				log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
+				log_err_desc(step, hWnd, hr, desc);
+				goto out;
+			} else {
+				log_err("Successfully created _offscreenBufferAsInputDynCockpitBG with combined flags\n");
+			}
+
 			// Restore the previous bind flags, just in case there is a dependency on these later on
 			desc.BindFlags = curFlags;
 		}
@@ -927,10 +956,19 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		}
 
 		if (g_bDynCockpitEnabled) {
-			// Create the shader resource view for _offscreenBufferAsInputDynCockpit
-			step = "offscreenTargetCompAsInputShaderResourceView";
+			// Create the SRSV for _offscreenBufferAsInputDynCockpit
+			step = "_offscreenBufferAsInputDynCockpit";
 			hr = this->_d3dDevice->CreateShaderResourceView(this->_offscreenBufferAsInputDynCockpit,
 				&shaderResourceViewDesc, &this->_offscreenAsInputSRVDynCockpit);
+			if (FAILED(hr)) {
+				log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
+				log_shaderres_view(step, hWnd, hr, shaderResourceViewDesc);
+				goto out;
+			}
+			// Create the SRV for _offscreenBufferAsInputDynCockpitBG
+			step = "_offscreenBufferAsInputDynCockpitBG";
+			hr = this->_d3dDevice->CreateShaderResourceView(this->_offscreenBufferAsInputDynCockpitBG,
+				&shaderResourceViewDesc, &this->_offscreenAsInputSRVDynCockpitBG);
 			if (FAILED(hr)) {
 				log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
 				log_shaderres_view(step, hWnd, hr, shaderResourceViewDesc);
@@ -975,11 +1013,21 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			hr = this->_d3dDevice->CreateRenderTargetView(this->_offscreenBufferDynCockpit, &renderTargetViewDesc, &this->_renderTargetViewDynCockpit);
 			if (FAILED(hr)) goto out;
 
+			step = "_renderTargetViewDynCockpitBG";
+			hr = this->_d3dDevice->CreateRenderTargetView(this->_offscreenBufferDynCockpitBG, &renderTargetViewDesc, &this->_renderTargetViewDynCockpitBG);
+			if (FAILED(hr)) goto out;
+
 			CD3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDescNoMSAA(D3D11_RTV_DIMENSION_TEXTURE2D);
 			step = "_renderTargetViewDynCockpitAsInput";
 			// This RTV writes to a non-MSAA texture
 			hr = this->_d3dDevice->CreateRenderTargetView(this->_offscreenBufferAsInputDynCockpit, &renderTargetViewDescNoMSAA,
 				&this->_renderTargetViewDynCockpitAsInput);
+			if (FAILED(hr)) goto out;
+
+			step = "_renderTargetViewDynCockpitAsInputBG";
+			// This RTV writes to a non-MSAA texture
+			hr = this->_d3dDevice->CreateRenderTargetView(this->_offscreenBufferAsInputDynCockpitBG, &renderTargetViewDescNoMSAA,
+				&this->_renderTargetViewDynCockpitAsInputBG);
 			if (FAILED(hr)) goto out;
 		}
 
@@ -1353,6 +1401,7 @@ HRESULT DeviceResources::LoadResources()
 
 	// Create the constant buffer for the (3D) textured pixel shader
 	constantBufferDesc.ByteWidth = 160;
+	assert(constantBufferDesc.ByteWidth == sizeof(PixelShaderCBuffer));
 	//log_debug("[DBG] PixelShaderCBuffer size: %d", sizeof(PixelShaderCBuffer));
 	if (FAILED(hr = this->_d3dDevice->CreateBuffer(&constantBufferDesc, nullptr, &this->_PSConstantBuffer)))
 		return hr;

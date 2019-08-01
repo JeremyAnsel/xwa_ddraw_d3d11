@@ -79,7 +79,10 @@ typedef struct PixelShaderCBStruct {
 	float brightness;			// Used to control the brightness of some elements -- mostly for ReShade compatibility
 	uint32_t DynCockpitSlots;
 	uint32_t bUseCoverTexture;
-	uint32_t unused;
+	uint32_t bRenderHUD;
+
+	//uint32_t bAlphaOnly;
+	//uint32_t unused[3];
 
 	float bgColor[4];   // Background color (dynamic cockpit)
 
@@ -166,10 +169,12 @@ public:
 	ComPtr<ID3D11Texture2D> _backBuffer;
 	ComPtr<ID3D11Texture2D> _offscreenBuffer;
 	ComPtr<ID3D11Texture2D> _offscreenBufferR; // When SteamVR is used, _offscreenBuffer becomes the left eye and this one becomes the right eye
-	ComPtr<ID3D11Texture2D> _offscreenBufferDynCockpit; // Used to render the targeting computer dynamically <-- Need to re-check this claim
+	ComPtr<ID3D11Texture2D> _offscreenBufferDynCockpit;   // Used to render the targeting computer dynamically <-- Need to re-check this claim
+	ComPtr<ID3D11Texture2D> _offscreenBufferDynCockpitBG; // Used to render the targeting computer dynamically <-- Need to re-check this claim
 	ComPtr<ID3D11Texture2D> _offscreenBufferAsInput;
 	ComPtr<ID3D11Texture2D> _offscreenBufferAsInputR; // When SteamVR is used, this is the right eye as input buffer
-	ComPtr<ID3D11Texture2D> _offscreenBufferAsInputDynCockpit;
+	ComPtr<ID3D11Texture2D> _offscreenBufferAsInputDynCockpit;   // HUD elements buffer
+	ComPtr<ID3D11Texture2D> _offscreenBufferAsInputDynCockpitBG; // HUD element backgrounds buffer
 	ComPtr<ID3D11Texture2D> _offscreenBufferAsInputReshade;
 	ComPtr<ID3D11Texture2D> _offscreenBufferPost; // This is the output of the barrel effect
 	ComPtr<ID3D11Texture2D> _offscreenBufferPostR; // This is the output of the barrel effect for the right image when using SteamVR
@@ -179,7 +184,9 @@ public:
 	ComPtr<ID3D11RenderTargetView> _renderTargetView;
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewR; // When SteamVR is used, _renderTargetView is the left eye, and this one is the right eye
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewDynCockpit; // Used to render the HUD to an offscreen buffer
-	ComPtr<ID3D11RenderTargetView> _renderTargetViewDynCockpitAsInput; // RTV that can be used to modify _offscreenBufferAsInputDynCockpit directly
+	ComPtr<ID3D11RenderTargetView> _renderTargetViewDynCockpitBG; // Used to render the HUD to an offscreen buffer
+	ComPtr<ID3D11RenderTargetView> _renderTargetViewDynCockpitAsInput; // RTV that writes to _offscreenBufferAsInputDynCockpit directly
+	ComPtr<ID3D11RenderTargetView> _renderTargetViewDynCockpitAsInputBG; // RTV that writes to _offscreenBufferAsInputDynCockpitBG directly
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewPost;  // Used for the barrel effect
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewPostR; // Used for the barrel effect (right image) when SteamVR is used.
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewSteamVRResize; // Used for the barrel effect
@@ -188,7 +195,8 @@ public:
 
 	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputShaderResourceView;
 	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputShaderResourceViewR; // When SteamVR is enabled, this is the SRV for the right eye
-	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputSRVDynCockpit;
+	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputSRVDynCockpit;   // SRV for HUD elements without background
+	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputSRVDynCockpitBG; // SRV for HUD element backgrounds
 	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputReshadeSRV;
 	ComPtr<ID3D11ShaderResourceView> _reshadeOutput1SRV; // SRV for reshadeOutput1
 	ComPtr<ID3D11ShaderResourceView> _reshadeOutput2SRV; // SRV for reshadeOutput2

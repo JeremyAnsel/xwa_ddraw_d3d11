@@ -12,17 +12,22 @@ SamplerState sampler1 : register(s1);
 
 cbuffer ConstantBuffer : register(b0)
 {
-	float brightness;      // Used to dim some elements to prevent the Bloom effect -- mostly for ReShade compatibility
-	uint DynCockpitSlots;  // How many DC slots will be used. This setting was "bShadeless" previously
-	uint bUseCoverTexture; // When set, use the first texture as cover texture for the dynamic cockpit
-	uint unused;
+	float brightness;		// Used to dim some elements to prevent the Bloom effect -- mostly for ReShade compatibility
+	uint DynCockpitSlots;	// How many DC slots will be used. This setting was "bShadeless" previously
+	uint bUseCoverTexture;	// When set, use the first texture as cover texture for the dynamic cockpit
+	uint bRenderHUD;			// When set, first texture is HUD foreground and second texture is HUD background
 	// 16 bytes
-	float4 bgColor;        // Background color to use (dynamic cockpit)
-	// 32 bytes
-	float4 src[4];         // HLSL packs each element in an array in its own 4-vector (16 bytes) slot, so .xy is src0 and .zw is src1
-	// 96 bytes
+
+	//uint bAlphaOnly;			// Output only the alpha component for debug purposes
+	//uint unused[3];
+	
+	
+	float4 bgColor;			// Background color to use (dynamic cockpit)
+	
+	float4 src[4];			// HLSL packs each element in an array in its own 4-vector (16 bytes) slot, so .xy is src0 and .zw is src1
+	
 	float4 dst[4];
-	// 160 bytes
+	
 };
 
 struct PixelShaderInput
@@ -124,6 +129,20 @@ float4 main(PixelShaderInput input) : SV_TARGET
 			diffuse = float3(1, 1, 1);
 		}
 	}
+	// Render the captured HUD
+	else if (bRenderHUD) {
+		float4 texelColorBG = texture1.Sample(sampler1, input.tex);
+		float alphaBG = texelColorBG.w;
+		texelColor.xyz = lerp(texelColorBG.xyz, texelColor.xyz, alpha);
+		texelColor.w += alphaBG;
+		return texelColor;
+	}
 	
+	/*
+	if (bAlphaOnly) {
+		float a = texelColor.w;
+		return float4(a, a, a, 1);
+	}
+	*/
 	return float4(brightness * diffuse * texelColor.xyz, texelColor.w);
 }
