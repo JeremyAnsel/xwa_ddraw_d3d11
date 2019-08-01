@@ -73,6 +73,7 @@ std::vector<uint32_t> GUI_CRCs = {
 // g_DCElements is used when loading textures to load the cover texture.
 extern std::vector<dc_element> g_DCElements;
 extern bool g_bDynCockpitEnabled;
+extern char g_sCurrentCockpit[128];
 
 bool isInVector(uint32_t crc, std::vector<uint32_t> &vector) {
 	for (uint32_t x : vector)
@@ -530,42 +531,50 @@ HRESULT Direct3DTexture::Load(
 		// Check the surface with the smallest resolution
 		int width = surface->_width;
 		int height = surface->_height;
-		//if (width == 64 || width == 128 || width == 256) { // || width == 512 || width == 1024) {
-		{
-			unsigned int size = width * height * (useBuffers ? 4 : bpp);
+		//unsigned int size = width * height * (useBuffers ? 4 : bpp);
 
-			int idx = isInVector(surface->_name, g_DCElements);
-			if (idx > -1) {
-				//log_debug("[DBG] [Dyn] '%s' found in '%s'", g_DCElements[idx].name, surface->_name);
-				// "light" and "color" textures are processed differently
-				if (strstr(surface->_name, "color") != NULL) {
-					// This texture is a Dynamic Cockpit destination texture
-					this->is_DynCockpitDst = true;
-					// Make this texture "point back" to the right dc_element
-					this->DCElementIndex   = idx;
-					// Activate this dc_element
-					g_DCElements[idx].bActive = true;					
-					// Load the cover texture if necessary
-					if (g_DCElements[idx].coverTexture == NULL) {
-						wchar_t wTexName[MAX_TEXTURE_NAME];
-						size_t len = 0;
-						mbstowcs_s(&len, wTexName, MAX_TEXTURE_NAME, g_DCElements[idx].coverTextureName, MAX_TEXTURE_NAME);
-						HRESULT res = DirectX::CreateWICTextureFromFile(surface->_deviceResources->_d3dDevice,
-							wTexName, NULL, &g_DCElements[idx].coverTexture);
-						if (FAILED(res)) {
-							log_debug("[DBG] [Dyn] ***** Could not load cover texture '%s': 0x%x",
-								g_DCElements[idx].coverTextureName, res);
-							g_DCElements[idx].coverTexture = NULL;
-						}
-						else {
-							log_debug("[DBG] [Dyn] ***** Loaded cover texture: '%s'", g_DCElements[idx].coverTextureName);
-						}
+		int idx = isInVector(surface->_name, g_DCElements);
+		if (idx > -1) {
+			// "light" and "color" textures are processed differently
+			if (strstr(surface->_name, "color") != NULL) {
+				// This texture is a Dynamic Cockpit destination texture
+				this->is_DynCockpitDst = true;
+				// Make this texture "point back" to the right dc_element
+				this->DCElementIndex = idx;
+				// Activate this dc_element
+				g_DCElements[idx].bActive = true;
+				// Store the name of this cockpit
+				if (g_sCurrentCockpit[0] == 0) {
+					char *start = strstr(surface->_name, "\\");
+					char *end = strstr(surface->_name, ".opt");
+					if (start != NULL && end != NULL) {
+						start += 1; // Skip the backslash
+						int size = end - start;
+						strncpy_s(g_sCurrentCockpit, 128, start, size);
+						//log_debug("[DBG] [DC] surface->_name: '%s'", surface->_name);
+						log_debug("[DBG] [DC] COCKPIT NAME: '%s'", g_sCurrentCockpit);
 					}
 				}
-				else if (strstr(surface->_name, "light") != NULL) {
-					this->is_DynCockpitAlphaOverlay = true;
-					//log_debug("[DBG] [Dyn] This is an alpha overlay texture");
+				// Load the cover texture if necessary
+				if (g_DCElements[idx].coverTexture == NULL) {
+					wchar_t wTexName[MAX_TEXTURE_NAME];
+					size_t len = 0;
+					mbstowcs_s(&len, wTexName, MAX_TEXTURE_NAME, g_DCElements[idx].coverTextureName, MAX_TEXTURE_NAME);
+					HRESULT res = DirectX::CreateWICTextureFromFile(surface->_deviceResources->_d3dDevice,
+						wTexName, NULL, &g_DCElements[idx].coverTexture);
+					if (FAILED(res)) {
+						log_debug("[DBG] [Dyn] ***** Could not load cover texture '%s': 0x%x",
+							g_DCElements[idx].coverTextureName, res);
+						g_DCElements[idx].coverTexture = NULL;
+					}
+					else {
+						log_debug("[DBG] [Dyn] ***** Loaded cover texture: '%s'", g_DCElements[idx].coverTextureName);
+					}
 				}
+			}
+			else if (strstr(surface->_name, "light") != NULL) {
+				this->is_DynCockpitAlphaOverlay = true;
+				//log_debug("[DBG] [Dyn] This is an alpha overlay texture");
 			}
 
 #ifdef DBG_VR

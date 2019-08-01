@@ -108,7 +108,7 @@ typedef struct dc_element_struct {
 	char name[MAX_TEXTURE_NAME];
 	char coverTextureName[MAX_TEXTURE_NAME];
 	ID3D11ShaderResourceView *coverTexture = NULL;
-	bool bActive;
+	bool bActive, bNameHasBeenTested;
 } dc_element;
 
 class DeviceResources

@@ -27,6 +27,7 @@ extern bool g_bNaturalConcourseAnimations;
 extern bool g_bIsTrianglePointer, g_bLastTrianglePointer, g_bFixedGUI;
 extern bool g_bHUDVerticesReady;
 extern std::vector<dc_element> g_DCElements;
+extern char g_sCurrentCockpit[128];
 
 extern VertexShaderCBuffer g_VSCBuffer;
 extern PixelShaderCBuffer g_PSCBuffer;
@@ -1383,6 +1384,13 @@ void PrimarySurface::ClearHUDRegions() {
 	int size = (int)g_DCElements.size();
 	for (int i = 0; i < size; i++) {
 		dc_element *dc_elem = &g_DCElements[i];
+		if (!dc_elem->bNameHasBeenTested)
+		{
+			if (strstr(dc_elem->name, g_sCurrentCockpit) != NULL) {
+				dc_elem->bActive = true;
+				dc_elem->bNameHasBeenTested = true;
+			}
+		}
 		// Only clear HUD regions for active dc_elements
 		if (!dc_elem->bActive)
 			continue;

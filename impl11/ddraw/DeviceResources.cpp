@@ -58,6 +58,7 @@ extern bool g_bEnableVR, g_bForceViewportChange;
 extern Matrix4 g_fullMatrixLeft, g_fullMatrixRight;
 extern VertexShaderMatrixCB g_VSMatrixCB;
 extern std::vector<dc_element> g_DCElements;
+extern char g_sCurrentCockpit[128];
 
 //extern DynCockpitBoxes g_DynCockpitBoxes;
 //extern uv_coords g_DCTargetCompUVCoords;
@@ -522,6 +523,8 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		this->_renderTargetViewSteamVRResize.Release();
 	}
 	if (g_bDynCockpitEnabled) {
+		// Reset the cockpit name
+		g_sCurrentCockpit[0] = 0;
 		// Reset the active slots in g_DCElements
 		int size = (int)g_DCElements.size();
 		for (int i = 0; i < size; i++)
@@ -534,6 +537,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 					elem->coverTexture = NULL;
 				}
 				elem->bActive = false;
+				elem->bNameHasBeenTested = false;
 			}
 		}
 		this->_renderTargetViewDynCockpit.Release();

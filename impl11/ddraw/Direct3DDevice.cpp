@@ -233,6 +233,7 @@ int g_iPresentCounter = 0, g_iNonZBufferCounter = 0, g_iSkipNonZBufferDrawIdx = 
 float g_fZBracketOverride = 65530.0f; // 65535 is probably the maximum Z value in XWA
 
 std::vector<dc_element> g_DCElements = {};
+char g_sCurrentCockpit[128] = { 0 };
 
 extern bool g_bRendering3D; // Used to distinguish between 2D (Concourse/Menus) and 3D rendering (main in-flight game)
 extern ID3D11Buffer *g_HUDVertexBuffer, *g_ClearHUDVertexBuffer, *g_ClearFullScreenHUDVertexBuffer;
@@ -969,6 +970,7 @@ bool LoadDCParams() {
 					dc_elem.coords = { 0 };
 					dc_elem.eraseCoords = { 0 };
 					dc_elem.bActive = false;
+					dc_elem.bNameHasBeenTested = false;
 					g_DCElements.push_back(dc_elem);
 					lastDCElemSelected = (int)g_DCElements.size() - 1;
 					log_debug("[DBG] [DC] Adding new DC elem: '%s'", dc_elem.name);
