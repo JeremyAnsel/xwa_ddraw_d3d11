@@ -824,6 +824,7 @@ bool LoadDynCockpitCoords(char *buf, uv_src_dst_coords *coords)
 {
 	float src_width, src_height, dst_width, dst_height;
 	float x0_src, y0_src, x1_src, y1_src, x0_dst, y0_dst, x1_dst, y1_dst;
+	uint32_t uColor;
 	int res = 0, idx = coords->numCoords;
 	char *c = NULL;
 	
@@ -836,14 +837,17 @@ bool LoadDynCockpitCoords(char *buf, uv_src_dst_coords *coords)
 	if (c != NULL) {
 		c += 1;
 		try {
+			uColor = 0x121233FF;
 			res = sscanf_s(c, "%f, %f, %f, %f, %f, %f; "
-				"%f, %f, %f, %f, %f, %f",
+				"%f, %f, %f, %f, %f, %f; 0x%x",
 				&src_width, &src_height, &x0_src, &y0_src, &x1_src, &y1_src,
-				&dst_width, &dst_height, &x0_dst, &y0_dst, &x1_dst, &y1_dst);
-			if (res != 12) {
-				log_debug("[DBG] [DC] Error (skipping), expected 12 elements in '%s'", c);
+				&dst_width, &dst_height, &x0_dst, &y0_dst, &x1_dst, &y1_dst,
+				&uColor);
+			if (res < 12) {
+				log_debug("[DBG] [DC] Error (skipping), expected at least 12 elements in '%s'", c);
 			} else {
-				//log_debug("[DBG] [DC] scanned %d from '%s'", res);
+				//if (res > 12)
+				//	log_debug("[DBG] [DC] uColor: 0x%x", uColor);
 
 				coords->src[idx].x0 = x0_src / src_width;
 				coords->src[idx].y0 = y0_src / src_height;
@@ -854,6 +858,8 @@ bool LoadDynCockpitCoords(char *buf, uv_src_dst_coords *coords)
 				coords->dst[idx].y0 = y0_dst / dst_height;
 				coords->dst[idx].x1 = x1_dst / dst_width;
 				coords->dst[idx].y1 = y1_dst / dst_height;
+
+				coords->uBGColor[idx] = uColor;
 				//log_debug("[DBG] %f, %f - %f, %f", coords->src[idx].x0, coords->src[idx].y0,
 				//	coords->src[idx].x1, coords->src[idx].y1);
 				coords->numCoords++;
@@ -973,7 +979,7 @@ bool LoadDCParams() {
 					dc_elem.bNameHasBeenTested = false;
 					g_DCElements.push_back(dc_elem);
 					lastDCElemSelected = (int)g_DCElements.size() - 1;
-					log_debug("[DBG] [DC] Adding new DC elem: '%s'", dc_elem.name);
+					//log_debug("[DBG] [DC] Adding new DC elem: '%s'", dc_elem.name);
 				}
 			}
 			else if (_stricmp(param, UV_COORDS_DCPARAM) == 0) {
@@ -985,8 +991,8 @@ bool LoadDCParams() {
 					log_debug("[DBG] [DC] ERROR. Line %d, %s without a corresponding texture section.", line, UV_COORDS_DCPARAM);
 					continue;
 				}
-				if (LoadDynCockpitCoords(buf, &(g_DCElements[lastDCElemSelected].coords)))
-					log_debug("[DBG] [DC] Added uv_coords to '%s'", g_DCElements[lastDCElemSelected].name);
+				LoadDynCockpitCoords(buf, &(g_DCElements[lastDCElemSelected].coords));
+					//log_debug("[DBG] [DC] Added uv_coords to '%s'", g_DCElements[lastDCElemSelected].name);
 				// CHECK
 				/*dc_element dc_elem = g_DCElements.back();
 				int i = dc_elem.coords.numCoords - 1;
@@ -1003,8 +1009,8 @@ bool LoadDCParams() {
 					log_debug("[DBG] [DC] ERROR. Line %d, %s without a corresponding texture section.", line, ERASE_COORDS_DCPARAM);
 					continue;
 				}
-				if (LoadDynCockpitEraseCoords(buf, &(g_DCElements[lastDCElemSelected].eraseCoords)))
-					log_debug("[DBG] [DC] Added erase_coords to '%s'", g_DCElements[lastDCElemSelected].name);
+				LoadDynCockpitEraseCoords(buf, &(g_DCElements[lastDCElemSelected].eraseCoords));
+					//log_debug("[DBG] [DC] Added erase_coords to '%s'", g_DCElements[lastDCElemSelected].name);
 			}
 			else if (_stricmp(param, COVER_TEX_NAME_DCPARAM) == 0) {
 				if (lastDCElemSelected == -1) {
@@ -1013,7 +1019,7 @@ bool LoadDCParams() {
 				}
 				strcpy_s(g_DCElements[lastDCElemSelected].coverTextureName, MAX_TEXTURE_NAME, svalue);
 				const dc_element dc_elem = g_DCElements[lastDCElemSelected];
-				log_debug("[DBG] [DC] '%s' covered by '%s'", dc_elem.name, dc_elem.coverTextureName);
+				//log_debug("[DBG] [DC] '%s' covered by '%s'", dc_elem.name, dc_elem.coverTextureName);
 			}
 		}
 	}
@@ -3131,11 +3137,19 @@ HRESULT Direct3DDevice::Execute(
 					if (idx > -1) {
 						bModifiedShaders = true;
 						dc_element *dc_element = &g_DCElements[idx];
-						float bgColor[4] = { 0.07f, 0.07f, 0.2f, 0.0f };
-						memcpy(g_PSCBuffer.bgColor, bgColor, 4 * sizeof(float));
+						//float bgColor[4] = { 0.07f, 0.07f, 0.2f, 0.0f };
+						float bgColor[4];
+						
 						for (int i = 0; i < dc_element->coords.numCoords; i++) {
 							g_PSCBuffer.src[i] = dc_element->coords.src[i];
 							g_PSCBuffer.dst[i] = dc_element->coords.dst[i];
+
+							uint32_t uColor = dc_element->coords.uBGColor[i];
+							bgColor[3] = (uColor & 0xFF) / 255.0f;
+							bgColor[2] = ((uColor >>  8) & 0xFF) / 255.0f;
+							bgColor[1] = ((uColor >> 16) & 0xFF) / 255.0f;
+							bgColor[0] = ((uColor >> 24) & 0xFF) / 255.0f;
+							memcpy(&(g_PSCBuffer.bgColor[i]), bgColor, 4 * sizeof(float));
 						}
 						g_PSCBuffer.DynCockpitSlots = dc_element->coords.numCoords;
 						g_PSCBuffer.bUseCoverTexture = (dc_element->coverTexture != NULL) ? 1 : 0;

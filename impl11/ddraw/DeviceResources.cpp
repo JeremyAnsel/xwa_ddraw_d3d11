@@ -44,7 +44,7 @@
 #include <WICTextureLoader.h>
 #include <headers/openvr.h>
 #include <vector>
-#include <assert.h>
+//#include <assert.h>
 
 bool g_bWndProcReplaced = false;
 bool ReplaceWindowProc(HWND ThisWindow);
@@ -94,7 +94,7 @@ typedef enum {
 PSConstantBufferType g_LastPSConstantBufferSet = PS_CONSTANT_BUFFER_NONE;
 
 extern bool g_bDynCockpitEnabled;
-bool g_bNewCockpitTexturesLoaded = false;
+//bool g_bNewCockpitTexturesLoaded = false;
 ComPtr<ID3D11ShaderResourceView> g_NewHUDLeftRadar = NULL;
 ComPtr<ID3D11ShaderResourceView> g_NewHUDRightRadar = NULL;
 
@@ -189,6 +189,7 @@ struct MainVertex
 	}
 };
 
+/*
 bool LoadNewCockpitTextures(ID3D11Device *device) {
 	if (!g_bDynCockpitEnabled) {
 		log_debug("[DBG] [Dyn] Dynamic Cockpit is disabled. Will not load new textures");
@@ -241,6 +242,7 @@ void UnloadNewCockpitTextures() {
 	
 	g_bNewCockpitTexturesLoaded = false;
 }
+*/
 
 DeviceResources::DeviceResources()
 {
@@ -566,7 +568,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 
 	this->_backBuffer.Release();
 	this->_swapChain.Release();
-	UnloadNewCockpitTextures();
+	//UnloadNewCockpitTextures();
 
 	this->_refreshRate = { 0, 1 };
 
@@ -981,7 +983,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		}
 
 		// Dynamic Cockpit: Load the new cockpit textures
-		LoadNewCockpitTextures(_d3dDevice);
+		//LoadNewCockpitTextures(_d3dDevice);
 		// Build the HUD vertex buffer
 		BuildHUDVertexBuffer(_d3dDevice, _displayWidth, _displayHeight);
 	}
@@ -1404,8 +1406,8 @@ HRESULT DeviceResources::LoadResources()
 		return hr;
 
 	// Create the constant buffer for the (3D) textured pixel shader
-	constantBufferDesc.ByteWidth = 160;
-	assert(constantBufferDesc.ByteWidth == sizeof(PixelShaderCBuffer));
+	constantBufferDesc.ByteWidth = 400;
+	static_assert(sizeof(PixelShaderCBuffer) == 400, "sizeof(PixelShaderCBuffer) must be 400");
 	//log_debug("[DBG] PixelShaderCBuffer size: %d", sizeof(PixelShaderCBuffer));
 	if (FAILED(hr = this->_d3dDevice->CreateBuffer(&constantBufferDesc, nullptr, &this->_PSConstantBuffer)))
 		return hr;

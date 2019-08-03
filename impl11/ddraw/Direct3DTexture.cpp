@@ -556,7 +556,7 @@ HRESULT Direct3DTexture::Load(
 					}
 				}
 				// Load the cover texture if necessary
-				if (g_DCElements[idx].coverTexture == NULL) {
+				if (g_DCElements[idx].coverTexture == NULL && g_DCElements[idx].coverTextureName[0] != 0) {
 					wchar_t wTexName[MAX_TEXTURE_NAME];
 					size_t len = 0;
 					mbstowcs_s(&len, wTexName, MAX_TEXTURE_NAME, g_DCElements[idx].coverTextureName, MAX_TEXTURE_NAME);
@@ -574,7 +574,11 @@ HRESULT Direct3DTexture::Load(
 			}
 			else if (strstr(surface->_name, "light") != NULL) {
 				this->is_DynCockpitAlphaOverlay = true;
-				//log_debug("[DBG] [Dyn] This is an alpha overlay texture");
+				/*if (_stricmp(surface->_name, "TEX00036") == 0) {
+					log_debug("[DBG] Dumping light texture for TEX00036...");
+					saveSurface(L"c:\\temp\\TEX00036-light", (char *)textureData[0].pSysMem, surface->_width, surface->_height, bpp);
+				}*/
+				//log_debug("[DBG] [Dyn] Alpha overlay texture: '%s'", surface->_name);
 			}
 
 #ifdef DBG_VR

@@ -10,6 +10,8 @@ SamplerState sampler0 : register(s0);
 Texture2D    texture1 : register(t1);
 SamplerState sampler1 : register(s1);
 
+#define MAX_DC_COORDS 8
+
 cbuffer ConstantBuffer : register(b0)
 {
 	float brightness;		// Used to dim some elements to prevent the Bloom effect -- mostly for ReShade compatibility
@@ -21,13 +23,9 @@ cbuffer ConstantBuffer : register(b0)
 	//uint bAlphaOnly;			// Output only the alpha component for debug purposes
 	//uint unused[3];
 	
-	
-	float4 bgColor;			// Background color to use (dynamic cockpit)
-	
-	float4 src[4];			// HLSL packs each element in an array in its own 4-vector (16 bytes) slot, so .xy is src0 and .zw is src1
-	
-	float4 dst[4];
-	
+	float4 src[MAX_DC_COORDS];			// HLSL packs each element in an array in its own 4-vector (16 bytes) slot, so .xy is src0 and .zw is src1
+	float4 dst[MAX_DC_COORDS];
+	float4 bgColor[MAX_DC_COORDS];		// Background colors to use for the dynamic cockpit
 };
 
 struct PixelShaderInput
@@ -87,7 +85,7 @@ float4 main(PixelShaderInput input) : SV_TARGET
 		// upper-left corner of the box and src[0].zw is the lower-right corner. The same applies to
 		// dst uv coords
 			
-		float4 dc_texelColor = bgColor;
+		float4 dc_texelColor = bgColor[0];
 		for (uint i = 0; i < DynCockpitSlots; i++) {
 			float2 delta = dst[i].zw - dst[i].xy;
 			float2 s = (input.tex - dst[i].xy) / delta;
@@ -106,7 +104,7 @@ float4 main(PixelShaderInput input) : SV_TARGET
 				dc_texelColor = texture1.Sample(sampler1, dyn_uv); // "dc" is for "dynamic cockpit"
 				float dc_alpha = dc_texelColor.w;
 				// Add the background color to the dynamic cockpit display:
-				dc_texelColor = lerp(bgColor, dc_texelColor, dc_alpha);
+				dc_texelColor = lerp(bgColor[i], dc_texelColor, dc_alpha);
 			}
 		}
 		// At this point dc_texelColor has the color from the offscreen HUD buffer blended with bgColor
@@ -123,8 +121,7 @@ float4 main(PixelShaderInput input) : SV_TARGET
 			diffuse = lerp(float3(1, 1, 1), input.color.xyz, alpha);
 			if (HSV.z >= 0.80)
 				diffuse = float3(1, 1, 1);
-		}
-		else {
+		} else {
 			texelColor = dc_texelColor;
 			diffuse = float3(1, 1, 1);
 		}
