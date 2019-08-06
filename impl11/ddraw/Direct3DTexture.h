@@ -37,6 +37,9 @@ public:
 	bool is_DynCockpitDst;
 	// True for the additional textures loaded in Hi-Res mode that provide additional glow
 	bool is_DynCockpitAlphaOverlay;
+	// Auto-computed bounding box in in-game resolution coordinates
+	// TODO: Remove this later, I don't think I'm going to need it.
+	Box boundingBox;
 
 	Direct3DTexture(DeviceResources* deviceResources, TextureSurface* surface);
 

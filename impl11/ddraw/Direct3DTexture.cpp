@@ -125,7 +125,7 @@ bool Reload_CRC_vector(std::vector<uint32_t> &data, char *filename) {
 bool ReloadCRCs() {
 	bool result = true;
 	result &= Reload_CRC_vector(HUD_CRCs, "./HUD_CRCs.txt");
-	result &= Reload_CRC_vector(HUD_CRCs, "./Text_CRCs.txt");
+	result &= Reload_CRC_vector(Text_CRCs, "./Text_CRCs.txt");
 	result &= Reload_CRC_vector(GUI_CRCs, "./GUI_CRCs.txt");
 	result &= Reload_CRC_vector(Floating_GUI_CRCs, "./Floating_GUI_CRCs.txt");
 	return result;
@@ -508,21 +508,28 @@ HRESULT Direct3DTexture::Load(
 			#endif
 
 			// Check this CRC to see if it's interesting
-			if (this->crc == TRIANGLE_PTR_CRC)
+			if (this->crc == TRIANGLE_PTR_CRC) {
+				log_debug("[DBG] Triangle Ptr, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
 				this->is_TrianglePointer = true;
+			} 
 			else if (this->crc == TARGETING_COMP_CRC) {
+				log_debug("[DBG] Targeting Comp, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
 				this->is_TargetingComp = true;
 			}
 			else if (isInVector(this->crc, HUD_CRCs)) {
+				log_debug("[DBG] HUD, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
 				this->is_HUD = true;
 			}
 			else if (isInVector(this->crc, Floating_GUI_CRCs)) {
+				log_debug("[DBG] Floating GUI, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
 				this->is_Floating_GUI = true;
 			}
 			else if (isInVector(this->crc, Text_CRCs)) {
+				log_debug("[DBG] Text, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
 				this->is_Text = true;
 			}
 			else if (isInVector(this->crc, GUI_CRCs)) {
+				log_debug("[DBG] GUI, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
 				this->is_GUI = true;
 			}
 		}
@@ -541,6 +548,7 @@ HRESULT Direct3DTexture::Load(
 				this->is_DynCockpitDst = true;
 				// Make this texture "point back" to the right dc_element
 				this->DCElementIndex = idx;
+				log_debug("[DBG] [DC] DCElementIndex = %d", this->DCElementIndex);
 				// Activate this dc_element
 				g_DCElements[idx].bActive = true;
 				// Store the name of this cockpit

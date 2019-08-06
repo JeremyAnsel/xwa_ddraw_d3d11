@@ -38,6 +38,11 @@ public:
 	void GetBoundingBox(LPD3DINSTRUCTION instruction, UINT curIndex,
 		float * minX, float * minY, float * maxX, float * maxY, bool debug=false);
 
+	void GetBoundingBoxUVs(LPD3DINSTRUCTION instruction, UINT curIndex,
+		float *minX, float *minY, float *maxX, float *maxY,
+		float *minU, float *minV, float *maxU, float *maxV,
+		bool debug=false);
+
 	//void ClearBox(Box box, D3D11_VIEWPORT *viewport, bool fullScreen, float scale, D3DCOLOR clearColor);
 
 	STDMETHOD(Execute)(THIS_ LPDIRECT3DEXECUTEBUFFER, LPDIRECT3DVIEWPORT, DWORD);

@@ -1540,10 +1540,8 @@ void PrimarySurface::DrawHUDVertices() {
 	// Render the right image
 	if (g_bUseSteamVR)
 		context->OMSetRenderTargets(1, resources->_renderTargetViewR.GetAddressOf(), NULL);
-	//resources->_depthStencilViewR.Get());
 	else
 		context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(), NULL);
-			//resources->_depthStencilViewL.Get());
 
 	// VIEWPORT-RIGHT
 	if (g_bUseSteamVR) {
@@ -1971,7 +1969,7 @@ HRESULT PrimarySurface::Flip(
 			if (g_bDynCockpitEnabled) {
 				_deviceResources->_d3dDeviceContext->ResolveSubresource(_deviceResources->_offscreenBufferAsInputDynCockpit,
 					0, _deviceResources->_offscreenBufferDynCockpit, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
-				_deviceResources->_d3dDeviceContext->ResolveSubresource(_deviceResources->_offscreenBufferAsInputDynCockpitBG,
+				_deviceResources->_d3dDeviceContext->ResolveSubresource(_deviceResources->_offscreenAsInputDynCockpitBG,
 					0, _deviceResources->_offscreenBufferDynCockpitBG, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
 
 				/*
@@ -2203,14 +2201,11 @@ HRESULT PrimarySurface::Flip(
 			if (FAILED(hr = this->_deviceResources->_swapChain->Present(0, 0)))
 			{
 				static bool messageShown = false;
-
 				if (!messageShown)
 				{
 					MessageBox(nullptr, _com_error(hr).ErrorMessage(), __FUNCTION__, MB_ICONERROR);
 				}
-
 				messageShown = true;
-
 				hr = DDERR_SURFACELOST;
 			}
 			if (g_bUseSteamVR) {

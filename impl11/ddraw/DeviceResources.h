@@ -4,6 +4,7 @@
 
 #pragma once
 #include "Matrices.h"
+#include <vector>
 
 // Also found in the Floating_GUI_CRCs list:
 const uint32_t DYN_COCKPIT_TARGET_COMP_SRC_CRC   = 0x3b9a3741;
@@ -20,9 +21,78 @@ const uint32_t DYN_COCKPIT_TOP_LEFT_SRC_CRC      = 0xc2416bf9;
 const uint32_t DYN_COCKPIT_TOP_RIGHT_SRC_CRC     = 0x71ce88f1;
 
 typedef struct Box_struct {
-	float left, right;
-	float top, bottom;
+	float x0, y0, x1, y1;
 } Box;
+
+const int LEFT_RADAR_HUD_BOX_IDX = 0;
+const int RIGHT_RADAR_HUD_BOX_IDX = 1;
+const int MAX_HUD_BOXES = 2;
+
+class DCHUDBox {
+public:
+	Box coords;
+	bool bLimitsComputed;
+};
+
+/*
+ * This class stores the coordinates for each HUD texture: left radar, right radar, text
+ * boxes, etc. It does not store the individual HUD elements within each HUD texture. For
+ * that, look at DCElementSourceBox
+ */
+class DCHUDBoxes {
+public:
+	std::vector<DCHUDBox> boxes;
+
+	DCHUDBoxes();
+
+	void Clear() {
+		boxes.clear();
+	}
+
+	void ResetLimits() {
+		for (unsigned int i = 0; i < boxes.size(); i++)
+			boxes[i].bLimitsComputed = false;
+	}
+};
+
+const int LEFT_RADAR_DC_ELEM_SRC_IDX = 0;
+const int RIGHT_RADAR_DC_ELEM_SRC_IDX = 1;
+const int LASER_RECHARGE_DC_ELEM_SRC_IDX = 2;
+const int SHIELD_RECHARGE_DC_ELEM_SRC_IDX = 3;
+const int ENGINE_RECHARGE_DC_ELEM_SRC_IDX = 4;
+const int BEAM_RECHARGE_DC_ELEM_SRC_IDX = 5;
+const int MAX_DC_SRC_ELEMENTS = 6;
+
+class DCElemSrcBox {
+public:
+	Box uv_coords;
+	Box coords;
+	bool bComputed;
+
+	DCElemSrcBox() {
+		bComputed = false;
+	}
+};
+
+/*
+ * Stores the uv_coords and pixel coords for each individual HUD element. Examples of HUD elems
+ * are:
+ * Laser recharge rate, Shield recharage rate, Radars, etc.
+ */
+class DCElemSrcBoxes {
+public:
+	std::vector<DCElemSrcBox> src_boxes;
+
+	void Clear() {
+		src_boxes.clear();
+	}
+
+	DCElemSrcBoxes();
+	void Reset() {
+		for (unsigned int i = 0; i < src_boxes.size(); i++)
+			src_boxes[i].bComputed = false;
+	}
+};
 
 enum RenderMainColorKeyType
 {
@@ -64,12 +134,6 @@ typedef struct HeadPosStruct {
 	float x, y, z;
 } HeadPos;
 
-/*
-typedef struct float2_struct {
-	float x, y;
-} float2;
-*/
-
 typedef struct uvfloat4_struct {
 	float x0, y0, x1, y1;
 } uvfloat4;
@@ -95,6 +159,7 @@ typedef struct PixelShaderCBStruct {
 } PixelShaderCBuffer;
 
 typedef struct uv_coords_src_dst_struct {
+	int src_slot[MAX_DC_COORDS];
 	uvfloat4 src[MAX_DC_COORDS];
 	uvfloat4 dst[MAX_DC_COORDS];
 	uint32_t uBGColor[MAX_DC_COORDS];
@@ -179,7 +244,7 @@ public:
 	ComPtr<ID3D11Texture2D> _offscreenBufferAsInput;
 	ComPtr<ID3D11Texture2D> _offscreenBufferAsInputR; // When SteamVR is used, this is the right eye as input buffer
 	ComPtr<ID3D11Texture2D> _offscreenBufferAsInputDynCockpit;   // HUD elements buffer
-	ComPtr<ID3D11Texture2D> _offscreenBufferAsInputDynCockpitBG; // HUD element backgrounds buffer
+	ComPtr<ID3D11Texture2D> _offscreenAsInputDynCockpitBG; // HUD element backgrounds buffer
 	ComPtr<ID3D11Texture2D> _offscreenBufferAsInputReshade;
 	ComPtr<ID3D11Texture2D> _offscreenBufferPost; // This is the output of the barrel effect
 	ComPtr<ID3D11Texture2D> _offscreenBufferPostR; // This is the output of the barrel effect for the right image when using SteamVR

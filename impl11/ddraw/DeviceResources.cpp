@@ -60,14 +60,15 @@ extern VertexShaderMatrixCB g_VSMatrixCB;
 extern std::vector<dc_element> g_DCElements;
 extern char g_sCurrentCockpit[128];
 
-//extern DynCockpitBoxes g_DynCockpitBoxes;
-//extern uv_coords g_DCTargetCompUVCoords;
+extern DCHUDBoxes g_DCHUDBoxes;
+extern DCElemSrcBoxes g_DCElemSrcBoxes;
 
 extern bool g_bReshadeEnabled, g_bBloomEnabled;
 
 extern float g_fHUDDepth;
 extern bool g_bHUDVerticesReady;
 extern ID3D11Buffer *g_HUDVertexBuffer, *g_ClearHUDVertexBuffer, *g_ClearFullScreenHUDVertexBuffer;
+extern float g_fCurInGameWidth, g_fCurInGameHeight, g_fCurScreenWidth, g_fCurScreenHeight;
 
 // SteamVR
 #include <headers/openvr.h>
@@ -484,15 +485,21 @@ void BuildHUDVertexBuffer(ComPtr<ID3D11Device> device, UINT width, UINT height) 
 
 HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 {
+	/*
+	 * When the concourse is displayed, dwWidth,dwHeight = 640x480 regardless of actual in-game res or screen res.
+	 * When 3D content is displayed, dwWidth,dwHeight = in-game resolution (1280x1024, 1600x1200, etc)
+	 */
 	HRESULT hr;
 	char* step = "";
-	log_debug("[DBG] OnSizeChanged called");
+	//log_debug("[DBG] OnSizeChanged called");
 	// Generic VR Initialization
 	// Replace the game's WndProc
 	if (!g_bWndProcReplaced) {
 		ReplaceWindowProc(hWnd);
 		g_bWndProcReplaced = true;
 	}
+
+	log_debug("[DBG] OnSizeChanged, dwWidth,Height: %d, %d", dwWidth, dwHeight);
 
 	if (g_bUseSteamVR) {
 		// dwWidth, dwHeight are the in-game's resolution
@@ -525,6 +532,10 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		this->_renderTargetViewSteamVRResize.Release();
 	}
 	if (g_bDynCockpitEnabled) {
+		// Reset the HUD boxes: this will force a re-compute of the boxes and the DC elements
+		g_DCHUDBoxes.ResetLimits();
+		// Reset the Source DC elements so that we know when they get re-computed.
+		g_DCElemSrcBoxes.Reset();
 		// Reset the cockpit name
 		g_sCurrentCockpit[0] = 0;
 		// Reset the active slots in g_DCElements
@@ -549,7 +560,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		this->_offscreenBufferDynCockpit.Release();
 		this->_offscreenBufferDynCockpitBG.Release();
 		this->_offscreenBufferAsInputDynCockpit.Release();
-		this->_offscreenBufferAsInputDynCockpitBG.Release();
+		this->_offscreenAsInputDynCockpitBG.Release();
 		this->_offscreenAsInputSRVDynCockpit.Release();
 		this->_offscreenAsInputSRVDynCockpitBG.Release();
 	}
@@ -641,7 +652,9 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 				this->_swapChain->GetDesc(&sd);
 				g_FullScreenWidth = sd.BufferDesc.Width;
 				g_FullScreenHeight = sd.BufferDesc.Height;
-				//log_debug("[DBG] Fullscreen size: %d, %d", g_FullScreenWidth, g_FullScreenHeight);
+				g_fCurScreenWidth = (float)sd.BufferDesc.Width;
+				g_fCurScreenHeight = (float)sd.BufferDesc.Height;
+				log_debug("[DBG] Fullscreen size: %d, %d", g_FullScreenWidth, g_FullScreenHeight);
 			}
 		}
 
@@ -677,6 +690,9 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 
 		this->_backbufferWidth = backBufferDesc.Width;
 		this->_backbufferHeight = backBufferDesc.Height;
+		//g_fCurScreenWidth = _backbufferWidth;
+		//g_fCurScreenHeight = _backbufferHeight;
+		//log_debug("[DBG] Screen size: %f, %f", g_fCurScreenWidth, g_fCurScreenHeight);
 	}
 
 	if (SUCCEEDED(hr))
@@ -886,7 +902,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			}
 
 			step = "_offscreenBufferAsInputDynCockpitBG";
-			hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBufferAsInputDynCockpitBG);
+			hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenAsInputDynCockpitBG);
 			if (FAILED(hr)) {
 				log_err("Failed to create _offscreenBufferAsInputDynCockpitBG, error: 0x%x\n", hr);
 				log_err("GetDeviceRemovedReason: 0x%x\n", this->_d3dDevice->GetDeviceRemovedReason());
@@ -973,7 +989,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			}
 			// Create the SRV for _offscreenBufferAsInputDynCockpitBG
 			step = "_offscreenBufferAsInputDynCockpitBG";
-			hr = this->_d3dDevice->CreateShaderResourceView(this->_offscreenBufferAsInputDynCockpitBG,
+			hr = this->_d3dDevice->CreateShaderResourceView(this->_offscreenAsInputDynCockpitBG,
 				&shaderResourceViewDesc, &this->_offscreenAsInputSRVDynCockpitBG);
 			if (FAILED(hr)) {
 				log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
@@ -986,6 +1002,8 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		//LoadNewCockpitTextures(_d3dDevice);
 		// Build the HUD vertex buffer
 		BuildHUDVertexBuffer(_d3dDevice, _displayWidth, _displayHeight);
+		g_fCurInGameWidth = (float)_displayWidth;
+		g_fCurInGameHeight = (float)_displayHeight;
 	}
 
 	if (SUCCEEDED(hr))
@@ -1032,7 +1050,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 
 			step = "_renderTargetViewDynCockpitAsInputBG";
 			// This RTV writes to a non-MSAA texture
-			hr = this->_d3dDevice->CreateRenderTargetView(this->_offscreenBufferAsInputDynCockpitBG, &renderTargetViewDescNoMSAA,
+			hr = this->_d3dDevice->CreateRenderTargetView(this->_offscreenAsInputDynCockpitBG, &renderTargetViewDescNoMSAA,
 				&this->_renderTargetViewDynCockpitAsInputBG);
 			if (FAILED(hr)) goto out;
 		}
