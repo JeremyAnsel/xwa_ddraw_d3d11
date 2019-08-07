@@ -822,45 +822,80 @@ DCElemSrcBoxes::DCElemSrcBoxes() {
 		switch (i) {
 		case LEFT_RADAR_DC_ELEM_SRC_IDX:
 			// TODO: Read these values from a file later. Hard-coded for now.
-			src_box.uv_coords.x0 = 25.5f  / 128.0f;
-			src_box.uv_coords.y0 = 18.5f  / 128.0f;
+			src_box.uv_coords.x0 = 25.5f / 128.0f;
+			src_box.uv_coords.y0 = 18.5f / 128.0f;
 			src_box.uv_coords.x1 = 114.5f / 128.0f;
 			src_box.uv_coords.y1 = 106.5f / 128.0f;
 			break;
 		case RIGHT_RADAR_DC_ELEM_SRC_IDX:
 			// TODO: Read these values from a file later. Hard-coded for now.
-			src_box.uv_coords.x0 = 13.5f  / 128.0f;
-			src_box.uv_coords.y0 = 19.5f  / 128.0f;
+			src_box.uv_coords.x0 = 13.5f / 128.0f;
+			src_box.uv_coords.y0 = 19.5f / 128.0f;
 			src_box.uv_coords.x1 = 102.5f / 128.0f;
 			src_box.uv_coords.y1 = 107.5f / 128.0f;
 			break;
 		case LASER_RECHARGE_DC_ELEM_SRC_IDX:
 			// TODO: Read these values from a file later. Hard-coded for now.
-			src_box.uv_coords.x0 = 9.0f  / 128.0f;
+			src_box.uv_coords.x0 = 9.0f / 128.0f;
 			src_box.uv_coords.y0 = 19.0f / 128.0f;
 			src_box.uv_coords.x1 = 15.0f / 128.0f;
 			src_box.uv_coords.y1 = 62.0f / 128.0f;
 			break;
 		case SHIELD_RECHARGE_DC_ELEM_SRC_IDX:
 			// TODO: Read these values from a file later. Hard-coded for now.
-			src_box.uv_coords.x0 = 9.0f   / 128.0f;
-			src_box.uv_coords.y0 = 64.0f  / 128.0f;
-			src_box.uv_coords.x1 = 15.0f  / 128.0f;
+			src_box.uv_coords.x0 = 9.0f / 128.0f;
+			src_box.uv_coords.y0 = 64.0f / 128.0f;
+			src_box.uv_coords.x1 = 15.0f / 128.0f;
 			src_box.uv_coords.y1 = 107.0f / 128.0f;
 			break;
 		case ENGINE_RECHARGE_DC_ELEM_SRC_IDX:
 			// TODO: Read these values from a file later. Hard-coded for now.
 			src_box.uv_coords.x0 = 113.0f / 128.0f;
-			src_box.uv_coords.y0 = 19.0f  / 128.0f;
+			src_box.uv_coords.y0 = 19.0f / 128.0f;
 			src_box.uv_coords.x1 = 119.0f / 128.0f;
-			src_box.uv_coords.y1 = 62.0f  / 128.0f;
+			src_box.uv_coords.y1 = 62.0f / 128.0f;
 			break;
 		case BEAM_RECHARGE_DC_ELEM_SRC_IDX:
 			// TODO: Read these values from a file later. Hard-coded for now.
 			src_box.uv_coords.x0 = 113.0f / 128.0f;
-			src_box.uv_coords.y0 = 64.0f  / 128.0f;
+			src_box.uv_coords.y0 = 64.0f / 128.0f;
 			src_box.uv_coords.x1 = 119.0f / 128.0f;
 			src_box.uv_coords.y1 = 107.0f / 128.0f;
+			break;
+		case SHIELDS_DC_ELEM_SRC_IDX:
+			// TODO: Read these values from a file later. Hard-coded for now.
+			src_box.uv_coords.x0 = 40.5f / 128.0f;
+			src_box.uv_coords.y0 = 25.5f / 128.0f;
+			src_box.uv_coords.x1 = 98.5f / 128.0f;
+			src_box.uv_coords.y1 = 99.5f / 128.0f;
+			break;
+		case BEAM_DC_ELEM_SRC_IDX:
+			// TODO: Read these values from a file later. Hard-coded for now.
+			src_box.uv_coords.x0 = 29.5f / 128.0f;
+			src_box.uv_coords.y0 = 25.5f / 128.0f;
+			src_box.uv_coords.x1 = 87.5f / 128.0f;
+			src_box.uv_coords.y1 = 99.5f / 128.0f;
+			break;
+		case TARGET_COMP_DC_ELEM_SRC_IDX:
+			// TODO: Read these values from a file later. Hard-coded for now.
+			src_box.uv_coords.x0 =  12.5f / 256.0f;
+			src_box.uv_coords.y0 =   5.5f / 128.0f;
+			src_box.uv_coords.x1 = 245.5f / 256.0f;
+			src_box.uv_coords.y1 = 128.0f / 128.0f;
+			break;
+		case QUAD_LASER_L_DC_ELEM_SRC_IDX:
+			// TODO: Read these values from a file later. Hard-coded for now.
+			src_box.uv_coords.x0 =  60.0f / 256.0f;
+			src_box.uv_coords.y0 = -12.0f / 128.0f;
+			src_box.uv_coords.x1 = 127.0f / 256.0f;
+			src_box.uv_coords.y1 =   5.0f / 128.0f;
+			break;
+		case QUAD_LASER_R_DC_ELEM_SRC_IDX:
+			// TODO: Read these values from a file later. Hard-coded for now.
+			src_box.uv_coords.x0 = 135.0f / 256.0f;
+			src_box.uv_coords.y0 = -12.0f / 128.0f;
+			src_box.uv_coords.x1 = 202.0f / 256.0f;
+			src_box.uv_coords.y1 =   5.0f / 128.0f;
 			break;
 		}
 		src_boxes.push_back(src_box);
@@ -3202,30 +3237,6 @@ HRESULT Direct3DDevice::Execute(
 				// Capture the bounds of the targeting computer texture
 				// The targeting computer is rendered *after* the laser energy levels and the bounding box of the targeting
 				// computer slightly overlaps the lasers. So, we must be careful when copying image data from this area.
-				/*
-				if (g_bDynCockpitEnabled && lastTextureSelected != NULL)
-				{
-					if (lastTextureSelected->crc == DYN_COCKPIT_TARGET_COMP_SRC_CRC) {
-						if (!g_DynCockpitBoxes.TargetCompLimitsComputed)
-						{
-							// This is the solid targeting computer background. We need to compute its limits in pixels.
-							// We only need to do this once -- and this should be done when the first frame is rendered.
-							float minX, minY, maxX, maxY;
-							GetBoundingBox(instruction, currentIndexLocation, &minX, &minY, &maxX, &maxY);
-							lastTextureSelected->boundingBox.x0 = minX;
-							lastTextureSelected->boundingBox.y0 = minY;
-							lastTextureSelected->boundingBox.x1 = maxX + 1;
-							lastTextureSelected->boundingBox.y1 = maxY + 1;
-							g_DynCockpitBoxes.TargetCompBox = lastTextureSelected->boundingBox;
-							g_DynCockpitBoxes.TargetCompLimitsComputed = true;
-
-							log_debug("[DBG] [DC] Targeting Computer limits: (%0.3f, %0.3f)-(%0.3f, %0.3f)",
-								lastTextureSelected->boundingBox.x0, lastTextureSelected->boundingBox.y0,
-								lastTextureSelected->boundingBox.x1, lastTextureSelected->boundingBox.y1);
-						}
-					}
-				}
-				*/
 				
 				// Capture the bounds for the left radar:
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL)
@@ -3322,42 +3333,110 @@ HRESULT Direct3DDevice::Execute(
 							dcElemSrcBox->coords = ComputeCoordsFromUV(left, top, width, height,
 								uv_minmax, box, dcElemSrcBox->uv_coords);
 							dcElemSrcBox->bComputed = true;
-
-							/*
-							Box elem_coords = g_DCElemSrcBoxes.src_boxes[LEFT_RADAR_DC_ELEM_SRC_IDX].coords;
-							log_debug("[DBG] [DC] Left Radar HUD screen coords: (%0.3f, %0.3f)-(%0.3f, %0.3f)",
-								box.x0, box.y0, box.x1, box.y1);
-							log_debug("[DBG] [DC] Left Radar ELEMENT screen coords: (%0.3f, %0.3f)-(%0.3f, %0.3f)",
-								elem_coords.x0, elem_coords.y0, elem_coords.x1, elem_coords.y1);
-							*/
 						}
 					}
 				}
 				
-				/*
-				// Capture the bounds for the shields indicator:
+				// Capture the bounds for the shields:
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL)
 				{
 					if (lastTextureSelected->crc == DYN_COCKPIT_SHIELDS_SRC_CRC)
 					{
-						if (!g_DynCockpitBoxes.ShieldsLimitsComputed)
+						if (!g_DCHUDBoxes.boxes[SHIELDS_HUD_BOX_IDX].bLimitsComputed)
 						{
+							DCHUDBox *dcSrcBox = &g_DCHUDBoxes.boxes[SHIELDS_HUD_BOX_IDX];
+							DCElemSrcBox *dcElemSrcBox = NULL;
 							float minX, minY, maxX, maxY;
-							GetBoundingBox(instruction, currentIndexLocation, &minX, &minY, &maxX, &maxY);
-							lastTextureSelected->boundingBox.x0 = minX;
-							lastTextureSelected->boundingBox.y0 = minY;
-							lastTextureSelected->boundingBox.x1 = maxX + 1;
-							lastTextureSelected->boundingBox.y1 = maxY + 1;
-							g_DynCockpitBoxes.ShieldsBox = lastTextureSelected->boundingBox;
-							g_DynCockpitBoxes.ShieldsLimitsComputed = true;
+							Box uv_minmax = { 0 };
+							Box box;
+							GetBoundingBoxUVs(instruction, currentIndexLocation, &minX, &minY, &maxX, &maxY,
+								&uv_minmax.x0, &uv_minmax.y0, &uv_minmax.x1, &uv_minmax.y1);
+							InGameToScreenCoords(left, top, width, height, minX, minY, &box.x0, &box.y0);
+							InGameToScreenCoords(left, top, width, height, maxX, maxY, &box.x1, &box.y1);
+							// Store the pixel coordinates
+							dcSrcBox->coords = box;
+							dcSrcBox->bLimitsComputed = true;
 
-							log_debug("[DBG] Shields Indicator limits: (%0.3f, %0.3f)-(%0.3f, %0.3f)",
-								lastTextureSelected->boundingBox.x0, lastTextureSelected->boundingBox.y0,
-								lastTextureSelected->boundingBox.x1, lastTextureSelected->boundingBox.y1);
+							// Get the limits for the shields:
+							dcElemSrcBox = &g_DCElemSrcBoxes.src_boxes[SHIELDS_DC_ELEM_SRC_IDX];
+							dcElemSrcBox->coords = ComputeCoordsFromUV(left, top, width, height,
+								uv_minmax, box, dcElemSrcBox->uv_coords);
+							dcElemSrcBox->bComputed = true;
 						}
 					}
 				}
-				*/
+
+				// Capture the bounds for the tractor beam:
+				if (g_bDynCockpitEnabled && lastTextureSelected != NULL)
+				{
+					if (lastTextureSelected->crc == DYN_COCKPIT_BEAM_BOX_SRC_CRC)
+					{
+						if (!g_DCHUDBoxes.boxes[BEAM_HUD_BOX_IDX].bLimitsComputed)
+						{
+							DCHUDBox *dcSrcBox = &g_DCHUDBoxes.boxes[BEAM_HUD_BOX_IDX];
+							DCElemSrcBox *dcElemSrcBox = NULL;
+							float minX, minY, maxX, maxY;
+							Box uv_minmax = { 0 };
+							Box box;
+							GetBoundingBoxUVs(instruction, currentIndexLocation, &minX, &minY, &maxX, &maxY,
+								&uv_minmax.x0, &uv_minmax.y0, &uv_minmax.x1, &uv_minmax.y1);
+							InGameToScreenCoords(left, top, width, height, minX, minY, &box.x0, &box.y0);
+							InGameToScreenCoords(left, top, width, height, maxX, maxY, &box.x1, &box.y1);
+							// Store the pixel coordinates
+							dcSrcBox->coords = box;
+							dcSrcBox->bLimitsComputed = true;
+
+							// Get the limits for the shields:
+							dcElemSrcBox = &g_DCElemSrcBoxes.src_boxes[BEAM_DC_ELEM_SRC_IDX];
+							dcElemSrcBox->coords = ComputeCoordsFromUV(left, top, width, height,
+								uv_minmax, box, dcElemSrcBox->uv_coords);
+							dcElemSrcBox->bComputed = true;
+						}
+					}
+				}
+
+				// Capture the bounds for the targeting computer:
+				if (g_bDynCockpitEnabled && lastTextureSelected != NULL)
+				{
+					if (lastTextureSelected->crc == DYN_COCKPIT_TARGET_COMP_SRC_CRC)
+					{
+						if (!g_DCHUDBoxes.boxes[TARGET_HUD_BOX_IDX].bLimitsComputed)
+						{
+							DCHUDBox *dcSrcBox = &g_DCHUDBoxes.boxes[TARGET_HUD_BOX_IDX];
+							DCElemSrcBox *dcElemSrcBox = NULL;
+							float minX, minY, maxX, maxY;
+							Box uv_minmax = { 0 };
+							Box box;
+							GetBoundingBoxUVs(instruction, currentIndexLocation, &minX, &minY, &maxX, &maxY,
+								&uv_minmax.x0, &uv_minmax.y0, &uv_minmax.x1, &uv_minmax.y1);
+							InGameToScreenCoords(left, top, width, height, minX, minY, &box.x0, &box.y0);
+							InGameToScreenCoords(left, top, width, height, maxX, maxY, &box.x1, &box.y1);
+							// Store the pixel coordinates
+							dcSrcBox->coords = box;
+							dcSrcBox->bLimitsComputed = true;
+
+							// Get the limits for the targeting computer:
+							dcElemSrcBox = &g_DCElemSrcBoxes.src_boxes[TARGET_COMP_DC_ELEM_SRC_IDX];
+							dcElemSrcBox->coords = ComputeCoordsFromUV(left, top, width, height,
+								uv_minmax, box, dcElemSrcBox->uv_coords);
+							dcElemSrcBox->bComputed = true;
+
+							// Get the limits for the quad lasers, left side:
+							dcElemSrcBox = &g_DCElemSrcBoxes.src_boxes[QUAD_LASER_L_DC_ELEM_SRC_IDX];
+							dcElemSrcBox->coords = ComputeCoordsFromUV(left, top, width, height,
+								uv_minmax, box, dcElemSrcBox->uv_coords);
+							dcElemSrcBox->bComputed = true;
+
+							// Get the limits for the quad lasers, left side:
+							dcElemSrcBox = &g_DCElemSrcBoxes.src_boxes[QUAD_LASER_R_DC_ELEM_SRC_IDX];
+							dcElemSrcBox->coords = ComputeCoordsFromUV(left, top, width, height,
+								uv_minmax, box, dcElemSrcBox->uv_coords);
+							dcElemSrcBox->bComputed = true;
+
+							// Other lasers/ion combinations to follow...
+						}
+					}
+				}
 
 				/*
 				// Capture the bounds for the left and right messages panel:

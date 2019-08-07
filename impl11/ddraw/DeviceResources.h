@@ -26,7 +26,10 @@ typedef struct Box_struct {
 
 const int LEFT_RADAR_HUD_BOX_IDX = 0;
 const int RIGHT_RADAR_HUD_BOX_IDX = 1;
-const int MAX_HUD_BOXES = 2;
+const int SHIELDS_HUD_BOX_IDX = 2;
+const int BEAM_HUD_BOX_IDX = 3;
+const int TARGET_HUD_BOX_IDX = 4;
+const int MAX_HUD_BOXES = 5;
 
 class DCHUDBox {
 public:
@@ -61,7 +64,12 @@ const int LASER_RECHARGE_DC_ELEM_SRC_IDX = 2;
 const int SHIELD_RECHARGE_DC_ELEM_SRC_IDX = 3;
 const int ENGINE_RECHARGE_DC_ELEM_SRC_IDX = 4;
 const int BEAM_RECHARGE_DC_ELEM_SRC_IDX = 5;
-const int MAX_DC_SRC_ELEMENTS = 6;
+const int SHIELDS_DC_ELEM_SRC_IDX = 6;
+const int BEAM_DC_ELEM_SRC_IDX = 7;
+const int TARGET_COMP_DC_ELEM_SRC_IDX = 8;
+const int QUAD_LASER_L_DC_ELEM_SRC_IDX = 9;
+const int QUAD_LASER_R_DC_ELEM_SRC_IDX = 10;
+const int MAX_DC_SRC_ELEMENTS = 11;
 
 class DCElemSrcBox {
 public:
