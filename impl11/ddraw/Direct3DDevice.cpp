@@ -885,6 +885,8 @@ DCElemSrcBoxes::DCElemSrcBoxes() {
 			break;
 		case QUAD_LASER_L_DC_ELEM_SRC_IDX:
 			// TODO: Read these values from a file later. Hard-coded for now.
+			// The laser boxes may have negative y coords because they are relative to the
+			// targeting computer HUD box
 			src_box.uv_coords.x0 =  60.0f / 256.0f;
 			src_box.uv_coords.y0 = -12.0f / 128.0f;
 			src_box.uv_coords.x1 = 127.0f / 256.0f;
@@ -892,10 +894,26 @@ DCElemSrcBoxes::DCElemSrcBoxes() {
 			break;
 		case QUAD_LASER_R_DC_ELEM_SRC_IDX:
 			// TODO: Read these values from a file later. Hard-coded for now.
+			// The laser boxes may have negative y coords because they are relative to the
+			// targeting computer HUD box
 			src_box.uv_coords.x0 = 135.0f / 256.0f;
 			src_box.uv_coords.y0 = -12.0f / 128.0f;
 			src_box.uv_coords.x1 = 202.0f / 256.0f;
 			src_box.uv_coords.y1 =   5.0f / 128.0f;
+			break;
+		case LEFT_MSG_DC_ELEM_SRC_IDX:
+			// TODO: Read these values from a file later. Hard-coded for now.
+			src_box.uv_coords.x0 =  28.0f / 256.0f;
+			src_box.uv_coords.y0 =  64.0f / 256.0f;
+			src_box.uv_coords.x1 = 218.0f / 256.0f;
+			src_box.uv_coords.y1 = 200.0f / 256.0f;
+			break;
+		case RIGHT_MSG_DC_ELEM_SRC_IDX:
+			// TODO: Read these values from a file later. Hard-coded for now.
+			src_box.uv_coords.x0 = 38.0f / 256.0f;
+			src_box.uv_coords.y0 = 64.0f / 256.0f;
+			src_box.uv_coords.x1 = 228.0f / 256.0f;
+			src_box.uv_coords.y1 = 200.0f / 256.0f;
 			break;
 		}
 		src_boxes.push_back(src_box);
@@ -3434,6 +3452,59 @@ HRESULT Direct3DDevice::Execute(
 							dcElemSrcBox->bComputed = true;
 
 							// Other lasers/ion combinations to follow...
+						}
+					}
+				}
+
+				// Capture the bounds for the left/right message boxes:
+				if (g_bDynCockpitEnabled && lastTextureSelected != NULL)
+				{
+					if (lastTextureSelected->crc == DYN_COCKPIT_BORDER_MSG_SRC_CRC)
+					{
+						DCHUDBox *dcSrcBoxL = &g_DCHUDBoxes.boxes[LEFT_MSG_HUD_BOX_IDX];
+						DCHUDBox *dcSrcBoxR = &g_DCHUDBoxes.boxes[RIGHT_MSG_HUD_BOX_IDX];
+						if (!dcSrcBoxL->bLimitsComputed || !dcSrcBoxR->bLimitsComputed)
+						{
+							DCHUDBox *dcSrcBox = NULL;
+							DCElemSrcBox *dcElemSrcBox = NULL;
+							bool bLeft = false;
+							float midX, minX, minY, maxX, maxY;
+							Box uv_minmax = { 0 };
+							Box box;
+							GetBoundingBoxUVs(instruction, currentIndexLocation, &minX, &minY, &maxX, &maxY,
+								&uv_minmax.x0, &uv_minmax.y0, &uv_minmax.x1, &uv_minmax.y1);
+							// This HUD is used for both the left and right message boxes, so we need to check
+							// which one is being rendered
+							midX = (minX + maxX) / 2.0f;
+							if (midX < g_fCurInGameWidth / 2.0f && !dcSrcBoxL->bLimitsComputed) {
+								bLeft = true;
+								dcSrcBox = dcSrcBoxL;
+							} else if (midX > g_fCurInGameWidth / 2.0f && !dcSrcBoxR->bLimitsComputed) {
+								bLeft = false;
+								dcSrcBox = dcSrcBoxR;
+							}
+
+							if (dcSrcBox != NULL) {
+								InGameToScreenCoords(left, top, width, height, minX, minY, &box.x0, &box.y0);
+								InGameToScreenCoords(left, top, width, height, maxX, maxY, &box.x1, &box.y1);
+								// Store the pixel coordinates
+								dcSrcBox->coords = box;
+								dcSrcBox->bLimitsComputed = true;
+
+								if (bLeft) {
+									// Get the limits for the left message box:
+									dcElemSrcBox = &g_DCElemSrcBoxes.src_boxes[LEFT_MSG_DC_ELEM_SRC_IDX];
+									dcElemSrcBox->coords = ComputeCoordsFromUV(left, top, width, height,
+										uv_minmax, box, dcElemSrcBox->uv_coords);
+									dcElemSrcBox->bComputed = true;
+								} else {
+									// Get the limits for the right message box:
+									dcElemSrcBox = &g_DCElemSrcBoxes.src_boxes[RIGHT_MSG_DC_ELEM_SRC_IDX];
+									dcElemSrcBox->coords = ComputeCoordsFromUV(left, top, width, height,
+										uv_minmax, box, dcElemSrcBox->uv_coords);
+									dcElemSrcBox->bComputed = true;
+								}
+							}
 						}
 					}
 				}

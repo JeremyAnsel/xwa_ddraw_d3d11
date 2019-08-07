@@ -29,7 +29,9 @@ const int RIGHT_RADAR_HUD_BOX_IDX = 1;
 const int SHIELDS_HUD_BOX_IDX = 2;
 const int BEAM_HUD_BOX_IDX = 3;
 const int TARGET_HUD_BOX_IDX = 4;
-const int MAX_HUD_BOXES = 5;
+const int LEFT_MSG_HUD_BOX_IDX = 5;
+const int RIGHT_MSG_HUD_BOX_IDX = 6;
+const int MAX_HUD_BOXES = 7;
 
 class DCHUDBox {
 public:
@@ -69,7 +71,9 @@ const int BEAM_DC_ELEM_SRC_IDX = 7;
 const int TARGET_COMP_DC_ELEM_SRC_IDX = 8;
 const int QUAD_LASER_L_DC_ELEM_SRC_IDX = 9;
 const int QUAD_LASER_R_DC_ELEM_SRC_IDX = 10;
-const int MAX_DC_SRC_ELEMENTS = 11;
+const int LEFT_MSG_DC_ELEM_SRC_IDX = 11;
+const int RIGHT_MSG_DC_ELEM_SRC_IDX = 12;
+const int MAX_DC_SRC_ELEMENTS = 13;
 
 class DCElemSrcBox {
 public:
