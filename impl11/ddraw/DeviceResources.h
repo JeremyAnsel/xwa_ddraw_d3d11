@@ -24,18 +24,26 @@ typedef struct Box_struct {
 	float x0, y0, x1, y1;
 } Box;
 
-const int LEFT_RADAR_HUD_BOX_IDX = 0;
-const int RIGHT_RADAR_HUD_BOX_IDX = 1;
-const int SHIELDS_HUD_BOX_IDX = 2;
-const int BEAM_HUD_BOX_IDX = 3;
-const int TARGET_HUD_BOX_IDX = 4;
-const int LEFT_MSG_HUD_BOX_IDX = 5;
-const int RIGHT_MSG_HUD_BOX_IDX = 6;
-const int MAX_HUD_BOXES = 7;
+typedef struct uvfloat4_struct {
+	float x0, y0, x1, y1;
+} uvfloat4;
+
+const int LEFT_RADAR_HUD_BOX_IDX		= 0;
+const int RIGHT_RADAR_HUD_BOX_IDX	= 1;
+const int SHIELDS_HUD_BOX_IDX		= 2;
+const int BEAM_HUD_BOX_IDX			= 3;
+const int TARGET_HUD_BOX_IDX			= 4;
+const int LEFT_MSG_HUD_BOX_IDX		= 5;
+const int RIGHT_MSG_HUD_BOX_IDX		= 6;
+const int TOP_LEFT_BOX_IDX			= 7;
+const int TOP_RIGHTT_BOX_IDX			= 8;
+const int MAX_HUD_BOXES				= 9;
 
 class DCHUDBox {
 public:
 	Box coords;
+	Box uv_erase_coords;
+	uvfloat4 erase_coords;
 	bool bLimitsComputed;
 };
 
@@ -55,7 +63,7 @@ public:
 	}
 
 	void ResetLimits() {
-		for (unsigned int i = 0; i < boxes.size(); i++)
+		for (unsigned int i = 0; i < boxes.size(); i++) 
 			boxes[i].bLimitsComputed = false;
 	}
 };
@@ -146,10 +154,6 @@ typedef struct HeadPosStruct {
 	float x, y, z;
 } HeadPos;
 
-typedef struct uvfloat4_struct {
-	float x0, y0, x1, y1;
-} uvfloat4;
-
 typedef struct float4_struct {
 	float x, y, z, w;
 } float4;
@@ -172,7 +176,6 @@ typedef struct PixelShaderCBStruct {
 
 typedef struct uv_coords_src_dst_struct {
 	int src_slot[MAX_DC_COORDS];
-	uvfloat4 src[MAX_DC_COORDS];
 	uvfloat4 dst[MAX_DC_COORDS];
 	uint32_t uBGColor[MAX_DC_COORDS];
 	int numCoords;
@@ -186,7 +189,8 @@ typedef struct uv_coords_struct {
 const int MAX_TEXTURE_NAME = 256;
 typedef struct dc_element_struct {
 	uv_src_dst_coords coords;
-	uv_coords eraseCoords;
+	int erase_slots[MAX_DC_COORDS];
+	int num_erase_slots;
 	char name[MAX_TEXTURE_NAME];
 	char coverTextureName[MAX_TEXTURE_NAME];
 	ID3D11ShaderResourceView *coverTexture = NULL;

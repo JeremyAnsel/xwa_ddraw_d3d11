@@ -548,7 +548,6 @@ HRESULT Direct3DTexture::Load(
 				this->is_DynCockpitDst = true;
 				// Make this texture "point back" to the right dc_element
 				this->DCElementIndex = idx;
-				log_debug("[DBG] [DC] DCElementIndex = %d", this->DCElementIndex);
 				// Activate this dc_element
 				g_DCElements[idx].bActive = true;
 				// Store the name of this cockpit

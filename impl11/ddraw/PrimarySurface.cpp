@@ -27,6 +27,7 @@ extern bool g_bNaturalConcourseAnimations;
 extern bool g_bIsTrianglePointer, g_bLastTrianglePointer, g_bFixedGUI;
 extern bool g_bHUDVerticesReady;
 extern std::vector<dc_element> g_DCElements;
+extern DCHUDBoxes g_DCHUDBoxes;
 extern char g_sCurrentCockpit[128];
 
 extern VertexShaderCBuffer g_VSCBuffer;
@@ -1396,10 +1397,26 @@ void PrimarySurface::ClearHUDRegions() {
 		if (!dc_elem->bActive)
 			continue;
 
-		int numCoords = dc_elem->eraseCoords.numCoords;
-		for (int j = 0; j < numCoords; j++)
-			ClearBox(dc_elem->eraseCoords.src[j], &viewport, 0);
+		if (dc_elem->num_erase_slots == 0)
+			continue;
+
+		for (int j = 0; j < dc_elem->num_erase_slots; j++) {
+			int erase_slot = dc_elem->erase_slots[j];
+			DCHUDBox *dcSrcBox = &g_DCHUDBoxes.boxes[erase_slot];
+			if (dcSrcBox->bLimitsComputed)
+				ClearBox(dcSrcBox->erase_coords, &viewport, 0);
+		}
 	}
+
+
+	/*
+	unsigned int size = g_DCHUDBoxes.boxes.size();
+	for (unsigned int i = 0; i < size; i++) {
+		DCHUDBox *dcSrcBox = &g_DCHUDBoxes.boxes[i];
+		if (dcSrcBox->bLimitsComputed && dcSrcBox->bErase)
+			ClearBox(dcSrcBox->erase_coords, &viewport, 0);
+	}
+	*/
 }
 
 void PrimarySurface::DrawHUDVertices() {
