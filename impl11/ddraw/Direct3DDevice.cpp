@@ -1213,6 +1213,8 @@ bool LoadDCParams() {
 					g_DCElements[lastDCElemSelected].erase_slots[next_idx] = slot;
 					g_DCElements[lastDCElemSelected].num_erase_slots++;
 				}
+				else
+					log_debug("[DBG] [DC] WARNING: erase_region = %d IGNORED: Not enough g_DCHUDBoxes", slot);
 			}
 			else if (_stricmp(param, COVER_TEX_NAME_DCPARAM) == 0) {
 				if (lastDCElemSelected == -1) {
@@ -3306,11 +3308,7 @@ HRESULT Direct3DDevice::Execute(
 				//if (PlayerDataTable[0].cockpitDisplayed2)
 				//	goto out;
 
-				// Capture the bounds of the various HUD elements
-				// Capture the bounds of the targeting computer texture
-				// The targeting computer is rendered *after* the laser energy levels and the bounding box of the targeting
-				// computer slightly overlaps the lasers. So, we must be careful when copying image data from this area.
-				
+				// Capture the bounds of the various HUD elements			
 				// Capture the bounds for the left radar:
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL)
 				{
@@ -3568,6 +3566,82 @@ HRESULT Direct3DDevice::Execute(
 									uv_minmax, box, dcElemSrcBox->uv_coords);
 								dcElemSrcBox->bComputed = true;
 							}
+						}
+					}
+				}
+
+				// Capture the bounds for the top-left bracket:
+				if (g_bDynCockpitEnabled && lastTextureSelected != NULL)
+				{
+					if (lastTextureSelected->crc == DYN_COCKPIT_TOP_LEFT_SRC_CRC)
+					{
+						if (!g_DCHUDBoxes.boxes[TOP_LEFT_BOX_IDX].bLimitsComputed)
+						{
+							DCHUDBox *dcSrcBox = &g_DCHUDBoxes.boxes[TOP_LEFT_BOX_IDX];
+							DCElemSrcBox *dcElemSrcBox = NULL;
+							float minX, minY, maxX, maxY;
+							Box uv_minmax = { 0 };
+							Box box;
+							GetBoundingBoxUVs(instruction, currentIndexLocation, &minX, &minY, &maxX, &maxY,
+								&uv_minmax.x0, &uv_minmax.y0, &uv_minmax.x1, &uv_minmax.y1);
+							InGameToScreenCoords(left, top, width, height, minX, minY, &box.x0, &box.y0);
+							InGameToScreenCoords(left, top, width, height, maxX, maxY, &box.x1, &box.y1);
+							// Store the pixel coordinates
+							dcSrcBox->coords = box;
+							// Compute and store the erase coordinates for this HUD Box
+							ComputeCoordsFromUV(left, top, width, height, uv_minmax, box,
+								dcSrcBox->uv_erase_coords, &dcSrcBox->erase_coords);
+							dcSrcBox->bLimitsComputed = true;
+
+							// Get the limits for Speed & Throttle
+							dcElemSrcBox = &g_DCElemSrcBoxes.src_boxes[SPEED_N_THROTTLE_DC_ELEM_SRC_IDX];
+							dcElemSrcBox->coords = ComputeCoordsFromUV(left, top, width, height,
+								uv_minmax, box, dcElemSrcBox->uv_coords);
+							dcElemSrcBox->bComputed = true;
+
+							// Get the limits for Missiles
+							dcElemSrcBox = &g_DCElemSrcBoxes.src_boxes[MISSILES_DC_ELEM_SRC_IDX];
+							dcElemSrcBox->coords = ComputeCoordsFromUV(left, top, width, height,
+								uv_minmax, box, dcElemSrcBox->uv_coords);
+							dcElemSrcBox->bComputed = true;
+						}
+					}
+				}
+
+				// Capture the bounds for the top-right bracket:
+				if (g_bDynCockpitEnabled && lastTextureSelected != NULL)
+				{
+					if (lastTextureSelected->crc == DYN_COCKPIT_TOP_RIGHT_SRC_CRC)
+					{
+						if (!g_DCHUDBoxes.boxes[TOP_RIGHT_BOX_IDX].bLimitsComputed)
+						{
+							DCHUDBox *dcSrcBox = &g_DCHUDBoxes.boxes[TOP_RIGHT_BOX_IDX];
+							DCElemSrcBox *dcElemSrcBox = NULL;
+							float minX, minY, maxX, maxY;
+							Box uv_minmax = { 0 };
+							Box box;
+							GetBoundingBoxUVs(instruction, currentIndexLocation, &minX, &minY, &maxX, &maxY,
+								&uv_minmax.x0, &uv_minmax.y0, &uv_minmax.x1, &uv_minmax.y1);
+							InGameToScreenCoords(left, top, width, height, minX, minY, &box.x0, &box.y0);
+							InGameToScreenCoords(left, top, width, height, maxX, maxY, &box.x1, &box.y1);
+							// Store the pixel coordinates
+							dcSrcBox->coords = box;
+							// Compute and store the erase coordinates for this HUD Box
+							ComputeCoordsFromUV(left, top, width, height, uv_minmax, box,
+								dcSrcBox->uv_erase_coords, &dcSrcBox->erase_coords);
+							dcSrcBox->bLimitsComputed = true;
+
+							// Get the limits for Name & Time
+							dcElemSrcBox = &g_DCElemSrcBoxes.src_boxes[NAME_TIME_DC_ELEM_SRC_IDX];
+							dcElemSrcBox->coords = ComputeCoordsFromUV(left, top, width, height,
+								uv_minmax, box, dcElemSrcBox->uv_coords);
+							dcElemSrcBox->bComputed = true;
+
+							// Get the limits for Number of Crafts
+							dcElemSrcBox = &g_DCElemSrcBoxes.src_boxes[NUM_CRAFTS_DC_ELEM_SRC_IDX];
+							dcElemSrcBox->coords = ComputeCoordsFromUV(left, top, width, height,
+								uv_minmax, box, dcElemSrcBox->uv_coords);
+							dcElemSrcBox->bComputed = true;
 						}
 					}
 				}

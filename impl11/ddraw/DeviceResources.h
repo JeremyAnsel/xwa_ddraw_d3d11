@@ -36,7 +36,7 @@ const int TARGET_HUD_BOX_IDX			= 4;
 const int LEFT_MSG_HUD_BOX_IDX		= 5;
 const int RIGHT_MSG_HUD_BOX_IDX		= 6;
 const int TOP_LEFT_BOX_IDX			= 7;
-const int TOP_RIGHTT_BOX_IDX			= 8;
+const int TOP_RIGHT_BOX_IDX			= 8;
 const int MAX_HUD_BOXES				= 9;
 
 class DCHUDBox {
@@ -81,7 +81,11 @@ const int QUAD_LASER_L_DC_ELEM_SRC_IDX = 9;
 const int QUAD_LASER_R_DC_ELEM_SRC_IDX = 10;
 const int LEFT_MSG_DC_ELEM_SRC_IDX = 11;
 const int RIGHT_MSG_DC_ELEM_SRC_IDX = 12;
-const int MAX_DC_SRC_ELEMENTS = 13;
+const int SPEED_N_THROTTLE_DC_ELEM_SRC_IDX = 13;
+const int MISSILES_DC_ELEM_SRC_IDX = 14;
+const int NAME_TIME_DC_ELEM_SRC_IDX = 15;
+const int NUM_CRAFTS_DC_ELEM_SRC_IDX = 16;
+const int MAX_DC_SRC_ELEMENTS = 17;
 
 class DCElemSrcBox {
 public:
