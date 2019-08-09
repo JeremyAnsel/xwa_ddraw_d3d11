@@ -499,7 +499,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		g_bWndProcReplaced = true;
 	}
 
-	log_debug("[DBG] OnSizeChanged, dwWidth,Height: %d, %d", dwWidth, dwHeight);
+	//log_debug("[DBG] OnSizeChanged, dwWidth,Height: %d, %d", dwWidth, dwHeight);
 
 	if (g_bUseSteamVR) {
 		// dwWidth, dwHeight are the in-game's resolution
@@ -654,7 +654,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 				g_FullScreenHeight = sd.BufferDesc.Height;
 				g_fCurScreenWidth = (float)sd.BufferDesc.Width;
 				g_fCurScreenHeight = (float)sd.BufferDesc.Height;
-				log_debug("[DBG] Fullscreen size: %d, %d", g_FullScreenWidth, g_FullScreenHeight);
+				//log_debug("[DBG] Fullscreen size: %d, %d", g_FullScreenWidth, g_FullScreenHeight);
 			}
 		}
 

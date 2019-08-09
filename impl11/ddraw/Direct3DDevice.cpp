@@ -146,6 +146,7 @@ const char *PITCH_OFFSET_CLPARAM     = "pitch_offset";
 // Dynamic Cockpit vrparams
 const char *UV_COORDS_DCPARAM			= "uv_coords";
 const char *COVER_TEX_NAME_DCPARAM		= "cover_texture";
+const char *COVER_TEX_SIZE_DCPARAM		= "cover_texture_size";
 const char *ERASE_REGION_DCPARAM			= "erase_region";
 const char *DC_TARGET_COMP_UV_COORDS_VRPARAM   = "dc_target_comp_uv_coords";
 const char *DC_LEFT_RADAR_UV_COORDS_VRPARAM    = "dc_left_radar_uv_coords";
@@ -843,22 +844,6 @@ DCHUDBoxes::DCHUDBoxes() {
 	for (int i = 0; i < MAX_HUD_BOXES; i++) {
 		DCHUDBox box = { 0 };
 		box.bLimitsComputed = false;
-		/*
-		switch (i) {
-		case LEFT_RADAR_HUD_BOX_IDX:
-			box.uv_erase_coords.x0 =   5.0f / 128.0f;
-			box.uv_erase_coords.y0 =  13.0f / 128.0f;
-			box.uv_erase_coords.x1 = 119.0f / 128.0f;
-			box.uv_erase_coords.y1 = 109.5f / 128.0f;
-			break;
-		case RIGHT_RADAR_HUD_BOX_IDX:
-			box.uv_erase_coords.x0 =  10.0f / 128.0f;
-			box.uv_erase_coords.y0 =  13.0f / 128.0f;
-			box.uv_erase_coords.x1 = 119.0f / 128.0f;
-			box.uv_erase_coords.y1 = 109.5f / 128.0f;
-			break;
-		}			
-		*/
 		boxes.push_back(box);
 	}
 }
@@ -866,7 +851,8 @@ DCHUDBoxes::DCHUDBoxes() {
 DCElemSrcBoxes::DCElemSrcBoxes() {
 	Clear();
 	for (int i = 0; i < MAX_DC_SRC_ELEMENTS; i++) {
-		DCElemSrcBox  src_box;
+		DCElemSrcBox src_box;
+		/*
 		switch (i) {
 		case LEFT_RADAR_DC_ELEM_SRC_IDX:
 			// TODO: Read these values from a file later. Hard-coded for now.
@@ -964,6 +950,7 @@ DCElemSrcBoxes::DCElemSrcBoxes() {
 			src_box.uv_coords.y1 = 200.0f / 256.0f;
 			break;
 		}
+		*/
 		src_boxes.push_back(src_box);
 	}
 }
@@ -994,11 +981,10 @@ bool LoadDCGlobalCoordinates() {
 
 	char buf[256], param[128], svalue[128];
 	int param_read_count = 0;
-	unsigned int slot = 0;
+	unsigned int erase_slot = 0, source_slot = 0;
 	float value = 0.0f;
 
-	// Reset the global source coordinates
-	//g_DCElemSrcBoxes.Clear();
+	// TODO: Reset the global source and erase coordinates
 	while (fgets(buf, 256, file) != NULL) {
 		line++;
 		// Skip comments and blank lines
@@ -1010,21 +996,30 @@ bool LoadDCGlobalCoordinates() {
 		if (sscanf_s(buf, "%s = %s", param, 128, svalue, 128) > 0) {
 			value = (float)atof(svalue);
 
-			if (_stricmp(param, "erase_def") == 0) {
-				if (slot >= g_DCHUDBoxes.boxes.size()) {
-					log_debug("[DBG] [DC] Ignoring '%s' because slot: %d does not exist\n", slot);
+			if (_stricmp(param, "source_def") == 0) {
+				if (source_slot >= g_DCElemSrcBoxes.src_boxes.size()) {
+					log_debug("[DBG] [DC] Ignoring '%s' because slot: %d does not exist\n", source_slot);
+					continue;
+				}
+				Box box = { 0 };
+				if (LoadUVCoords(buf, &box))
+					g_DCElemSrcBoxes.src_boxes[source_slot].uv_coords = box;
+				else
+					log_debug("[DBG] [DC] WARNING: '%s' could not be loaded", buf);
+				source_slot++;
+			} else if (_stricmp(param, "erase_def") == 0) {
+				if (erase_slot >= g_DCHUDBoxes.boxes.size()) {
+					log_debug("[DBG] [DC] Ignoring '%s' because slot: %d does not exist\n", erase_slot);
 					continue;
 				}
 				Box box = { 0 };
 				if (LoadUVCoords(buf, &box)) {
-					g_DCHUDBoxes.boxes[slot].uv_erase_coords = box;
-					g_DCHUDBoxes.boxes[slot].bLimitsComputed = false; // Force a recompute of the limits
+					g_DCHUDBoxes.boxes[erase_slot].uv_erase_coords = box;
+					g_DCHUDBoxes.boxes[erase_slot].bLimitsComputed = false; // Force a recompute of the limits
 				}
-				slot++;
-
-				//box = g_DCHUDBoxes.boxes[slot - 1].uv_erase_coords;
-				//log_debug("[DBG] [DC] Loaded uv_erase_coords: (%0.3f, %0.3f)-(%0.3f, %0.3f)",
-				//	box.x0, box.y0, box.x1, box.y1);
+				else
+					log_debug("[DBG] [DC] WARNING: '%s' could not be loaded", buf);
+				erase_slot++;
 			}
 		}
 	}
@@ -1046,14 +1041,11 @@ void ClearDynCockpitVector(std::vector<dc_element> &DCElements) {
 
 /* 
  * Loads a single row of dynamic cockpit coordinates of the form:
- * src-width,height, src-x0,y0,x1,y1, dst-x0,y0,x1,y1
+ * src-slot; x0,y0,x1,y1, [Hex-Color]
  */
-bool LoadDynCockpitCoords(char *buf, uv_src_dst_coords *coords)
+bool LoadDynCockpitCoords(char *buf, float width, float height, uv_src_dst_coords *coords)
 {
-	//float src_width, src_height;
-	float dst_width, dst_height;
-	//float x0_src, y0_src, x1_src, y1_src;
-	float x0_dst, y0_dst, x1_dst, y1_dst;
+	float x0, y0, x1, y1;
 	int src_slot;
 	uint32_t uColor;
 	int res = 0, idx = coords->numCoords;
@@ -1070,31 +1062,19 @@ bool LoadDynCockpitCoords(char *buf, uv_src_dst_coords *coords)
 		try {
 			uColor = 0x121233FF;
 			src_slot = -1;
-			/*res = sscanf_s(c, "%f, %f, %f, %f, %f, %f; "
-				"%f, %f, %f, %f, %f, %f; 0x%x",
-				&src_width, &src_height, &x0_src, &y0_src, &x1_src, &y1_src,
-				&dst_width, &dst_height, &x0_dst, &y0_dst, &x1_dst, &y1_dst,
-				&uColor);*/
-			res = sscanf_s(c, "%d; %f, %f, %f, %f, %f, %f; 0x%x",
-				&src_slot, &dst_width, &dst_height, &x0_dst, &y0_dst, &x1_dst, &y1_dst,
+			res = sscanf_s(c, "%d; %f, %f, %f, %f; 0x%x",
+				&src_slot, &x0, &y0, &x1, &y1,
 				&uColor);
-			if (res < 7) { // 12
-				log_debug("[DBG] [DC] Error (skipping), expected at least 7 elements in '%s'", c);
+			if (res < 5) {
+				log_debug("[DBG] [DC] Error (skipping), expected at least 5 elements in '%s'", c);
 			} else {
 				coords->src_slot[idx] = src_slot;
-				//coords->src[idx].x0 = x0_src / src_width;
-				//coords->src[idx].y0 = y0_src / src_height;
-				//coords->src[idx].x1 = x1_src / src_width;
-				//coords->src[idx].y1 = y1_src / src_height;
-
-				coords->dst[idx].x0 = x0_dst / dst_width;
-				coords->dst[idx].y0 = y0_dst / dst_height;
-				coords->dst[idx].x1 = x1_dst / dst_width;
-				coords->dst[idx].y1 = y1_dst / dst_height;
+				coords->dst[idx].x0 = x0 / width;
+				coords->dst[idx].y0 = y0 / height;
+				coords->dst[idx].x1 = x1 / width;
+				coords->dst[idx].y1 = y1 / height;
 
 				coords->uBGColor[idx] = uColor;
-				//log_debug("[DBG] %f, %f - %f, %f", coords->src[idx].x0, coords->src[idx].y0,
-				//	coords->src[idx].x1, coords->src[idx].y1);
 				coords->numCoords++;
 			}
 		}
@@ -1107,36 +1087,24 @@ bool LoadDynCockpitCoords(char *buf, uv_src_dst_coords *coords)
 }
 
 /*
- * Loads a single row of dynamic cockpit erase coordinates of the form:
- * width,height, x0,y0,x1,y1
+ * Loads a cover_texture_size row
  */
-bool LoadDynCockpitEraseCoords(char *buf, uv_coords *coords)
+bool LoadDynCockpitCoverTexSize(char *buf, float *width, float *height)
 {
-	float width, height;
-	float x0, y0, x1, y1;
-	int res = 0, idx = coords->numCoords;
+	int res = 0;
 	char *c = NULL;
-
-	if (idx >= MAX_DC_COORDS) {
-		log_debug("[DBG] [DC] Too many coords already loaded");
-		return false;
-	}
 
 	c = strchr(buf, '=');
 	if (c != NULL) {
 		c += 1;
 		try {
-			res = sscanf_s(c, "%f, %f, %f, %f, %f, %f",
-				&width, &height, &x0, &y0, &x1, &y1);
-
-			coords->src[idx].x0 = x0 / width;
-			coords->src[idx].y0 = y0 / height;
-			coords->src[idx].x1 = x1 / width;
-			coords->src[idx].y1 = y1 / height;
-			coords->numCoords++;
+			res = sscanf_s(c, "%f, %f", width, height);
+			if (res < 2) {
+				log_debug("[DBG] [DC] Error (skipping), expected at least 2 elements in '%s'", c);
+			}
 		}
 		catch (...) {
-			log_debug("[DBG] [DC] Could not read oords from: %s", buf);
+			log_debug("[DBG] [DC] Could not read 'width, height' from: %s", buf);
 			return false;
 		}
 	}
@@ -1149,6 +1117,7 @@ bool LoadDCParams() {
 	FILE *file;
 	int error = 0, line = 0;
 	static int lastDCElemSelected = -1;
+	float cover_tex_width = 1, cover_tex_height = 1;
 
 	try {
 		error = fopen_s(&file, "./dynamic_cockpit.cfg", "rt");
@@ -1186,6 +1155,11 @@ bool LoadDCParams() {
 			if (_stricmp(param, DYNAMIC_COCKPIT_TARGET_COMP_VRPARAM) == 0) {
 				g_bDynCockpitEnabled = (bool)value;
 				log_debug("[DBG] [DC] g_bDynCockpitEnabled: %d", g_bDynCockpitEnabled);
+				if (!g_bDynCockpitEnabled) {
+					// Early abort: stop reading coordinates if the dynamic cockpit is disabled
+					fclose(file);
+					return false;
+				}
 			}
 			else if (buf[0] == '[') {
 				// This is a new DC element.
@@ -1201,8 +1175,7 @@ bool LoadDCParams() {
 					g_DCElements[lastDCElemSelected].coords.numCoords = 0;
 					g_DCElements[lastDCElemSelected].num_erase_slots = 0;
 					log_debug("[DBG] [DC] Resetting coords of exisiting DC elem @ idx: %d", lastDCElemSelected);
-				}
-				else {
+				} else {
 					// Initialize this dc_elem:
 					dc_elem.coverTextureName[0] = 0;
 					dc_elem.coverTexture = NULL;
@@ -1212,7 +1185,6 @@ bool LoadDCParams() {
 					dc_elem.bNameHasBeenTested = false;
 					g_DCElements.push_back(dc_elem);
 					lastDCElemSelected = (int)g_DCElements.size() - 1;
-					//log_debug("[DBG] [DC] Adding new DC elem: '%s'", dc_elem.name);
 				}
 			}
 			else if (_stricmp(param, UV_COORDS_DCPARAM) == 0) {
@@ -1224,7 +1196,7 @@ bool LoadDCParams() {
 					log_debug("[DBG] [DC] ERROR. Line %d, %s without a corresponding texture section.", line, UV_COORDS_DCPARAM);
 					continue;
 				}
-				LoadDynCockpitCoords(buf, &(g_DCElements[lastDCElemSelected].coords));
+				LoadDynCockpitCoords(buf, cover_tex_width, cover_tex_height, &(g_DCElements[lastDCElemSelected].coords));
 			}
 			else if (_stricmp(param, ERASE_REGION_DCPARAM) == 0) {
 				if (g_DCElements.size() == 0) {
@@ -1241,9 +1213,6 @@ bool LoadDCParams() {
 					g_DCElements[lastDCElemSelected].erase_slots[next_idx] = slot;
 					g_DCElements[lastDCElemSelected].num_erase_slots++;
 				}
-				//g_DCElements[lastDCElemSelected].erase_region_slot = (int)value;
-				//LoadDynCockpitEraseCoords(buf, &(g_DCElements[lastDCElemSelected].erase_region_slot));
-				//log_debug("[DBG] [DC] Added erase_coords to '%s'", g_DCElements[lastDCElemSelected].name);
 			}
 			else if (_stricmp(param, COVER_TEX_NAME_DCPARAM) == 0) {
 				if (lastDCElemSelected == -1) {
@@ -1251,8 +1220,9 @@ bool LoadDCParams() {
 					continue;
 				}
 				strcpy_s(g_DCElements[lastDCElemSelected].coverTextureName, MAX_TEXTURE_NAME, svalue);
-				const dc_element dc_elem = g_DCElements[lastDCElemSelected];
-				//log_debug("[DBG] [DC] '%s' covered by '%s'", dc_elem.name, dc_elem.coverTextureName);
+			}
+			else if (_stricmp(param, COVER_TEX_SIZE_DCPARAM) == 0) {
+				LoadDynCockpitCoverTexSize(buf, &cover_tex_width, &cover_tex_height);
 			}
 		}
 	}
@@ -1468,51 +1438,12 @@ next:
 	ReloadCRCs();
 	// Load cockpit look params
 	LoadCockpitLookParams();
-	// Load the global Dynamic Cockpit params
-	LoadDCGlobalCoordinates();
 	// Load Dynamic Cockpit params
 	LoadDCParams();
+	if (g_bDynCockpitEnabled)
+		// Load the global Dynamic Cockpit params
+		LoadDCGlobalCoordinates();
 }
-
-/*
- * Back-projects a 2D coordinate + Logarithmic ZBuffer coordinate into 3D space.
- * The 2D coordinate must be in normalized space (-0.5..0.5) with the center of the image at (0,0).
- */
-/*
-static inline void
-back_project(float px, float py, float pz, float direct_pz, float &X, float &Y, float &Z)
-{
-	// This is the formula from qUINT_common.fxh for the logarithmic Z buffer:
-	//const float C = 0.01;
-	//depth = (exp(depth * log(C + 1.0)) - 1.0) / C;
-
-	//Z = (exp(pz * LOG_K) - 1.0f) / C;
-	Z = (exp(pz * LOG_K) - 1.0f) / direct_pz;
-	X = Z * px / g_fFocalDist;
-	Y = Z * py / g_fFocalDist;
-
-	X *= GAME_SCALE_FACTOR;
-	Y *= GAME_SCALE_FACTOR;
-	Z *= GAME_SCALE_FACTOR_Z;
-}
-*/
-
-/*
- * Projects a 3D coordinate back into 2D normailzed space (center of the image is at
- * the origin).
- */
-/*
-static inline void
-project(float X, float Y, float Z, float &px, float &py, float &pz) 
-{
-	// Z = (exp(pz * LOG_K) - 1.0f) / direct_pz;
-	// Z / direct_pz + 1.0f = exp(pz * LOG_K)
-	//pz = log(Z * C + 1.0f) / LOG_K;
-	//pz = log(Z/(1 - pz) * C + 1.0f) / LOG_K;
-	px = X * g_fFocalDist / Z;
-	py = Y * g_fFocalDist / Z;
-}
-*/
 
 ////////////////////////////////////////////////////////////////
 // SteamVR functions
