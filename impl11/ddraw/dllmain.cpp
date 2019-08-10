@@ -28,6 +28,7 @@ void IncreaseNoDrawAfterIndex(int Delta);
 void IncreaseSkipNonZBufferDrawIdx(int Delta);
 void IncreaseSkyBoxIndex(int Delta);
 void IncreaseFocalDist(float Delta);
+void IncreaseNoDrawAfterHUD(int Delta);
 #endif
 
 extern bool g_bDisableBarrelEffect, g_bEnableVR, g_bResetHeadCenter;
@@ -94,8 +95,12 @@ LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 				return 0;
 
 			case VK_UP:
+				// DBG HACK REMOVE LATER
+				//IncreaseNoDrawAfterHUD(1);
 				return 0;
 			case VK_DOWN:
+				// DBG HACK REMOVE LATER
+				//IncreaseNoDrawAfterHUD(-1);
 				return 0;
 			}
 		}

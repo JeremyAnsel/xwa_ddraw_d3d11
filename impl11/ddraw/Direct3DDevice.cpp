@@ -204,9 +204,9 @@ D3DTLVERTEX *g_OrigVerts = NULL;
 // Counter for calls to DrawIndexed() (This helps us know where were are in the rendering process)
 // Gets reset everytime the backbuffer is presented and is increased only after BOTH the left and
 // right images have been rendered.
-int g_iDrawCounter = 0, g_iNoDrawBeforeIndex = 0, g_iNoDrawAfterIndex = -1;
+int g_iDrawCounter = 0, g_iNoDrawBeforeIndex = 0, g_iNoDrawAfterIndex = -1, g_iDrawCounterAfterHUD = -1;
 // Similar to the above, but only get incremented after each Execute() is finished.
-int g_iExecBufCounter = 0, g_iNoExecBeforeIndex = 0, g_iNoExecAfterIndex = -1;
+int g_iExecBufCounter = 0, g_iNoExecBeforeIndex = 0, g_iNoExecAfterIndex = -1, g_iNoDrawAfterHUD = -1;
 int g_iSkyBoxExecIndex = DEFAULT_SKYBOX_INDEX; // This gives us the threshold for the Skybox
 // g_iSkyBoxExecIndex is compared against g_iExecBufCounter to determine when the SkyBox is rendered
 // This is important because in XWAU the SkyBox is *not* rendered at infinity and causes a lot of
@@ -515,6 +515,12 @@ void IncreaseNoExecIndices(int DeltaBefore, int DeltaAfter) {
 
 	log_debug("[DBG] NoExec BeforeIdx, AfterIdx: %d, %d", g_iNoExecBeforeIndex, g_iNoExecAfterIndex);
 }
+
+void IncreaseNoDrawAfterHUD(int Delta) {
+	g_iNoDrawAfterHUD += Delta;
+	log_debug("[DBG] NoDrawAfterHUD: %d", g_iNoDrawAfterHUD);
+}
+
 
 void IncreaseSkipNonZBufferDrawIdx(int Delta) {
 	g_iSkipNonZBufferDrawIdx += Delta;
@@ -852,105 +858,6 @@ DCElemSrcBoxes::DCElemSrcBoxes() {
 	Clear();
 	for (int i = 0; i < MAX_DC_SRC_ELEMENTS; i++) {
 		DCElemSrcBox src_box;
-		/*
-		switch (i) {
-		case LEFT_RADAR_DC_ELEM_SRC_IDX:
-			// TODO: Read these values from a file later. Hard-coded for now.
-			src_box.uv_coords.x0 = 25.5f / 128.0f;
-			src_box.uv_coords.y0 = 18.5f / 128.0f;
-			src_box.uv_coords.x1 = 114.5f / 128.0f;
-			src_box.uv_coords.y1 = 106.5f / 128.0f;
-			break;
-		case RIGHT_RADAR_DC_ELEM_SRC_IDX:
-			// TODO: Read these values from a file later. Hard-coded for now.
-			src_box.uv_coords.x0 = 13.5f / 128.0f;
-			src_box.uv_coords.y0 = 19.5f / 128.0f;
-			src_box.uv_coords.x1 = 102.5f / 128.0f;
-			src_box.uv_coords.y1 = 107.5f / 128.0f;
-			break;
-		case LASER_RECHARGE_DC_ELEM_SRC_IDX:
-			// TODO: Read these values from a file later. Hard-coded for now.
-			src_box.uv_coords.x0 = 9.0f / 128.0f;
-			src_box.uv_coords.y0 = 19.0f / 128.0f;
-			src_box.uv_coords.x1 = 15.0f / 128.0f;
-			src_box.uv_coords.y1 = 62.0f / 128.0f;
-			break;
-		case SHIELD_RECHARGE_DC_ELEM_SRC_IDX:
-			// TODO: Read these values from a file later. Hard-coded for now.
-			src_box.uv_coords.x0 = 9.0f / 128.0f;
-			src_box.uv_coords.y0 = 64.0f / 128.0f;
-			src_box.uv_coords.x1 = 15.0f / 128.0f;
-			src_box.uv_coords.y1 = 107.0f / 128.0f;
-			break;
-		case ENGINE_RECHARGE_DC_ELEM_SRC_IDX:
-			// TODO: Read these values from a file later. Hard-coded for now.
-			src_box.uv_coords.x0 = 113.0f / 128.0f;
-			src_box.uv_coords.y0 = 19.0f / 128.0f;
-			src_box.uv_coords.x1 = 119.0f / 128.0f;
-			src_box.uv_coords.y1 = 62.0f / 128.0f;
-			break;
-		case BEAM_RECHARGE_DC_ELEM_SRC_IDX:
-			// TODO: Read these values from a file later. Hard-coded for now.
-			src_box.uv_coords.x0 = 113.0f / 128.0f;
-			src_box.uv_coords.y0 = 64.0f / 128.0f;
-			src_box.uv_coords.x1 = 119.0f / 128.0f;
-			src_box.uv_coords.y1 = 107.0f / 128.0f;
-			break;
-		case SHIELDS_DC_ELEM_SRC_IDX:
-			// TODO: Read these values from a file later. Hard-coded for now.
-			src_box.uv_coords.x0 = 40.5f / 128.0f;
-			src_box.uv_coords.y0 = 25.5f / 128.0f;
-			src_box.uv_coords.x1 = 98.5f / 128.0f;
-			src_box.uv_coords.y1 = 99.5f / 128.0f;
-			break;
-		case BEAM_DC_ELEM_SRC_IDX:
-			// TODO: Read these values from a file later. Hard-coded for now.
-			src_box.uv_coords.x0 = 29.5f / 128.0f;
-			src_box.uv_coords.y0 = 25.5f / 128.0f;
-			src_box.uv_coords.x1 = 87.5f / 128.0f;
-			src_box.uv_coords.y1 = 99.5f / 128.0f;
-			break;
-		case TARGET_COMP_DC_ELEM_SRC_IDX:
-			// TODO: Read these values from a file later. Hard-coded for now.
-			src_box.uv_coords.x0 =  12.5f / 256.0f;
-			src_box.uv_coords.y0 =   5.5f / 128.0f;
-			src_box.uv_coords.x1 = 245.5f / 256.0f;
-			src_box.uv_coords.y1 = 128.0f / 128.0f;
-			break;
-		case QUAD_LASER_L_DC_ELEM_SRC_IDX:
-			// TODO: Read these values from a file later. Hard-coded for now.
-			// The laser boxes may have negative y coords because they are relative to the
-			// targeting computer HUD box
-			src_box.uv_coords.x0 =  60.0f / 256.0f;
-			src_box.uv_coords.y0 = -12.0f / 128.0f;
-			src_box.uv_coords.x1 = 127.0f / 256.0f;
-			src_box.uv_coords.y1 =   5.0f / 128.0f;
-			break;
-		case QUAD_LASER_R_DC_ELEM_SRC_IDX:
-			// TODO: Read these values from a file later. Hard-coded for now.
-			// The laser boxes may have negative y coords because they are relative to the
-			// targeting computer HUD box
-			src_box.uv_coords.x0 = 135.0f / 256.0f;
-			src_box.uv_coords.y0 = -12.0f / 128.0f;
-			src_box.uv_coords.x1 = 202.0f / 256.0f;
-			src_box.uv_coords.y1 =   5.0f / 128.0f;
-			break;
-		case LEFT_MSG_DC_ELEM_SRC_IDX:
-			// TODO: Read these values from a file later. Hard-coded for now.
-			src_box.uv_coords.x0 =  28.0f / 256.0f;
-			src_box.uv_coords.y0 =  64.0f / 256.0f;
-			src_box.uv_coords.x1 = 218.0f / 256.0f;
-			src_box.uv_coords.y1 = 200.0f / 256.0f;
-			break;
-		case RIGHT_MSG_DC_ELEM_SRC_IDX:
-			// TODO: Read these values from a file later. Hard-coded for now.
-			src_box.uv_coords.x0 =  66.0f / 256.0f;
-			src_box.uv_coords.y0 =  64.0f / 256.0f;
-			src_box.uv_coords.x1 = 256.0f / 256.0f;
-			src_box.uv_coords.y1 = 200.0f / 256.0f;
-			break;
-		}
-		*/
 		src_boxes.push_back(src_box);
 	}
 }
@@ -3286,12 +3193,14 @@ HRESULT Direct3DDevice::Execute(
 
 				if (!g_bPrevIsScaleableGUIElem && g_bIsScaleableGUIElem && !g_bScaleableHUDStarted) {
 					g_bScaleableHUDStarted = true;
+					g_iDrawCounterAfterHUD = 0;
 					// HACK
 					//*g_playerInHangar = 1;
 					// We're about to render the scaleable HUD, time to clear the dynamic cockpit texture
 					if (g_bDynCockpitEnabled) {
 						float bgColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 						context->ClearRenderTargetView(resources->_renderTargetViewDynCockpit, bgColor);
+						context->ClearRenderTargetView(resources->_renderTargetViewDynCockpitBG, bgColor);
 						// I think we need to clear the depth buffer here so that the targeted craft is drawn properly
 						context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
 					}
@@ -3697,6 +3606,12 @@ HRESULT Direct3DDevice::Execute(
 					log_debug("[DBG] ZEnabled: %d, ZFunc: %d", this->_renderStates->GetZEnabled(),
 						this->_renderStates->GetZFunc());
 				} */
+
+				// DBG HACK: Skip draw calls after the HUD has started rendering
+				if (g_iDrawCounterAfterHUD > -1) {
+					if (g_iNoDrawAfterHUD > -1 && g_iDrawCounterAfterHUD > g_iNoDrawAfterHUD)
+						goto out;
+				}
 #endif
 				
 				// We will be modifying the normal render state from this point on. The state and the Pixel/Vertex
@@ -3839,12 +3754,6 @@ HRESULT Direct3DDevice::Execute(
 				// Early exit 2: if we're not in VR mode, we only need the state; but not the extra
 				// processing. (The state will be used later to do post-processing like Bloom and AO.
 				if (!g_bEnableVR) {
-					/* viewport.TopLeftX = (float)left;
-					viewport.TopLeftY = (float)top;
-					viewport.Width    = (float)width;
-					viewport.Height   = (float)height;
-					viewport.MinDepth = D3D11_MIN_DEPTH;
-					viewport.MaxDepth = D3D11_MAX_DEPTH; */
 					resources->InitViewport(&g_nonVRViewport);
 
 					if (bModifiedShaders) {
@@ -4050,6 +3959,9 @@ HRESULT Direct3DDevice::Execute(
 //#endif
 				// Update counters
 				g_iDrawCounter++;
+				if (g_iDrawCounterAfterHUD > -1)
+					g_iDrawCounterAfterHUD++;
+				//g_iDrawIndexAfterHUD
 				// Have we just finished drawing the targetting computer?
 				if (lastTextureSelected != NULL && lastTextureSelected->is_Floating_GUI)
 					g_iFloatingGUIDrawnCounter++;
