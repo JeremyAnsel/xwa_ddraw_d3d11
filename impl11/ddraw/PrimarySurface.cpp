@@ -1444,8 +1444,8 @@ void PrimarySurface::DrawHUDVertices() {
 	static bool bDumped = false;
 	if (g_iPresentCounter > 100 && !bDumped) {
 		hr = DirectX::SaveWICTextureToFile(context.Get(),
-			resources->_offscreenBufferAsInputDynCockpit.Get(), GUID_ContainerFormatPng, L"c://temp//dyncock-after-clear.png");
-		log_debug("[DBG] Dumping offscreenBufferDynCockpit");
+			resources->_offscreenAsInputDynCockpitBG.Get(), GUID_ContainerFormatPng, L"c://temp//offscreenBuf-DC-BG.png");
+		log_debug("[DBG] Dumping _offscreenAsInputDynCockpitBG");
 		bDumped = true;
 	}
 	*/
@@ -1515,10 +1515,7 @@ void PrimarySurface::DrawHUDVertices() {
 	desc.StencilEnable = FALSE;
 	resources->InitDepthStencilState(depthState, &desc);
 
-	//float bgColor[4] = { 0.0f, 0.2f, 0.1f, 1.0f };
-	//context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
 	// Don't clear the render target, the offscreenBuffer already has the 3D render in it
-
 	// Render the left image
 	if (g_bUseSteamVR)
 		context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(), NULL);
@@ -1526,12 +1523,10 @@ void PrimarySurface::DrawHUDVertices() {
 		context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(), NULL);
 	// VIEWPORT-LEFT
 	if (g_bEnableVR) {
-		if (g_bUseSteamVR) {
+		if (g_bUseSteamVR)
 			viewport.Width = (float)resources->_backbufferWidth;
-		}
-		else {
+		else
 			viewport.Width = (float)resources->_backbufferWidth / 2.0f;
-		}
 	}
 	else // Non-VR path
 		viewport.Width = (float)resources->_backbufferWidth;
@@ -1985,7 +1980,7 @@ HRESULT PrimarySurface::Flip(
 			//*g_playerInHangar = 0;
 
 			if (g_bDynCockpitEnabled) {
-				_deviceResources->_d3dDeviceContext->ResolveSubresource(_deviceResources->_offscreenBufferAsInputDynCockpit,
+				_deviceResources->_d3dDeviceContext->ResolveSubresource(_deviceResources->_offscreenAsInputDynCockpit,
 					0, _deviceResources->_offscreenBufferDynCockpit, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
 				_deviceResources->_d3dDeviceContext->ResolveSubresource(_deviceResources->_offscreenAsInputDynCockpitBG,
 					0, _deviceResources->_offscreenBufferDynCockpitBG, 0, DXGI_FORMAT_B8G8R8A8_UNORM);

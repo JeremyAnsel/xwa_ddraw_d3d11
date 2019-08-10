@@ -847,7 +847,8 @@ bool LoadUVCoords(char *buf, Box *coords)
 
 DCHUDBoxes::DCHUDBoxes() {
 	Clear();
-	for (int i = 0; i < MAX_HUD_BOXES; i++) {
+	//log_debug("[DBG] [DC] Adding g_HUDRegionNames.size(): %d", g_HUDRegionNames.size());
+	for (int i = 0; i < (int )g_HUDRegionNames.size(); i++) {
 		DCHUDBox box = { 0 };
 		box.bLimitsComputed = false;
 		boxes.push_back(box);
@@ -856,7 +857,8 @@ DCHUDBoxes::DCHUDBoxes() {
 
 DCElemSrcBoxes::DCElemSrcBoxes() {
 	Clear();
-	for (int i = 0; i < MAX_DC_SRC_ELEMENTS; i++) {
+	//log_debug("[DBG] [DC] Adding g_DCElemSrcNames.size(): %d", g_DCElemSrcNames.size());
+	for (int i = 0; i < (int )g_DCElemSrcNames.size(); i++) {
 		DCElemSrcBox src_box;
 		src_boxes.push_back(src_box);
 	}
@@ -946,6 +948,33 @@ void ClearDynCockpitVector(std::vector<dc_element> &DCElements) {
 	DCElements.clear();
 }
 
+/*
+ * Reads the name-slot from a string of the form:
+ * name, x0, y0, x1, y1
+ * returns the number of chars read
+ */
+int ReadNameFromLine(char *buf, char *name) 
+{
+	int res, len;
+
+	res = sscanf_s(buf, "%s", name, 50);
+	if (res < 1) {
+		log_debug("[DBG] [DC] ERROR: Expected a slot name in '%s'", buf);
+		return 0;
+	}
+
+	len = strlen(name);
+	if (len <= 0) {
+		log_debug("[DBG] [DC] ERROR: Empty slot name in '%s'", buf);
+		return 0;
+	}
+
+	// Remove the trailing semi-colon from the name:
+	if (name[len - 1] == ';' || name[len - 1] == ',')
+		name[len - 1] = '\0';
+	return len;
+}
+
 /* 
  * Loads a single row of dynamic cockpit coordinates of the form:
  * src-slot; x0,y0,x1,y1, [Hex-Color]
@@ -956,39 +985,66 @@ bool LoadDynCockpitCoords(char *buf, float width, float height, uv_src_dst_coord
 	int src_slot;
 	uint32_t uColor;
 	int res = 0, idx = coords->numCoords;
-	char *c = NULL;
-	
+	char *substr = NULL;
+	char slot_name[50];
+
 	if (idx >= MAX_DC_COORDS) {
 		log_debug("[DBG] Too many coords already loaded");
 		return false;
 	}
 
-	c = strchr(buf, '=');
-	if (c != NULL) {
-		c += 1;
-		try {
-			uColor = 0x121233FF;
-			src_slot = -1;
-			res = sscanf_s(c, "%d; %f, %f, %f, %f; 0x%x",
-				&src_slot, &x0, &y0, &x1, &y1,
-				&uColor);
-			if (res < 5) {
-				log_debug("[DBG] [DC] Error (skipping), expected at least 5 elements in '%s'", c);
-			} else {
-				coords->src_slot[idx] = src_slot;
-				coords->dst[idx].x0 = x0 / width;
-				coords->dst[idx].y0 = y0 / height;
-				coords->dst[idx].x1 = x1 / width;
-				coords->dst[idx].y1 = y1 / height;
+	substr = strchr(buf, '=');
+	if (substr == NULL) {
+		log_debug("[DBG] [DC] Missing '=' in '%s', skipping", buf);
+		return false;
+	}
+	// Skip the equal sign:
+	substr++;
+	// Skip white space chars:
+	while (*substr == ' ' || *substr == '\t')
+		substr++;
 
-				coords->uBGColor[idx] = uColor;
-				coords->numCoords++;
-			}
-		}
-		catch (...) {
-			log_debug("[DBG] [DC] Could not read uv coords from: %s", buf);
+	try {
+		int len;
+		uColor = 0x121233FF;
+
+		src_slot = -1;
+		slot_name[0] = 0;
+		len = ReadNameFromLine(substr, slot_name);
+		if (len == 0)
+			return false;
+
+		if (strstr(slot_name, "SRC") == NULL) {
+			log_debug("[DBG] [DC] ERROR: Invalid source slot name: [%s]", slot_name);
 			return false;
 		}
+				
+		src_slot = DCSrcElemNameToIndex(slot_name);
+		if (src_slot < 0) {
+			log_debug("[DBG] [DC] ERROR: Could not find slot named: [%s]", slot_name);
+			return false;
+		}
+
+		// Parse the rest of the parameters
+		substr += len + 1;
+		res = sscanf_s(substr, "%f, %f, %f, %f; 0x%x", &x0, &y0, &x1, &y1, &uColor);
+		//log_debug("[DBG] [DC] res: %d, slot_name: %s", res, slot_name);
+		if (res < 4) {
+			log_debug("[DBG] [DC] Error (skipping), expected at least 5 elements in '%s'", substr);
+		} else {
+			coords->src_slot[idx] = src_slot;
+			coords->dst[idx].x0 = x0 / width;
+			coords->dst[idx].y0 = y0 / height;
+			coords->dst[idx].x1 = x1 / width;
+			coords->dst[idx].y1 = y1 / height;
+
+			coords->uBGColor[idx] = uColor;
+			coords->numCoords++;
+		}
+	}
+	catch (...) {
+		log_debug("[DBG] [DC] Could not read uv coords from: %s", buf);
+		return false;
 	}
 	return true;
 }
@@ -1114,8 +1170,19 @@ bool LoadDCParams() {
 					log_debug("[DBG] [DC] ERROR. Line %d, %s without a corresponding texture section.", line, ERASE_REGION_DCPARAM);
 					continue;
 				}
-				unsigned int slot = (unsigned int)value;
-				if (slot < g_DCHUDBoxes.boxes.size()) {
+				// The name of the region must contain the word "REGION":
+				if (strstr(svalue, "REGION") == NULL) {
+					log_debug("[DBG] [DC] ERROR: Invalid region name: [%s]", svalue);
+					continue;
+				}
+				
+				int slot = (unsigned int)HUDRegionNameToIndex(svalue);
+				if (slot < 0) {
+					log_debug("[DBG] [DC] ERROR: Unknown region: [%s]", svalue);
+					continue;
+				}
+
+				if (slot < (int )g_DCHUDBoxes.boxes.size()) {
 					int next_idx = g_DCElements[lastDCElemSelected].num_erase_slots;
 					g_DCElements[lastDCElemSelected].erase_slots[next_idx] = slot;
 					g_DCElements[lastDCElemSelected].num_erase_slots++;
@@ -1148,7 +1215,8 @@ void LoadVRParams() {
 
 	try {
 		error = fopen_s(&file, "./vrparams.cfg", "rt");
-	} catch (...) {
+	}
+	catch (...) {
 		log_debug("[DBG] Could not load vrparams.cfg");
 	}
 
@@ -1176,7 +1244,7 @@ void LoadVRParams() {
 			continue;
 
 		if (sscanf_s(buf, "%s = %s", param, 128, svalue, 128) > 0) {
-			value = (float )atof(svalue);
+			value = (float)atof(svalue);
 			if (_stricmp(param, FOCAL_DIST_VRPARAM) == 0) {
 				g_fFocalDist = value;
 			}
@@ -1284,11 +1352,11 @@ void LoadVRParams() {
 			}
 			else if (_stricmp(param, FIXED_GUI_VRPARAM) == 0) {
 				g_bFixedGUI = (bool)value;
-			}			
+			}
 
 			// 6dof parameters
 			else if (_stricmp(param, FREEPIE_SLOT_VRPARAM) == 0) {
-				g_iFreePIESlot = (int )value;
+				g_iFreePIESlot = (int)value;
 			}
 			else if (_stricmp(param, ROLL_MULTIPLIER_VRPARAM) == 0) {
 				g_fRollMultiplier = value;
@@ -1349,9 +1417,11 @@ next:
 	LoadCockpitLookParams();
 	// Load Dynamic Cockpit params
 	LoadDCParams();
-	if (g_bDynCockpitEnabled)
+	if (g_bDynCockpitEnabled) {
 		// Load the global Dynamic Cockpit params
 		LoadDCGlobalCoordinates();
+		log_debug("[DBG] [DC] Finished loading global DC params");
+	}
 }
 
 ////////////////////////////////////////////////////////////////
@@ -3202,7 +3272,8 @@ HRESULT Direct3DDevice::Execute(
 						context->ClearRenderTargetView(resources->_renderTargetViewDynCockpit, bgColor);
 						context->ClearRenderTargetView(resources->_renderTargetViewDynCockpitBG, bgColor);
 						// I think we need to clear the depth buffer here so that the targeted craft is drawn properly
-						context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
+						context->ClearDepthStencilView(this->_deviceResources->_depthStencilViewL,
+							D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
 					}
 				}
 				bool bRenderToDynCockpitBuffer = g_bDynCockpitEnabled && lastTextureSelected != NULL &&

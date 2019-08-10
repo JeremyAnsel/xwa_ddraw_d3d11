@@ -5,8 +5,11 @@
 Texture2D    texture0 : register(t0);
 SamplerState sampler0 : register(s0);
 
-// Used for the dynamic cockpit contents, if bUseDynCockpit is set, then texture0 will be the "cover" and
+// Used for the dynamic cockpit contents
+// if bUseDynCockpit is set, then texture0 will be the cover texture and
 // texture1 will be the dynamic element taken from the previous frame's HUD
+
+// If bRenderHUD is set, texture0 is HUD foreground and texture1 is HUD background
 Texture2D    texture1 : register(t1);
 SamplerState sampler1 : register(s1);
 
@@ -126,12 +129,12 @@ float4 main(PixelShaderInput input) : SV_TARGET
 			diffuse = float3(1, 1, 1);
 		}
 	}
-	// Render the captured HUD
 	else if (bRenderHUD) {
+		// Render the captured HUD
 		float4 texelColorBG = texture1.Sample(sampler1, input.tex);
 		float alphaBG = texelColorBG.w;
 		texelColor.xyz = lerp(texelColorBG.xyz, texelColor.xyz, alpha);
-		texelColor.w += alphaBG;
+		texelColor.w += 3 * alphaBG;
 		return texelColor;
 	}
 	

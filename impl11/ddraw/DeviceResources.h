@@ -37,7 +37,10 @@ const int LEFT_MSG_HUD_BOX_IDX		= 5;
 const int RIGHT_MSG_HUD_BOX_IDX		= 6;
 const int TOP_LEFT_BOX_IDX			= 7;
 const int TOP_RIGHT_BOX_IDX			= 8;
-const int MAX_HUD_BOXES				= 9;
+extern const int MAX_HUD_BOXES;
+extern std::vector<const char *>g_HUDRegionNames;
+// Convert a string into a *_HUD_BOX_IDX constant
+int HUDRegionNameToIndex(char *name);
 
 class DCHUDBox {
 public:
@@ -85,7 +88,10 @@ const int SPEED_N_THROTTLE_DC_ELEM_SRC_IDX = 13;
 const int MISSILES_DC_ELEM_SRC_IDX = 14;
 const int NAME_TIME_DC_ELEM_SRC_IDX = 15;
 const int NUM_CRAFTS_DC_ELEM_SRC_IDX = 16;
-const int MAX_DC_SRC_ELEMENTS = 17;
+extern const int MAX_DC_SRC_ELEMENTS;
+extern std::vector<const char *>g_DCElemSrcNames;
+// Convert a string into a *_DC_ELEM_SRC_IDX constant
+int DCSrcElemNameToIndex(char *name);
 
 class DCElemSrcBox {
 public:
@@ -263,7 +269,7 @@ public:
 	ComPtr<ID3D11Texture2D> _offscreenBufferDynCockpitBG; // Used to render the targeting computer dynamically <-- Need to re-check this claim
 	ComPtr<ID3D11Texture2D> _offscreenBufferAsInput;
 	ComPtr<ID3D11Texture2D> _offscreenBufferAsInputR; // When SteamVR is used, this is the right eye as input buffer
-	ComPtr<ID3D11Texture2D> _offscreenBufferAsInputDynCockpit;   // HUD elements buffer
+	ComPtr<ID3D11Texture2D> _offscreenAsInputDynCockpit;   // HUD elements buffer
 	ComPtr<ID3D11Texture2D> _offscreenAsInputDynCockpitBG; // HUD element backgrounds buffer
 	ComPtr<ID3D11Texture2D> _offscreenBufferAsInputReshade;
 	ComPtr<ID3D11Texture2D> _offscreenBufferPost; // This is the output of the barrel effect

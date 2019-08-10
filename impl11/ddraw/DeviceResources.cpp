@@ -190,60 +190,57 @@ struct MainVertex
 	}
 };
 
-/*
-bool LoadNewCockpitTextures(ID3D11Device *device) {
-	if (!g_bDynCockpitEnabled) {
-		log_debug("[DBG] [Dyn] Dynamic Cockpit is disabled. Will not load new textures");
-		g_bNewCockpitTexturesLoaded = false;
-		goto out;
-	}
+std::vector<const char *>g_HUDRegionNames = {
+	"LEFT_SENSOR_REGION",		// 0
+	"RIGHT_SENSOR_REGION",		// 1
+	"SHIELDS_REGION",			// 2
+	"BEAM_REGION",				// 3
+	"TARGET_AND_LASERS_REGION",	// 4
+	"LEFT_TEXT_BOX_REGION",		// 5
+	"RIGHT_TEXT_BOX_REGION",		// 6
+	"TOP_LEFT_REGION",			// 7
+	"TOP_RIGHT_REGION"			// 8
+};
+const int MAX_HUD_BOXES = (int )g_HUDRegionNames.size();
 
-	if (g_bNewCockpitTexturesLoaded) {
-		log_debug("[DBG} [Dyn] New textures for Dynamic Cockpit already loaded, skipping");
-		return true;
-	}
+std::vector<const char *>g_DCElemSrcNames = {
+	"LEFT_SENSOR_SRC",			// 0
+	"RIGHT_SENSOR_SRC",			// 1
+	"LASER_RECHARGE_SRC",		// 2
+	"SHIELD_RECHARGE_SRC",		// 3
+	"ENGINE_POWER_SRC",			// 4
+	"BEAM_RECHARGE_SRC",			// 5
+	"SHIELDS_SRC",				// 6
+	"BEAM_LEVEL_SRC"	,			// 7
+	"TARGETING_COMPUTER_SRC",	// 8
+	"QUAD_LASERS_LEFT_SRC",		// 9
+	"QUAD_LASERS_RIGHT_SRC",		// 10
+	"LEFT_TEXT_BOX_SRC",			// 11
+	"RIGHT_TEXT_BOX_SRC",		// 12
+	"SPEED_THROTTLE_SRC",		// 13
+	"MISSILES_SRC",				// 14
+	"NAME_TIME_SRC",				// 15
+	"NUM_SHIPS_SRC"				// 16
+};
+const int MAX_DC_SRC_ELEMENTS = (int )g_DCElemSrcNames.size();
 
-	if (g_NewHUDLeftRadar == NULL) {
-		HRESULT res = DirectX::CreateWICTextureFromFile(device, L"./DynamicCockpit/Left-Radar-Round.png",
-			NULL, &g_NewHUDLeftRadar);
-		if (FAILED(res)) {
-			log_debug("[DBG] [Dyn] Failed to load new Left Radar texture: 0x%x", res);
-			g_NewHUDLeftRadar = NULL;
-		}
-	}
-
-	if (g_NewHUDRightRadar == NULL) {
-		HRESULT res = DirectX::CreateWICTextureFromFile(device, L"./DynamicCockpit/Right-Radar-Round.png",
-			NULL, &g_NewHUDRightRadar);
-		if (FAILED(res)) {
-			log_debug("[DBG] [Dyn] Failed to load new Right Radar texture: 0x%x", res);
-			g_NewHUDRightRadar = NULL;
-		}
-	}
-
-	g_bNewCockpitTexturesLoaded = (g_NewHUDLeftRadar != NULL && g_NewHUDRightRadar != NULL);
-	log_debug("[DBG} [Dyn] New cockpit textures loaded");
-out:
-	return g_bNewCockpitTexturesLoaded;
+int HUDRegionNameToIndex(char *name) {
+	if (name == NULL || name[0] == '\0')
+		return -1;
+	for (int i = 0; i < (int )g_HUDRegionNames.size(); i++)
+		if (_stricmp(name, g_HUDRegionNames[i]) == 0)
+			return i;
+	return -1;
 }
 
-void UnloadNewCockpitTextures() {
-	if (!g_bDynCockpitEnabled || !g_bNewCockpitTexturesLoaded)
-		return;
-
-	log_debug("[DBG] [Dyn] >>>>> Releasing textures");
-	if (g_NewHUDLeftRadar != NULL) {
-		g_NewHUDLeftRadar.Release();
-		g_NewHUDLeftRadar = NULL;
-	}
-	if (g_NewHUDRightRadar != NULL) {
-		g_NewHUDRightRadar.Release();
-		g_NewHUDRightRadar = NULL;
-	}
-	
-	g_bNewCockpitTexturesLoaded = false;
+int DCSrcElemNameToIndex(char *name) {
+	if (name == NULL || name[0] == '\0')
+		return -1;
+	for (int i = 0; i < (int )g_DCElemSrcNames.size(); i++)
+		if (_stricmp(name, g_DCElemSrcNames[i]) == 0)
+			return i;
+	return -1;
 }
-*/
 
 DeviceResources::DeviceResources()
 {
@@ -559,7 +556,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		this->_renderTargetViewDynCockpitAsInputBG.Release();
 		this->_offscreenBufferDynCockpit.Release();
 		this->_offscreenBufferDynCockpitBG.Release();
-		this->_offscreenBufferAsInputDynCockpit.Release();
+		this->_offscreenAsInputDynCockpit.Release();
 		this->_offscreenAsInputDynCockpitBG.Release();
 		this->_offscreenAsInputSRVDynCockpit.Release();
 		this->_offscreenAsInputSRVDynCockpitBG.Release();
@@ -890,7 +887,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			log_err("Flags: 0x%x\n", desc.BindFlags);
 
 			step = "_offscreenBufferAsInputDynCockpit";
-			hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBufferAsInputDynCockpit);
+			hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenAsInputDynCockpit);
 			if (FAILED(hr)) {
 				log_err("Failed to create _offscreenBufferAsInputDynCockpit, error: 0x%x\n", hr);
 				log_err("GetDeviceRemovedReason: 0x%x\n", this->_d3dDevice->GetDeviceRemovedReason());
@@ -980,7 +977,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		if (g_bDynCockpitEnabled) {
 			// Create the SRSV for _offscreenBufferAsInputDynCockpit
 			step = "_offscreenBufferAsInputDynCockpit";
-			hr = this->_d3dDevice->CreateShaderResourceView(this->_offscreenBufferAsInputDynCockpit,
+			hr = this->_d3dDevice->CreateShaderResourceView(this->_offscreenAsInputDynCockpit,
 				&shaderResourceViewDesc, &this->_offscreenAsInputSRVDynCockpit);
 			if (FAILED(hr)) {
 				log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
@@ -1044,7 +1041,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			CD3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDescNoMSAA(D3D11_RTV_DIMENSION_TEXTURE2D);
 			step = "_renderTargetViewDynCockpitAsInput";
 			// This RTV writes to a non-MSAA texture
-			hr = this->_d3dDevice->CreateRenderTargetView(this->_offscreenBufferAsInputDynCockpit, &renderTargetViewDescNoMSAA,
+			hr = this->_d3dDevice->CreateRenderTargetView(this->_offscreenAsInputDynCockpit, &renderTargetViewDescNoMSAA,
 				&this->_renderTargetViewDynCockpitAsInput);
 			if (FAILED(hr)) goto out;
 
