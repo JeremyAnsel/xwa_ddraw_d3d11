@@ -3368,8 +3368,7 @@ HRESULT Direct3DDevice::Execute(
 				//if (PlayerDataTable[0].cockpitDisplayed)
 				//if (PlayerDataTable[0].cockpitDisplayed2)
 				//	goto out;
-
-				// Capture the bounds of the various HUD elements			
+	
 				// Capture the bounds for the left radar:
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL)
 				{
@@ -3797,7 +3796,7 @@ HRESULT Direct3DDevice::Execute(
 					bModifiedShaders = true;
 					dc_element *dc_element = &g_DCElements[idx];
 					float bgColor[4];
-
+					int numCoords = 0;
 					for (int i = 0; i < dc_element->coords.numCoords; i++) {
 						int src_slot = dc_element->coords.src_slot[i];
 						// Skip invalid src slots
@@ -3811,17 +3810,18 @@ HRESULT Direct3DDevice::Execute(
 						uvfloat4 uv_src;
 						uv_src.x0 = src_box->coords.x0; uv_src.y0 = src_box->coords.y0;
 						uv_src.x1 = src_box->coords.x1; uv_src.y1 = src_box->coords.y1;
-						g_PSCBuffer.src[i] = uv_src;
-						g_PSCBuffer.dst[i] = dc_element->coords.dst[i];
+						g_PSCBuffer.src[numCoords] = uv_src;
+						g_PSCBuffer.dst[numCoords] = dc_element->coords.dst[i];
 
 						uint32_t uColor = dc_element->coords.uBGColor[i];
 						bgColor[3] = (uColor & 0xFF) / 255.0f;
 						bgColor[2] = ((uColor >> 8) & 0xFF) / 255.0f;
 						bgColor[1] = ((uColor >> 16) & 0xFF) / 255.0f;
 						bgColor[0] = ((uColor >> 24) & 0xFF) / 255.0f;
-						memcpy(&(g_PSCBuffer.bgColor[i]), bgColor, 4 * sizeof(float));
+						memcpy(&(g_PSCBuffer.bgColor[numCoords]), bgColor, 4 * sizeof(float));
+						numCoords++;
 					}
-					g_PSCBuffer.DynCockpitSlots = dc_element->coords.numCoords;
+					g_PSCBuffer.DynCockpitSlots = numCoords;
 					g_PSCBuffer.bUseCoverTexture = (dc_element->coverTexture != NULL) ? 1 : 0;
 
 					context->PSSetShaderResources(1, 1, resources->_offscreenAsInputSRVDynCockpit.GetAddressOf());

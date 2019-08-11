@@ -83,7 +83,17 @@ float4 main(PixelShaderInput input) : SV_TARGET
 		// texture1 == HUD background
 		float4 texelColorBG = texture1.Sample(sampler1, input.tex);
 		float alphaBG = texelColorBG.w;
+		
+		// Execute the move_region commands: erase source regions
+		for (uint i = 0; i < DynCockpitSlots; i++)
+			if (input.tex.x >= src[i].x && input.tex.x <= src[i].z &&
+				input.tex.y >= src[i].y && input.tex.y <= src[i].w) {
+				texelColor.w = 0;
+				alpha = 0;
+				alphaBG = 0;
+			}
 
+		// Execute the move_region commands: copy regions
 		for (uint i = 0; i < DynCockpitSlots; i++) {
 			float2 delta = dst[i].zw - dst[i].xy;
 			float2 s = (input.tex - dst[i].xy) / delta;
