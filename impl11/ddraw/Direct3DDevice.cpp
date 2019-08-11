@@ -148,6 +148,7 @@ const char *UV_COORDS_DCPARAM			= "uv_coords";
 const char *COVER_TEX_NAME_DCPARAM		= "cover_texture";
 const char *COVER_TEX_SIZE_DCPARAM		= "cover_texture_size";
 const char *ERASE_REGION_DCPARAM			= "erase_region";
+const char *MOVE_REGION_DCPARAM			= "move_region";
 const char *DC_TARGET_COMP_UV_COORDS_VRPARAM   = "dc_target_comp_uv_coords";
 const char *DC_LEFT_RADAR_UV_COORDS_VRPARAM    = "dc_left_radar_uv_coords";
 const char *DC_RIGHT_RADAR_UV_COORDS_VRPARAM   = "dc_right_radar_uv_coords";
@@ -237,6 +238,7 @@ char g_sCurrentCockpit[128] = { 0 };
 DCHUDBoxes g_DCHUDBoxes;
 DCElemSrcBoxes g_DCElemSrcBoxes;
 std::vector<dc_element> g_DCElements = {};
+move_region_coords g_DCMoveRegions = { 0 };
 float g_fCurInGameWidth = 1, g_fCurInGameHeight = 1, g_fCurScreenWidth = 1, g_fCurScreenHeight = 1;
 
 extern bool g_bRendering3D; // Used to distinguish between 2D (Concourse/Menus) and 3D rendering (main in-flight game)
@@ -871,7 +873,7 @@ DCElemSrcBoxes::DCElemSrcBoxes() {
  */
 bool LoadDCGlobalCoordinates() {
 	
-	log_debug("[DBG] Loading Global Dynamic Cockpit coordinates...");
+	log_debug("[DBG] [DC] Loading Global Dynamic Cockpit coordinates...");
 	FILE *file;
 	int error = 0, line = 0;
 	static int lastDCElemSelected = -1;
@@ -880,11 +882,11 @@ bool LoadDCGlobalCoordinates() {
 		error = fopen_s(&file, "./dynamic_cockpit_global_areas.cfg", "rt");
 	}
 	catch (...) {
-		log_debug("[DBG] Could not load dynamic_cockpit_global_areas.cfg");
+		log_debug("[DBG] [DC] Could not load dynamic_cockpit_global_areas.cfg");
 	}
 
 	if (error != 0) {
-		log_debug("[DBG] Error %d when loading dynamic_cockpit_global_areas.cfg", error);
+		log_debug("[DBG] [DC] ERROR %d when loading dynamic_cockpit_global_areas.cfg", error);
 		return false;
 	}
 
@@ -928,6 +930,7 @@ bool LoadDCGlobalCoordinates() {
 				}
 				else
 					log_debug("[DBG] [DC] WARNING: '%s' could not be loaded", buf);
+				//log_debug("[DBG] [DC] Region %d = [%s] loaded", erase_slot, g_HUDRegionNames[erase_slot]);
 				erase_slot++;
 			}
 		}
@@ -976,10 +979,10 @@ int ReadNameFromLine(char *buf, char *name)
 }
 
 /* 
- * Loads a single row of dynamic cockpit coordinates of the form:
- * src-slot; x0,y0,x1,y1, [Hex-Color]
+ * Loads a uv_coords row:
+ * uv_coords = src-slot, x0,y0,x1,y1, [Hex-Color]
  */
-bool LoadDynCockpitCoords(char *buf, float width, float height, uv_src_dst_coords *coords)
+bool LoadDCUVCoords(char *buf, float width, float height, uv_src_dst_coords *coords)
 {
 	float x0, y0, x1, y1;
 	int src_slot;
@@ -989,7 +992,7 @@ bool LoadDynCockpitCoords(char *buf, float width, float height, uv_src_dst_coord
 	char slot_name[50];
 
 	if (idx >= MAX_DC_COORDS) {
-		log_debug("[DBG] Too many coords already loaded");
+		log_debug("[DBG] [DC] Too many coords already loaded");
 		return false;
 	}
 
@@ -1030,7 +1033,7 @@ bool LoadDynCockpitCoords(char *buf, float width, float height, uv_src_dst_coord
 		res = sscanf_s(substr, "%f, %f, %f, %f; 0x%x", &x0, &y0, &x1, &y1, &uColor);
 		//log_debug("[DBG] [DC] res: %d, slot_name: %s", res, slot_name);
 		if (res < 4) {
-			log_debug("[DBG] [DC] Error (skipping), expected at least 5 elements in '%s'", substr);
+			log_debug("[DBG] [DC] ERROR (skipping), expected at least 4 elements in '%s'", substr);
 		} else {
 			coords->src_slot[idx] = src_slot;
 			coords->dst[idx].x0 = x0 / width;
@@ -1052,7 +1055,7 @@ bool LoadDynCockpitCoords(char *buf, float width, float height, uv_src_dst_coord
 /*
  * Loads a cover_texture_size row
  */
-bool LoadDynCockpitCoverTexSize(char *buf, float *width, float *height)
+bool LoadDCCoverTextureSize(char *buf, float *width, float *height)
 {
 	int res = 0;
 	char *c = NULL;
@@ -1072,6 +1075,83 @@ bool LoadDynCockpitCoverTexSize(char *buf, float *width, float *height)
 		}
 	}
 	return true;
+}
+
+/*
+ * Loads a move_region row into g_DCMoveRegions:
+ * move_region = region, x0,y0,x1,y1
+ */
+bool LoadDCMoveRegion(char *buf)
+{
+	float x0, y0, x1, y1;
+	int region_slot;
+	int res = 0, idx = g_DCMoveRegions.numCoords;
+	char *substr = NULL;
+	char region_name[50];
+
+	if (idx >= MAX_HUD_BOXES) {
+		log_debug("[DBG] [DC] Too many move_region commands");
+		return false;
+	}
+
+	substr = strchr(buf, '=');
+	if (substr == NULL) {
+		log_debug("[DBG] [DC] Missing '=' in '%s', skipping", buf);
+		return false;
+	}
+	// Skip the equal sign:
+	substr++;
+	// Skip white space chars:
+	while (*substr == ' ' || *substr == '\t')
+		substr++;
+
+	try {
+		int len;
+
+		region_slot = -1;
+		region_name[0] = 0;
+		len = ReadNameFromLine(substr, region_name);
+		if (len == 0)
+			return false;
+
+		if (strstr(region_name, "REGION") == NULL) {
+			log_debug("[DBG] [DC] ERROR: Invalid region name: [%s]", region_name);
+			return false;
+		}
+
+		region_slot = HUDRegionNameToIndex(region_name);
+		if (region_slot < 0) {
+			log_debug("[DBG] [DC] ERROR: Could not find region named: [%s]", region_name);
+			return false;
+		}
+
+		// Parse the rest of the parameters
+		substr += len + 1;
+		res = sscanf_s(substr, "%f, %f, %f, %f", &x0, &y0, &x1, &y1);
+		if (res < 4) {
+			log_debug("[DBG] [DC] ERROR (skipping), expected at least 5 elements in '%s'", substr);
+		}
+		else {
+			g_DCMoveRegions.region_slot[idx] = region_slot;
+			g_DCMoveRegions.dst[idx].x0 = x0;
+			g_DCMoveRegions.dst[idx].y0 = y0;
+			g_DCMoveRegions.dst[idx].x1 = x1;
+			g_DCMoveRegions.dst[idx].y1 = y1;
+			g_DCMoveRegions.numCoords++;
+
+			log_debug("[DBG] [DC] move_region [%s], (%0.3f, %0.3f)-(%0.3f, %0.3f)",
+				region_name, x0, y0, x1, y1);
+		}
+	}
+	catch (...) {
+		log_debug("[DBG] [DC] Could not read coords from: %s", buf);
+		return false;
+	}
+	return true;
+}
+
+static inline void ClearDCMoveRegions() {
+	g_DCMoveRegions.numCoords = 0;
 }
 
 /* Loads the dynamic_cockpit.cfg file */
@@ -1103,6 +1183,7 @@ bool LoadDCParams() {
 		log_debug("[DBG] [DC] Clearing g_DCElements");
 		ClearDynCockpitVector(g_DCElements);
 	}
+	ClearDCMoveRegions();
 
 	while (fgets(buf, 256, file) != NULL) {
 		line++;
@@ -1159,7 +1240,10 @@ bool LoadDCParams() {
 					log_debug("[DBG] [DC] ERROR. Line %d, %s without a corresponding texture section.", line, UV_COORDS_DCPARAM);
 					continue;
 				}
-				LoadDynCockpitCoords(buf, cover_tex_width, cover_tex_height, &(g_DCElements[lastDCElemSelected].coords));
+				LoadDCUVCoords(buf, cover_tex_width, cover_tex_height, &(g_DCElements[lastDCElemSelected].coords));
+			}
+			else if (_stricmp(param, MOVE_REGION_DCPARAM) == 0) {
+				LoadDCMoveRegion(buf);
 			}
 			else if (_stricmp(param, ERASE_REGION_DCPARAM) == 0) {
 				if (g_DCElements.size() == 0) {
@@ -1198,7 +1282,7 @@ bool LoadDCParams() {
 				strcpy_s(g_DCElements[lastDCElemSelected].coverTextureName, MAX_TEXTURE_NAME, svalue);
 			}
 			else if (_stricmp(param, COVER_TEX_SIZE_DCPARAM) == 0) {
-				LoadDynCockpitCoverTexSize(buf, &cover_tex_width, &cover_tex_height);
+				LoadDCCoverTextureSize(buf, &cover_tex_width, &cover_tex_height);
 			}
 		}
 	}
@@ -1415,13 +1499,10 @@ next:
 	ReloadCRCs();
 	// Load cockpit look params
 	LoadCockpitLookParams();
+	// Load the global dynamic cockpit coordinates
+	LoadDCGlobalCoordinates();
 	// Load Dynamic Cockpit params
 	LoadDCParams();
-	if (g_bDynCockpitEnabled) {
-		// Load the global Dynamic Cockpit params
-		LoadDCGlobalCoordinates();
-		log_debug("[DBG] [DC] Finished loading global DC params");
-	}
 }
 
 ////////////////////////////////////////////////////////////////
@@ -3705,7 +3786,8 @@ HRESULT Direct3DDevice::Execute(
 				// _offscreenAsInputSRVDynCockpit is resolved in PrimarySurface.cpp, right before we
 				// present the backbuffer. That prevents resolving the texture multiple times (and we
 				// also don't have to resolve it here).
-				// Replace the destination textures with our own at run-time:
+
+				// DYNAMIC COCKPIT: REPLACE TEXTURES AT RUN-TIME:
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitDst)
 				{
 					int idx = lastTextureSelected->DCElementIndex;
@@ -3714,23 +3796,18 @@ HRESULT Direct3DDevice::Execute(
 
 					bModifiedShaders = true;
 					dc_element *dc_element = &g_DCElements[idx];
-					//float bgColor[4] = { 0.07f, 0.07f, 0.2f, 0.0f };
 					float bgColor[4];
 
 					for (int i = 0; i < dc_element->coords.numCoords; i++) {
 						int src_slot = dc_element->coords.src_slot[i];
 						// Skip invalid src slots
-						if (src_slot < 0) {
-							//log_debug("[DBG] [DC] skipping invalid src_slot");
+						if (src_slot < 0)
 							continue;
-						}
+
 						DCElemSrcBox *src_box = &g_DCElemSrcBoxes.src_boxes[src_slot];
 						// Skip src boxes that haven't been computed yet
-						if (!src_box->bComputed) {
-							//log_debug("[DBG] [DC] skipping !bComputed");
+						if (!src_box->bComputed)
 							continue;
-						}
-						//g_PSCBuffer.src[i] = dc_element->coords.src[i];
 						uvfloat4 uv_src;
 						uv_src.x0 = src_box->coords.x0; uv_src.y0 = src_box->coords.y0;
 						uv_src.x1 = src_box->coords.x1; uv_src.y1 = src_box->coords.y1;

@@ -77,6 +77,32 @@ float4 main(PixelShaderInput input) : SV_TARGET
 	//	diffuse = 0.8 * diffuse;
 	//diffuse = float3(1.0, 1.0, 1.0);
 
+	if (bRenderHUD) {
+		// Render the captured HUD
+		// texture0 == HUD foreground
+		// texture1 == HUD background
+		float4 texelColorBG = texture1.Sample(sampler1, input.tex);
+		float alphaBG = texelColorBG.w;
+
+		for (uint i = 0; i < DynCockpitSlots; i++) {
+			float2 delta = dst[i].zw - dst[i].xy;
+			float2 s = (input.tex - dst[i].xy) / delta;
+			float2 dyn_uv = lerp(src[i].xy, src[i].zw, s);
+			if (dyn_uv.x >= src[i].x && dyn_uv.x <= src[i].z &&
+				dyn_uv.y >= src[i].y && dyn_uv.y <= src[i].w)
+			{
+				// Sample the HUD FG and BG from a different location:
+				texelColor = texture0.Sample(sampler0, dyn_uv);
+				alpha = texelColor.w;
+				texelColorBG = texture1.Sample(sampler1, dyn_uv);
+				alphaBG = texelColorBG.w;
+			}
+		}
+		// Do the alpha blending
+		texelColor.xyz = lerp(texelColorBG.xyz, texelColor.xyz, alpha);
+		texelColor.w += 3 * alphaBG;
+		return texelColor;
+	} else
 	if (DynCockpitSlots > 0) {
 		// DEBUG: Display uvs as colors. Some meshes have UVs beyond the range [0..1]
 		//if (input.tex.x > 1.0) 	return float4(1, 0, 1, 1);
@@ -128,14 +154,6 @@ float4 main(PixelShaderInput input) : SV_TARGET
 			texelColor = dc_texelColor;
 			diffuse = float3(1, 1, 1);
 		}
-	}
-	else if (bRenderHUD) {
-		// Render the captured HUD
-		float4 texelColorBG = texture1.Sample(sampler1, input.tex);
-		float alphaBG = texelColorBG.w;
-		texelColor.xyz = lerp(texelColorBG.xyz, texelColor.xyz, alpha);
-		texelColor.w += 3 * alphaBG;
-		return texelColor;
 	}
 	
 	/*

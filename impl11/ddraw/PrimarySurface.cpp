@@ -28,11 +28,13 @@ extern bool g_bIsTrianglePointer, g_bLastTrianglePointer, g_bFixedGUI;
 extern bool g_bHUDVerticesReady;
 extern std::vector<dc_element> g_DCElements;
 extern DCHUDBoxes g_DCHUDBoxes;
+extern move_region_coords g_DCMoveRegions;
 extern char g_sCurrentCockpit[128];
 
 extern VertexShaderCBuffer g_VSCBuffer;
 extern PixelShaderCBuffer g_PSCBuffer;
 extern float g_fAspectRatio, g_fGlobalScale, g_fBrightness, g_fGUIElemsScale, g_fFloatingGUIDepth;
+extern float g_fCurScreenWidth, g_fCurScreenHeight;
 extern D3D11_VIEWPORT g_nonVRViewport;
 
 #include <headers/openvr.h>
@@ -1487,8 +1489,24 @@ void PrimarySurface::DrawHUDVertices() {
 	//g_PSCBuffer.brightness        = g_fBrightness;
 	g_PSCBuffer.brightness		  = 1.0f; // TODO: Check if g_fBrightness is already applied when the textures are rendered
 	g_PSCBuffer.bUseCoverTexture  = 0;
-	g_PSCBuffer.DynCockpitSlots   = 0;
 	g_PSCBuffer.bRenderHUD		  = 1;
+	// Add the move_regions commands.
+	int numCoords = 0;
+	for (int i = 0; i < g_DCMoveRegions.numCoords; i++) {
+		int region_slot = g_DCMoveRegions.region_slot[i];
+		// Skip invalid src slots
+		if (region_slot < 0)
+			continue;
+		// Skip regions if their limits haven't been computed
+		if (!g_DCHUDBoxes.boxes[region_slot].bLimitsComputed)
+			continue;
+		// Fetch the source uv coords:
+		g_PSCBuffer.src[numCoords] = g_DCHUDBoxes.boxes[region_slot].erase_coords;
+		// Fetch the destination uv coords:
+		g_PSCBuffer.dst[numCoords] = g_DCMoveRegions.dst[i];
+		numCoords++;
+	}
+	g_PSCBuffer.DynCockpitSlots = numCoords;
 
 	resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 	resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);

@@ -37,7 +37,7 @@ const int LEFT_MSG_HUD_BOX_IDX		= 5;
 const int RIGHT_MSG_HUD_BOX_IDX		= 6;
 const int TOP_LEFT_BOX_IDX			= 7;
 const int TOP_RIGHT_BOX_IDX			= 8;
-extern const int MAX_HUD_BOXES;
+const int MAX_HUD_BOXES				= 9;
 extern std::vector<const char *>g_HUDRegionNames;
 // Convert a string into a *_HUD_BOX_IDX constant
 int HUDRegionNameToIndex(char *name);
@@ -206,6 +206,12 @@ typedef struct dc_element_struct {
 	ID3D11ShaderResourceView *coverTexture = NULL;
 	bool bActive, bNameHasBeenTested;
 } dc_element;
+
+typedef struct move_region_coords_struct {
+	int region_slot[MAX_HUD_BOXES];
+	uvfloat4 dst[MAX_HUD_BOXES];
+	int numCoords;
+} move_region_coords;
 
 class DeviceResources
 {

@@ -201,7 +201,7 @@ std::vector<const char *>g_HUDRegionNames = {
 	"TOP_LEFT_REGION",			// 7
 	"TOP_RIGHT_REGION"			// 8
 };
-const int MAX_HUD_BOXES = (int )g_HUDRegionNames.size();
+//const int MAX_HUD_BOXES = (int )g_HUDRegionNames.size();
 
 std::vector<const char *>g_DCElemSrcNames = {
 	"LEFT_SENSOR_SRC",			// 0
