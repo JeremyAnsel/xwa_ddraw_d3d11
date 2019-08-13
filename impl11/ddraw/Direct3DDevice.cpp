@@ -815,7 +815,10 @@ void LoadCockpitLookParams() {
 	log_debug("[DBG] Loaded %d cockpitlook params", param_read_count);
 }
 
-bool LoadUVCoords(char *buf, Box *coords)
+/*
+ * Loads a "source_def" or "erase_def" line from the global coordinates file
+ */
+bool LoadDCGlobalUVCoords(char *buf, Box *coords)
 {
 	float width, height;
 	float x0, y0, x1, y1;
@@ -829,7 +832,7 @@ bool LoadUVCoords(char *buf, Box *coords)
 			res = sscanf_s(c, "%f, %f, %f, %f, %f, %f",
 				&width, &height, &x0, &y0, &x1, &y1);
 			if (res < 6) {
-				log_debug("[DBG] [DC] Error (skipping), expected at least 6 elements in '%s'", c);
+				log_debug("[DBG] [DC] ERROR (skipping), expected at least 6 elements in '%s'", c);
 				return false;
 			}
 			else {
@@ -850,7 +853,7 @@ bool LoadUVCoords(char *buf, Box *coords)
 DCHUDBoxes::DCHUDBoxes() {
 	Clear();
 	//log_debug("[DBG] [DC] Adding g_HUDRegionNames.size(): %d", g_HUDRegionNames.size());
-	for (int i = 0; i < (int )g_HUDRegionNames.size(); i++) {
+	for (int i = 0; i < MAX_HUD_BOXES; i++) {
 		DCHUDBox box = { 0 };
 		box.bLimitsComputed = false;
 		boxes.push_back(box);
@@ -860,7 +863,7 @@ DCHUDBoxes::DCHUDBoxes() {
 DCElemSrcBoxes::DCElemSrcBoxes() {
 	Clear();
 	//log_debug("[DBG] [DC] Adding g_DCElemSrcNames.size(): %d", g_DCElemSrcNames.size());
-	for (int i = 0; i < (int )g_DCElemSrcNames.size(); i++) {
+	for (int i = 0; i < MAX_DC_SRC_ELEMENTS; i++) {
 		DCElemSrcBox src_box;
 		src_boxes.push_back(src_box);
 	}
@@ -913,7 +916,7 @@ bool LoadDCGlobalCoordinates() {
 					continue;
 				}
 				Box box = { 0 };
-				if (LoadUVCoords(buf, &box))
+				if (LoadDCGlobalUVCoords(buf, &box))
 					g_DCElemSrcBoxes.src_boxes[source_slot].uv_coords = box;
 				else
 					log_debug("[DBG] [DC] WARNING: '%s' could not be loaded", buf);
@@ -924,7 +927,7 @@ bool LoadDCGlobalCoordinates() {
 					continue;
 				}
 				Box box = { 0 };
-				if (LoadUVCoords(buf, &box)) {
+				if (LoadDCGlobalUVCoords(buf, &box)) {
 					g_DCHUDBoxes.boxes[erase_slot].uv_erase_coords = box;
 					g_DCHUDBoxes.boxes[erase_slot].bLimitsComputed = false; // Force a recompute of the limits
 				}
@@ -1040,7 +1043,8 @@ bool LoadDCUVCoords(char *buf, float width, float height, uv_src_dst_coords *coo
 			coords->dst[idx].y0 = y0 / height;
 			coords->dst[idx].x1 = x1 / width;
 			coords->dst[idx].y1 = y1 / height;
-
+			if (res == 5) // A color was read, add the alpha
+				uColor = (uColor << 8) | 0xFF;
 			coords->uBGColor[idx] = uColor;
 			coords->numCoords++;
 		}
@@ -1150,6 +1154,9 @@ bool LoadDCMoveRegion(char *buf)
 	return true;
 }
 
+/*
+ * Clears all the move_region commands
+ */
 static inline void ClearDCMoveRegions() {
 	g_DCMoveRegions.numCoords = 0;
 }
@@ -1215,6 +1222,8 @@ bool LoadDCParams() {
 					*end = 0;
 				// See if we have this DC element already
 				lastDCElemSelected = isInVector(dc_elem.name, g_DCElements);
+				//log_debug("[DBG] [DC] New dc_elem.name: [%s], idx: %d",
+				//	dc_elem.name, lastDCElemSelected);
 				if (lastDCElemSelected > -1) {
 					g_DCElements[lastDCElemSelected].coords.numCoords = 0;
 					g_DCElements[lastDCElemSelected].num_erase_slots = 0;
@@ -1260,7 +1269,7 @@ bool LoadDCParams() {
 					continue;
 				}
 				
-				int slot = (unsigned int)HUDRegionNameToIndex(svalue);
+				int slot = HUDRegionNameToIndex(svalue);
 				if (slot < 0) {
 					log_debug("[DBG] [DC] ERROR: Unknown region: [%s]", svalue);
 					continue;
@@ -1270,6 +1279,8 @@ bool LoadDCParams() {
 					int next_idx = g_DCElements[lastDCElemSelected].num_erase_slots;
 					g_DCElements[lastDCElemSelected].erase_slots[next_idx] = slot;
 					g_DCElements[lastDCElemSelected].num_erase_slots++;
+					//log_debug("[DBG] [DC] Added erase slot [%s] to DCElem %d", svalue,
+					//	lastDCElemSelected);
 				}
 				else
 					log_debug("[DBG] [DC] WARNING: erase_region = %d IGNORED: Not enough g_DCHUDBoxes", slot);
@@ -2965,7 +2976,7 @@ HRESULT Direct3DDevice::Execute(
 	//g_PSCBuffer.bAlphaOnly		 = 0;
 
 	// Save the current viewMatrix: if the Dynamic Cockpit is enabled, we'll need it later to restore the transform
-	Matrix4 currentViewMat = g_VSMatrixCB.viewMat;
+	//Matrix4 currentViewMat = g_VSMatrixCB.viewMat;
 	//bool bModifiedViewMatrix = false;
 	
 	char* step = "";
@@ -2985,8 +2996,6 @@ HRESULT Direct3DDevice::Execute(
 	g_OrigVerts = (D3DTLVERTEX *)executeBuffer->_buffer;
 	float displayWidth  = (float)resources->_displayWidth;
 	float displayHeight = (float)resources->_displayHeight;
-	//g_fCurInGameWidth = displayWidth;
-	//g_fCurInGameHeight = displayHeight;
 
 	// Copy the vertex data to the vertexbuffers
 	step = "VertexBuffer";
@@ -3563,13 +3572,41 @@ HRESULT Direct3DDevice::Execute(
 							dcElemSrcBox->bComputed = true;
 
 							// Get the limits for the quad lasers, left side:
-							dcElemSrcBox = &g_DCElemSrcBoxes.src_boxes[QUAD_LASER_L_DC_ELEM_SRC_IDX];
+							dcElemSrcBox = &g_DCElemSrcBoxes.src_boxes[QUAD_LASERS_L_DC_ELEM_SRC_IDX];
 							dcElemSrcBox->coords = ComputeCoordsFromUV(left, top, width, height,
 								uv_minmax, box, dcElemSrcBox->uv_coords);
 							dcElemSrcBox->bComputed = true;
 
 							// Get the limits for the quad lasers, left side:
-							dcElemSrcBox = &g_DCElemSrcBoxes.src_boxes[QUAD_LASER_R_DC_ELEM_SRC_IDX];
+							dcElemSrcBox = &g_DCElemSrcBoxes.src_boxes[QUAD_LASERS_R_DC_ELEM_SRC_IDX];
+							dcElemSrcBox->coords = ComputeCoordsFromUV(left, top, width, height,
+								uv_minmax, box, dcElemSrcBox->uv_coords);
+							dcElemSrcBox->bComputed = true;
+
+							// Get the limits for the quad lasers, both sides:
+							dcElemSrcBox = &g_DCElemSrcBoxes.src_boxes[QUAD_LASERS_BOTH_DC_ELEM_SRC_IDX];
+							dcElemSrcBox->coords = ComputeCoordsFromUV(left, top, width, height,
+								uv_minmax, box, dcElemSrcBox->uv_coords);
+							dcElemSrcBox->bComputed = true;
+
+							// Get the limits for the dual lasers:
+							dcElemSrcBox = &g_DCElemSrcBoxes.src_boxes[DUAL_LASERS_L_DC_ELEM_SRC_IDX];
+							dcElemSrcBox->coords = ComputeCoordsFromUV(left, top, width, height,
+								uv_minmax, box, dcElemSrcBox->uv_coords);
+							dcElemSrcBox->bComputed = true;
+
+							dcElemSrcBox = &g_DCElemSrcBoxes.src_boxes[DUAL_LASERS_R_DC_ELEM_SRC_IDX];
+							dcElemSrcBox->coords = ComputeCoordsFromUV(left, top, width, height,
+								uv_minmax, box, dcElemSrcBox->uv_coords);
+							dcElemSrcBox->bComputed = true;
+
+							dcElemSrcBox = &g_DCElemSrcBoxes.src_boxes[DUAL_LASERS_BOTH_DC_ELEM_SRC_IDX];
+							dcElemSrcBox->coords = ComputeCoordsFromUV(left, top, width, height,
+								uv_minmax, box, dcElemSrcBox->uv_coords);
+							dcElemSrcBox->bComputed = true;
+
+							// Get the limits for the six lasers
+							dcElemSrcBox = &g_DCElemSrcBoxes.src_boxes[SIX_LASERS_DC_ELEM_SRC_IDX];
 							dcElemSrcBox->coords = ComputeCoordsFromUV(left, top, width, height,
 								uv_minmax, box, dcElemSrcBox->uv_coords);
 							dcElemSrcBox->bComputed = true;
@@ -3814,8 +3851,8 @@ HRESULT Direct3DDevice::Execute(
 						g_PSCBuffer.dst[numCoords] = dc_element->coords.dst[i];
 
 						uint32_t uColor = dc_element->coords.uBGColor[i];
-						bgColor[3] = (uColor & 0xFF) / 255.0f;
-						bgColor[2] = ((uColor >> 8) & 0xFF) / 255.0f;
+						bgColor[3] =  (uColor        & 0xFF) / 255.0f;
+						bgColor[2] = ((uColor >> 8)  & 0xFF) / 255.0f;
 						bgColor[1] = ((uColor >> 16) & 0xFF) / 255.0f;
 						bgColor[0] = ((uColor >> 24) & 0xFF) / 255.0f;
 						memcpy(&(g_PSCBuffer.bgColor[numCoords]), bgColor, 4 * sizeof(float));

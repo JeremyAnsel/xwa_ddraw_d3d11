@@ -220,9 +220,14 @@ std::vector<const char *>g_DCElemSrcNames = {
 	"SPEED_THROTTLE_SRC",		// 13
 	"MISSILES_SRC",				// 14
 	"NAME_TIME_SRC",				// 15
-	"NUM_SHIPS_SRC"				// 16
+	"NUM_SHIPS_SRC",				// 16
+	"QUAD_LASERS_BOTH_SRC",		// 17
+	"DUAL_LASERS_L_SRC",			// 18
+	"DUAL_LASERS_R_SRC",			// 19
+	"DUAL_LASERS_BOTH_SRC",		// 20
+	"SIX_LASERS_SRC",			// 21
 };
-const int MAX_DC_SRC_ELEMENTS = (int )g_DCElemSrcNames.size();
+//const int MAX_DC_SRC_ELEMENTS = (int )g_DCElemSrcNames.size();
 
 int HUDRegionNameToIndex(char *name) {
 	if (name == NULL || name[0] == '\0')

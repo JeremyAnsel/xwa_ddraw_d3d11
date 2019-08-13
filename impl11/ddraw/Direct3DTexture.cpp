@@ -509,36 +509,46 @@ HRESULT Direct3DTexture::Load(
 
 			// Check this CRC to see if it's interesting
 			if (this->crc == TRIANGLE_PTR_CRC) {
-				log_debug("[DBG] Triangle Ptr, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
+				//log_debug("[DBG] Triangle Ptr, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
 				this->is_TrianglePointer = true;
 			} 
 			else if (this->crc == TARGETING_COMP_CRC) {
-				log_debug("[DBG] Targeting Comp, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
+				//log_debug("[DBG] Targeting Comp, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
 				this->is_TargetingComp = true;
 			}
 			else if (isInVector(this->crc, HUD_CRCs)) {
-				log_debug("[DBG] HUD, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
+				//log_debug("[DBG] HUD, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
 				this->is_HUD = true;
 			}
 			else if (isInVector(this->crc, Floating_GUI_CRCs)) {
-				log_debug("[DBG] Floating GUI, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
+				//log_debug("[DBG] Floating GUI, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
 				this->is_Floating_GUI = true;
 			}
 			else if (isInVector(this->crc, Text_CRCs)) {
-				log_debug("[DBG] Text, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
+				//log_debug("[DBG] Text, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
 				this->is_Text = true;
 			}
 			else if (isInVector(this->crc, GUI_CRCs)) {
-				log_debug("[DBG] GUI, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
+				//log_debug("[DBG] GUI, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
 				this->is_GUI = true;
 			}
 		}
 	}
 	else if (g_bDynCockpitEnabled && surface->_mipmapCount > 1) {
-		// Check the surface with the smallest resolution
-		int width = surface->_width;
-		int height = surface->_height;
-		//unsigned int size = width * height * (useBuffers ? 4 : bpp);
+		// Capture and store the name of the cockpit
+		if (g_sCurrentCockpit[0] == 0) {
+			if (strstr(surface->_name, "Cockpit") != NULL) {
+				log_debug("[DBG] [DC] Cockpit found");
+				char *start = strstr(surface->_name, "\\");
+				char *end = strstr(surface->_name, ".opt");
+				if (start != NULL && end != NULL) {
+					start += 1; // Skip the backslash
+					int size = end - start;
+					strncpy_s(g_sCurrentCockpit, 128, start, size);
+					log_debug("[DBG] [DC] COCKPIT NAME: '%s'", g_sCurrentCockpit);
+				}
+			}
+		}
 
 		int idx = isInVector(surface->_name, g_DCElements);
 		if (idx > -1) {
@@ -550,18 +560,6 @@ HRESULT Direct3DTexture::Load(
 				this->DCElementIndex = idx;
 				// Activate this dc_element
 				g_DCElements[idx].bActive = true;
-				// Store the name of this cockpit
-				if (g_sCurrentCockpit[0] == 0) {
-					char *start = strstr(surface->_name, "\\");
-					char *end = strstr(surface->_name, ".opt");
-					if (start != NULL && end != NULL) {
-						start += 1; // Skip the backslash
-						int size = end - start;
-						strncpy_s(g_sCurrentCockpit, 128, start, size);
-						//log_debug("[DBG] [DC] surface->_name: '%s'", surface->_name);
-						log_debug("[DBG] [DC] COCKPIT NAME: '%s'", g_sCurrentCockpit);
-					}
-				}
 				// Load the cover texture if necessary
 				if (g_DCElements[idx].coverTexture == NULL && g_DCElements[idx].coverTextureName[0] != 0) {
 					wchar_t wTexName[MAX_TEXTURE_NAME];

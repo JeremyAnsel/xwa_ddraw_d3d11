@@ -33,7 +33,7 @@ extern char g_sCurrentCockpit[128];
 
 extern VertexShaderCBuffer g_VSCBuffer;
 extern PixelShaderCBuffer g_PSCBuffer;
-extern float g_fAspectRatio, g_fGlobalScale, g_fBrightness, g_fGUIElemsScale, g_fFloatingGUIDepth;
+extern float g_fAspectRatio, g_fGlobalScale, g_fBrightness, g_fGUIElemsScale, g_fHUDDepth, g_fFloatingGUIDepth;
 extern float g_fCurScreenWidth, g_fCurScreenHeight;
 extern D3D11_VIEWPORT g_nonVRViewport;
 
@@ -1455,10 +1455,6 @@ void PrimarySurface::DrawHUDVertices() {
 	// We don't need to clear the current vertex and pixel constant buffers.
 	// Since we've just finished rendering 3D, they should contain values that
 	// can be reused. So let's just overwrite those values that we need.
-	// TODO: Set the HUD at the right depth -- Some VS params have been updated; need to confirm
-	// TODO: Enable the "Fixed GUI" option  -- Some VS params have been updated; need to confirm
-	// TODO: Check that this works in SteamVR mode too -- confirmation needed.
-	// Ctrl-Z (Zoom-out mode) seems to work in DirectSBS mode
 	g_VSCBuffer.aspect_ratio      =  g_fAspectRatio;
 	g_VSCBuffer.z_override        = -1.0f;
 	g_VSCBuffer.sz_override       = -1.0f;
@@ -1479,10 +1475,9 @@ void PrimarySurface::DrawHUDVertices() {
 
 	// Reduce the scale for GUI elements, except for the HUD
 	g_VSCBuffer.viewportScale[3] = g_fGUIElemsScale;
-	// Enable the fixed GUI
-	if (g_bFixedGUI)
-		g_VSCBuffer.bFullTransform = 1.0f;
-	// Since the HUD is all rendered on a flat surface, so we lose vrparams that make the 3D object
+	// Enable/Disable the fixed GUI
+	g_VSCBuffer.bFullTransform = g_bFixedGUI ? 1.0f : 0.0f;
+	// Since the HUD is all rendered on a flat surface, we lose vrparams that make the 3D object
 	// and text float
 	g_VSCBuffer.z_override = g_fFloatingGUIDepth;
 
