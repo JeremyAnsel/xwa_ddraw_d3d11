@@ -1,0 +1,70 @@
+; X-Wing
+; Targeting Computer
+[XwingCockpit.opt,TEX00097]
+cover_texture = DynamicCockpit\x-wing-targeting-comp-cover.png
+cover_texture_size = 256, 128
+uv_coords = TARGETING_COMPUTER_SRC, 13,12, 242,115
+; Also erases the laser charge:
+erase_region = TARGET_AND_LASERS_REGION
+
+; Left Radar and Energy Recharge Levels
+[XwingCockpit.opt,TEX00096]
+cover_texture = DynamicCockpit\x-wing-left-radar-cover.png
+cover_texture_size = 256, 256
+uv_coords = LASER_RECHARGE_SRC, 220,11, 228,78
+uv_coords = SHIELD_RECHARGE_SRC, 229,11, 236,78
+uv_coords = ENGINE_POWER_SRC, 237,11, 245,78
+uv_coords = LEFT_SENSOR_SRC, 40,28, 98,111; 0x0
+erase_region = LEFT_SENSOR_REGION
+
+; Right radar
+[XwingCockpit.opt,TEX00095]
+cover_texture = DynamicCockpit\x-wing-right-radar-cover.png
+cover_texture_size = 256, 256
+uv_coords = RIGHT_SENSOR_SRC, 148,28, 206,111; 0x0 
+erase_region = RIGHT_SENSOR_REGION
+
+; Laser Levels
+[XwingCockpit.opt,TEX00094]
+cover_texture = DynamicCockpit\x-wing-lasers-panel-cover.png
+cover_texture_size = 256, 64
+; Let's split the laser charge and x-mirror the right side so that
+; they recharge towards the center:
+uv_coords = QUAD_LASERS_LEFT_SRC,  52,7, 130,53
+uv_coords = QUAD_LASERS_RIGHT_SRC, 219,7, 140,53
+;uv_coords = QUAD_LASERS_BOTH_SRC, 52,7, 219,53
+;uv_coords = DUAL_LASERS_BOTH_SRC, 52,7, 219,53
+
+; Shields display
+[XwingCockpit.opt,TEX00098]
+cover_texture = DynamicCockpit\x-wing-shields-cover.png
+cover_texture_size = 128, 128
+uv_coords = SHIELDS_SRC, 77,12, 109,60
+;uv_coords = BEAM_LEVEL_SRC, 77,12, 109,60
+erase_region = BEAM_REGION
+erase_region = SHIELDS_REGION
+
+; Left Text panel
+[XwingCockpit.opt,TEX00026]
+cover_texture = DynamicCockpit\x-wing-left-panel.png
+cover_texture_size = 256, 256
+uv_coords = LEFT_TEXT_BOX_SRC, 138,125, 211,237; 0x000022
+erase_region = LEFT_TEXT_BOX_REGION
+
+; Right Text panel
+[XwingCockpit.opt,TEX00028]
+cover_texture = DynamicCockpit\x-wing-right-panel.png
+cover_texture_size = 256, 256
+uv_coords = RIGHT_TEXT_BOX_SRC, 211,125, 138,237; 0x000022
+erase_region = RIGHT_TEXT_BOX_REGION
+
+; Front Panel
+[XwingCockpit.opt,TEX00076]
+cover_texture = DynamicCockpit\x-wing-front-panel-cover.png
+cover_texture_size = 256, 256
+uv_coords = SPEED_THROTTLE_SRC, 20,40, 115,70
+uv_coords = MISSILES_SRC, 128,40, 214,70
+uv_coords = NAME_TIME_SRC, 30,80, 125,110
+uv_coords = NUM_SHIPS_SRC, 128,80, 214,110
+erase_region = TOP_LEFT_REGION
+erase_region = TOP_RIGHT_REGION

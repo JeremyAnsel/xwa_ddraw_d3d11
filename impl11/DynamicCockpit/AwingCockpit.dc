@@ -1,0 +1,42 @@
+; A-Wing
+; Shields and Targeting Computer -- the grouping was dictacted by the destination texture
+[AwingCockpit.opt,TEX00062]
+cover_texture = DynamicCockpit\a-wing-shields-target.png
+cover_texture_size = 256,256
+; Shields
+; The A-Wing's uv coords in this texture are in the range [0..1,0..2]
+; I found these by checking the OPT and then by doing a little of trial-and-error here
+uv_coords 	 = SHIELDS_SRC;  128,390, 256,256
+erase_region = SHIELDS_REGION
+; Targeting Computer
+; The aspect ratio of this texture is square; but the aspect ratio of the targeting comp
+; is not, so that's why the v coord is smaller than 256 -- to compensate
+uv_coords    = TARGETING_COMPUTER_SRC, 256,230, 128,154
+erase_region = TARGET_AND_LASERS_REGION
+
+; Left and Right radars
+[AwingCockpit.opt,TEX00059]
+cover_texture = DynamicCockpit\a-wing-radars-cover.png
+cover_texture_size = 128,128
+uv_coords  	 = LEFT_SENSOR_SRC, 128,64, 64,0; 0x0
+erase_region = LEFT_SENSOR_REGION
+; Right radar
+uv_coords 	 = RIGHT_SENSOR_SRC, 64,64, 0,0; 0x0
+erase_region = RIGHT_SENSOR_REGION
+erase_region = BEAM_REGION
+
+; Laser levels
+[AwingCockpit.opt,TEX00019]
+cover_texture = DynamicCockpit\a-wing-lasers-cover.png
+cover_texture_size = 256,128
+uv_coords = DUAL_LASERS_L_SRC, 40,45, 118,64
+uv_coords = DUAL_LASERS_R_SRC, 216,45, 138,64
+
+; Recharge rates
+[AwingCockpit.opt,TEX00063]
+cover_texture = DynamicCockpit\a-wing-recharge-cover.png
+cover_texture_size = 256,256
+; The ELS recharge rates are erased in the left radar section
+uv_coords  = LASER_RECHARGE_SRC, 37,128, 46,94 ; Laser power
+uv_coords  = SHIELD_RECHARGE_SRC, 28,128, 37,94 ; Shield power
+uv_coords  = ENGINE_POWER_SRC, 19,128, 28,94 ; Engine power

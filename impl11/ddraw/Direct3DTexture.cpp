@@ -75,6 +75,9 @@ extern std::vector<dc_element> g_DCElements;
 extern bool g_bDynCockpitEnabled;
 extern char g_sCurrentCockpit[128];
 
+bool LoadIndividualDCParams(char *sFileName);
+void CockpitNameToDCParamsFile(char *CockpitName, char *sFileName, int iFileNameSize);
+
 bool isInVector(uint32_t crc, std::vector<uint32_t> &vector) {
 	for (uint32_t x : vector)
 		if (x == crc)
@@ -538,6 +541,7 @@ HRESULT Direct3DTexture::Load(
 		// Capture and store the name of the cockpit
 		if (g_sCurrentCockpit[0] == 0) {
 			if (strstr(surface->_name, "Cockpit") != NULL) {
+				//strstr(surface->_name, "Gunner")  != NULL)  {
 				log_debug("[DBG] [DC] Cockpit found");
 				char *start = strstr(surface->_name, "\\");
 				char *end = strstr(surface->_name, ".opt");
@@ -546,6 +550,12 @@ HRESULT Direct3DTexture::Load(
 					int size = end - start;
 					strncpy_s(g_sCurrentCockpit, 128, start, size);
 					log_debug("[DBG] [DC] COCKPIT NAME: '%s'", g_sCurrentCockpit);
+					
+					// Load the relevant DC file for the current cockpit
+					char sFileName[80];
+					CockpitNameToDCParamsFile(g_sCurrentCockpit, sFileName, 80);
+					if (!LoadIndividualDCParams(sFileName))
+						log_debug("[DBG] [DC] ERROR: Could not load DC params");
 				}
 			}
 		}

@@ -1,0 +1,31 @@
+; TIE-Fighter
+[TieFighterCockpit.opt,TEX00047]
+cover_texture_size = 256,256
+uv_coords = TARGETING_COMPUTER_SRC, 240,220, 16,36
+erase_region = TARGET_AND_LASERS_REGION
+
+[TieFighterCockpit.opt,TEX00048]
+cover_texture = DynamicCockpit\tie-fighter-joystick-front.png
+cover_texture_size = 128,128
+;uv_coords = DUAL_LASERS_L_SRC, 16,119, 112,114; 0x0
+uv_coords = DUAL_LASERS_L_SRC, 16,119, 60,114; 0x002200
+uv_coords = DUAL_LASERS_R_SRC, 112,119, 68,114; 0x002200
+
+[TieFighterCockpit.opt,TEX00018]
+cover_texture = DynamicCockpit\tie-fighter-front-cover.png
+cover_texture_size = 256,256
+uv_coords = SHIELDS_SRC, 7, 168, 83, 249; 0x102210
+erase_region = SHIELDS_REGION
+erase_region = BEAM_REGION
+
+[TieFighterCockpit.opt,TEX00019]
+cover_texture = DynamicCockpit\tie-fighter-left-cover.png
+cover_texture_size = 128,256
+uv_coords = LEFT_SENSOR_SRC, 116.5,251.5, 11.5,146.5; 0x0
+erase_region = LEFT_SENSOR_REGION
+
+[TieFighterCockpit.opt,TEX00017]
+cover_texture = DynamicCockpit\tie-fighter-right-cover.png
+cover_texture_size = 128,256
+uv_coords = RIGHT_SENSOR_SRC, 116.5,251.5, 11.5,146.5; 0x0
+erase_region = RIGHT_SENSOR_REGION

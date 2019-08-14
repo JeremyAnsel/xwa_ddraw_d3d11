@@ -120,7 +120,7 @@ const char *BARREL_EFFECT_STATE_VRPARAM = "apply_lens_correction";
 const char *INVERSE_TRANSPOSE_VRPARAM = "alternate_steamvr_eye_inverse";
 const char *FLOATING_AIMING_HUD_VRPARAM = "floating_aiming_HUD";
 const char *NATURAL_CONCOURSE_ANIM_VRPARAM = "concourse_animations_at_25fps";
-const char *DYNAMIC_COCKPIT_TARGET_COMP_VRPARAM = "dynamic_cockpit_enabled";
+const char *DYNAMIC_COCKPIT_ENABLED_VRPARAM = "dynamic_cockpit_enabled";
 const char *FIXED_GUI_VRPARAM = "fixed_GUI";
 const char *STICKY_ARROW_KEYS_VRPARAM = "sticky_arrow_keys";
 // 6dof vrparams
@@ -874,22 +874,22 @@ DCElemSrcBoxes::DCElemSrcBoxes() {
  * This function will not grow g_DCHUDBoxes and it expects it to be populated
  * already.
  */
-bool LoadDCGlobalCoordinates() {
+bool LoadDCInternalCoordinates() {
 	
-	log_debug("[DBG] [DC] Loading Global Dynamic Cockpit coordinates...");
+	log_debug("[DBG] [DC] Loading Internal Dynamic Cockpit coordinates...");
 	FILE *file;
 	int error = 0, line = 0;
 	static int lastDCElemSelected = -1;
 
 	try {
-		error = fopen_s(&file, "./dynamic_cockpit_global_areas.cfg", "rt");
+		error = fopen_s(&file, "./DynamicCockpit/dynamic_cockpit_internal_areas.cfg", "rt");
 	}
 	catch (...) {
-		log_debug("[DBG] [DC] Could not load dynamic_cockpit_global_areas.cfg");
+		log_debug("[DBG] [DC] Could not load DynamicCockpit/dynamic_cockpit_internal_areas.cfg");
 	}
 
 	if (error != 0) {
-		log_debug("[DBG] [DC] ERROR %d when loading dynamic_cockpit_global_areas.cfg", error);
+		log_debug("[DBG] [DC] ERROR %d when loading DynamicCockpit/dynamic_cockpit_internal_areas.cfg", error);
 		return false;
 	}
 
@@ -1161,23 +1161,34 @@ static inline void ClearDCMoveRegions() {
 	g_DCMoveRegions.numCoords = 0;
 }
 
-/* Loads the dynamic_cockpit.cfg file */
-bool LoadDCParams() {
-	log_debug("[DBG] Loading Dynamic Cockpit params...");
+/*
+ * Convert a cockpit name into a DC params file of the form:
+ * DynamicCockpit\<CockpitName>.dc
+ */
+void CockpitNameToDCParamsFile(char *CockpitName, char *sFileName, int iFileNameSize) {
+	snprintf(sFileName, iFileNameSize, "DynamicCockpit\\%s.dc", CockpitName);
+}
+
+/*
+ * Load the DC params for an individual cockpit. 
+ * Resets g_DCElements (if we're not rendering in 3D), and the move regions.
+ */
+bool LoadIndividualDCParams(char *sFileName) {
+	log_debug("[DBG] Loading Dynamic Cockpit params for [%s]...", sFileName);
 	FILE *file;
 	int error = 0, line = 0;
 	static int lastDCElemSelected = -1;
 	float cover_tex_width = 1, cover_tex_height = 1;
 
 	try {
-		error = fopen_s(&file, "./dynamic_cockpit.cfg", "rt");
+		error = fopen_s(&file, sFileName, "rt");
 	}
 	catch (...) {
-		log_debug("[DBG] Could not load dynamic_cockpit.cfg");
+		log_debug("[DBG] Could not load [%s]", sFileName);
 	}
 
 	if (error != 0) {
-		log_debug("[DBG] Error %d when loading dynamic_cockpit.cfg", error);
+		log_debug("[DBG] Error %d when loading [%s]", error, sFileName);
 		return false;
 	}
 
@@ -1203,16 +1214,7 @@ bool LoadDCParams() {
 		if (sscanf_s(buf, "%s = %s", param, 128, svalue, 128) > 0) {
 			value = (float)atof(svalue);
 
-			if (_stricmp(param, DYNAMIC_COCKPIT_TARGET_COMP_VRPARAM) == 0) {
-				g_bDynCockpitEnabled = (bool)value;
-				log_debug("[DBG] [DC] g_bDynCockpitEnabled: %d", g_bDynCockpitEnabled);
-				if (!g_bDynCockpitEnabled) {
-					// Early abort: stop reading coordinates if the dynamic cockpit is disabled
-					fclose(file);
-					return false;
-				}
-			}
-			else if (buf[0] == '[') {
+			if (buf[0] == '[') {
 				// This is a new DC element.
 				dc_element dc_elem;
 				strcpy_s(dc_elem.name, MAX_TEXTURE_NAME, buf + 1);
@@ -1228,7 +1230,8 @@ bool LoadDCParams() {
 					g_DCElements[lastDCElemSelected].coords.numCoords = 0;
 					g_DCElements[lastDCElemSelected].num_erase_slots = 0;
 					log_debug("[DBG] [DC] Resetting coords of exisiting DC elem @ idx: %d", lastDCElemSelected);
-				} else {
+				}
+				else {
 					// Initialize this dc_elem:
 					dc_elem.coverTextureName[0] = 0;
 					dc_elem.coverTexture = NULL;
@@ -1268,14 +1271,14 @@ bool LoadDCParams() {
 					log_debug("[DBG] [DC] ERROR: Invalid region name: [%s]", svalue);
 					continue;
 				}
-				
+
 				int slot = HUDRegionNameToIndex(svalue);
 				if (slot < 0) {
 					log_debug("[DBG] [DC] ERROR: Unknown region: [%s]", svalue);
 					continue;
 				}
 
-				if (slot < (int )g_DCHUDBoxes.boxes.size()) {
+				if (slot < (int)g_DCHUDBoxes.boxes.size()) {
 					int next_idx = g_DCElements[lastDCElemSelected].num_erase_slots;
 					g_DCElements[lastDCElemSelected].erase_slots[next_idx] = slot;
 					g_DCElements[lastDCElemSelected].num_erase_slots++;
@@ -1294,6 +1297,76 @@ bool LoadDCParams() {
 			}
 			else if (_stricmp(param, COVER_TEX_SIZE_DCPARAM) == 0) {
 				LoadDCCoverTextureSize(buf, &cover_tex_width, &cover_tex_height);
+			}
+		}
+	}
+	fclose(file);
+	return true;
+}
+
+/* Loads the dynamic_cockpit.cfg file */
+bool LoadDCParams() {
+	log_debug("[DBG] Loading Dynamic Cockpit params...");
+	FILE *file;
+	int error = 0, line = 0;
+	static int lastDCElemSelected = -1;
+	float cover_tex_width = 1, cover_tex_height = 1;
+
+	try {
+		error = fopen_s(&file, "./dynamic_cockpit.cfg", "rt");
+	}
+	catch (...) {
+		log_debug("[DBG] Could not load dynamic_cockpit.cfg");
+	}
+
+	if (error != 0) {
+		log_debug("[DBG] Error %d when loading dynamic_cockpit.cfg", error);
+		return false;
+	}
+
+	char buf[256], param[128], svalue[128];
+	int param_read_count = 0;
+	float value = 0.0f;
+
+	// Reset the dynamic cockpit vector if we're not rendering in 3D
+	if (!g_bRendering3D && g_DCElements.size() > 0) {
+		log_debug("[DBG] [DC] Clearing g_DCElements");
+		ClearDynCockpitVector(g_DCElements);
+	}
+	ClearDCMoveRegions();
+
+	/* Reload individual cockit parameters if the current cockpit is set */
+	bool bCockpitParamsLoaded = false;
+	if (g_sCurrentCockpit[0] != 0) {
+		char sFileName[80];
+		CockpitNameToDCParamsFile(g_sCurrentCockpit, sFileName, 80);
+		bCockpitParamsLoaded = LoadIndividualDCParams(sFileName);
+	}
+
+	while (fgets(buf, 256, file) != NULL) {
+		line++;
+		// Skip comments and blank lines
+		if (buf[0] == ';' || buf[0] == '#')
+			continue;
+		if (strlen(buf) == 0)
+			continue;
+
+		if (sscanf_s(buf, "%s = %s", param, 128, svalue, 128) > 0) {
+			value = (float)atof(svalue);
+
+			if (_stricmp(param, DYNAMIC_COCKPIT_ENABLED_VRPARAM) == 0) {
+				g_bDynCockpitEnabled = (bool)value;
+				log_debug("[DBG] [DC] g_bDynCockpitEnabled: %d", g_bDynCockpitEnabled);
+				if (!g_bDynCockpitEnabled) {
+					// Early abort: stop reading coordinates if the dynamic cockpit is disabled
+					fclose(file);
+					return false;
+				}
+			}
+			else if (_stricmp(param, MOVE_REGION_DCPARAM) == 0) {
+				// Individual cockpit move_region commands override the global move_region commands:
+				if (!bCockpitParamsLoaded)
+					LoadDCMoveRegion(buf);
 			}
 		}
 	}
@@ -1511,7 +1584,7 @@ next:
 	// Load cockpit look params
 	LoadCockpitLookParams();
 	// Load the global dynamic cockpit coordinates
-	LoadDCGlobalCoordinates();
+	LoadDCInternalCoordinates();
 	// Load Dynamic Cockpit params
 	LoadDCParams();
 }
