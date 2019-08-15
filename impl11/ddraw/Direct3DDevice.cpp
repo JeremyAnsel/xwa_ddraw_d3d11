@@ -1201,7 +1201,7 @@ bool LoadIndividualDCParams(char *sFileName) {
 		log_debug("[DBG] [DC] Clearing g_DCElements");
 		ClearDynCockpitVector(g_DCElements);
 	}
-	ClearDCMoveRegions();
+	//ClearDCMoveRegions();
 
 	while (fgets(buf, 256, file) != NULL) {
 		line++;
@@ -1254,9 +1254,11 @@ bool LoadIndividualDCParams(char *sFileName) {
 				}
 				LoadDCUVCoords(buf, cover_tex_width, cover_tex_height, &(g_DCElements[lastDCElemSelected].coords));
 			}
+			/*
 			else if (_stricmp(param, MOVE_REGION_DCPARAM) == 0) {
 				LoadDCMoveRegion(buf);
 			}
+			*/
 			else if (_stricmp(param, ERASE_REGION_DCPARAM) == 0) {
 				if (g_DCElements.size() == 0) {
 					log_debug("[DBG] [DC] ERROR. Line %d, g_DCElements is empty, cannot add %s", line, param, ERASE_REGION_DCPARAM);
@@ -3678,8 +3680,24 @@ HRESULT Direct3DDevice::Execute(
 								uv_minmax, box, dcElemSrcBox->uv_coords);
 							dcElemSrcBox->bComputed = true;
 
-							// Get the limits for the six lasers
-							dcElemSrcBox = &g_DCElemSrcBoxes.src_boxes[SIX_LASERS_DC_ELEM_SRC_IDX];
+							// Get the limits for the B-Wing lasers
+							dcElemSrcBox = &g_DCElemSrcBoxes.src_boxes[B_WING_LASERS_DC_ELEM_SRC_IDX];
+							dcElemSrcBox->coords = ComputeCoordsFromUV(left, top, width, height,
+								uv_minmax, box, dcElemSrcBox->uv_coords);
+							dcElemSrcBox->bComputed = true;
+
+							// Get the limits for the TIE-Defender lasers
+							dcElemSrcBox = &g_DCElemSrcBoxes.src_boxes[SIX_LASERS_BOTH_DC_ELEM_SRC_IDX];
+							dcElemSrcBox->coords = ComputeCoordsFromUV(left, top, width, height,
+								uv_minmax, box, dcElemSrcBox->uv_coords);
+							dcElemSrcBox->bComputed = true;
+
+							dcElemSrcBox = &g_DCElemSrcBoxes.src_boxes[SIX_LASERS_L_DC_ELEM_SRC_IDX];
+							dcElemSrcBox->coords = ComputeCoordsFromUV(left, top, width, height,
+								uv_minmax, box, dcElemSrcBox->uv_coords);
+							dcElemSrcBox->bComputed = true;
+
+							dcElemSrcBox = &g_DCElemSrcBoxes.src_boxes[SIX_LASERS_R_DC_ELEM_SRC_IDX];
 							dcElemSrcBox->coords = ComputeCoordsFromUV(left, top, width, height,
 								uv_minmax, box, dcElemSrcBox->uv_coords);
 							dcElemSrcBox->bComputed = true;

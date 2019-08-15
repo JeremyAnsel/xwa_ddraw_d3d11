@@ -225,7 +225,10 @@ std::vector<const char *>g_DCElemSrcNames = {
 	"DUAL_LASERS_L_SRC",			// 18
 	"DUAL_LASERS_R_SRC",			// 19
 	"DUAL_LASERS_BOTH_SRC",		// 20
-	"SIX_LASERS_SRC",			// 21
+	"B_WING_LASERS_SRC",			// 21
+	"SIX_LASERS_BOTH_SRC",		// 22
+	"SIX_LASERS_L_SRC",			// 23
+	"SIX_LASERS_R_SRC",			// 24
 };
 //const int MAX_DC_SRC_ELEMENTS = (int )g_DCElemSrcNames.size();
 
