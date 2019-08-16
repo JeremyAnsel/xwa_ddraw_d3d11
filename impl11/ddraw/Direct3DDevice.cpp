@@ -3268,7 +3268,9 @@ HRESULT Direct3DDevice::Execute(
 						}
 						else
 						{
+							texture->_refCount++;
 							context->PSSetShaderResources(0, 1, texture->_textureView.GetAddressOf());
+							texture->_refCount--;
 
 							pixelShader = resources->_pixelShaderTexture;
 							// Keep the last texture selected
