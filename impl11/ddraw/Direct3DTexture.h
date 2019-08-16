@@ -8,7 +8,7 @@ class TextureSurface;
 
 #define TRIANGLE_PTR_CRC 0x6cf63265		// Triangle that indicates where is the target (master branch)
 #define WARHEAD_CRC 0xa4870ab3			// Main Warhead HUD (master branch)
-#define TARGETING_COMP_CRC 0x3b9a3741   // The main targetting computer, where the targeted craft is displayed
+#define TARGETING_COMP_CRC 0x3b9a3741   // The main targeting computer, where the targeted craft is displayed
 
 class Direct3DTexture : public IDirect3DTexture
 {
@@ -22,7 +22,7 @@ public:
 	bool is_TrianglePointer;
 	// This flag is set to true if this texture is a font/text
 	bool is_Text;
-	// This flag is set to true if this is a floating GUI element (like the targetting computer)
+	// This flag is set to true if this is a floating GUI element (like the targeting computer)
 	bool is_Floating_GUI;
 	// This flag is set to true if this is a regular GUI element
 	bool is_GUI;
@@ -37,9 +37,6 @@ public:
 	bool is_DynCockpitDst;
 	// True for the additional textures loaded in Hi-Res mode that provide additional glow
 	bool is_DynCockpitAlphaOverlay;
-	// Auto-computed bounding box in in-game resolution coordinates
-	// TODO: Remove this later, I don't think I'm going to need it.
-	Box boundingBox;
 
 	Direct3DTexture(DeviceResources* deviceResources, TextureSurface* surface);
 

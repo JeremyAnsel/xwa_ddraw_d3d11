@@ -377,6 +377,20 @@ HRESULT Direct3DTexture::Load(
 	Direct3DTexture* d3dTexture = (Direct3DTexture*)lpD3DTexture;
 	TextureSurface* surface = d3dTexture->_surface;
 	//log_debug("[DBG] Loading %s", surface->name);
+	// The changes from Jeremy's commit fe50cc59e03225bb7e39ae2852e87d305e7c7891 to reduce
+	// memory usage cause mipmapped textures to call Load() again. So we must copy all the
+	// settings from the input texture to this level.
+	this->crc = d3dTexture->crc;
+	this->is_HUD = d3dTexture->is_HUD;
+	this->is_TrianglePointer = d3dTexture->is_TrianglePointer;
+	this->is_Text = d3dTexture->is_Text;
+	this->is_Floating_GUI = d3dTexture->is_Floating_GUI;
+	this->is_GUI = d3dTexture->is_GUI;
+	this->is_TargetingComp = d3dTexture->is_TargetingComp;
+	// Dynamic Cockpit data
+	this->is_DynCockpitDst = d3dTexture->is_DynCockpitDst;
+	this->is_DynCockpitAlphaOverlay = d3dTexture->is_DynCockpitAlphaOverlay;
+	this->DCElementIndex = d3dTexture->DCElementIndex;
 
 	if (d3dTexture->_textureView)
 	{
