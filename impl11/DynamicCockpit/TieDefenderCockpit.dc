@@ -1,0 +1,12 @@
+; TIE-Defender
+[TieDefenderCockpit.opt,TEX00047]
+cover_texture_size = 256,256
+uv_coords = TARGETING_COMPUTER_SRC, 240,220, 16,36
+erase_region = TARGET_AND_LASERS_REGION
+
+[TieDefenderCockpit.opt,TEX00018]
+cover_texture = DynamicCockpit\tie-defender-front-cover.png
+cover_texture_size = 256,256
+uv_coords = SIX_LASERS_BOTH_SRC, 249.5,249, 6.5,215; 0x0
+
+
