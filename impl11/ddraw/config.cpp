@@ -18,6 +18,7 @@ Config::Config()
 	this->AspectRatioPreserved = true;
 	this->MultisamplingAntialiasingEnabled = false;
 	this->AnisotropicFilteringEnabled = true;
+	this->VSyncEnabled = true;
 	this->WireframeFillMode = false;
 
 	this->Concourse3DScale = 0.6f;
@@ -66,6 +67,10 @@ Config::Config()
 			else if (name == "EnableAnisotropicFiltering")
 			{
 				this->AnisotropicFilteringEnabled = stoi(value) != 0;
+			}
+			else if (name == "EnableVSync")
+			{
+				this->VSyncEnabled = stoi(value) != 0;
 			}
 			else if (name == "FillWireframe")
 			{

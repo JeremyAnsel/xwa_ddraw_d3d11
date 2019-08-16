@@ -2224,7 +2224,10 @@ HRESULT PrimarySurface::Flip(
 			// stays around 45 in my system
 			//log_debug("[DBG] Present 3D");
 			g_iPresentCounter++;
-			if (FAILED(hr = this->_deviceResources->_swapChain->Present(0, 0)))
+			// This is Jeremy's code:
+			//if (FAILED(hr = this->_deviceResources->_swapChain->Present(g_config.VSyncEnabled ? 1 : 0, 0)))
+			// For VR, we probably want to disable VSync to get as much frames a possible:
+			if (FAILED(hr = this->_deviceResources->_swapChain->Present(0, 0)))			
 			{
 				static bool messageShown = false;
 				if (!messageShown)
