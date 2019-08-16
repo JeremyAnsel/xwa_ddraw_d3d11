@@ -102,6 +102,7 @@ public:
 
 	DWORD _bufferSize;
 	char* _buffer;
+	char _name[MAX_TEXTURE_NAME];
 
 	ComPtr<MipmapSurface> _mipmap;
 	ComPtr<Direct3DTexture> _d3dTexture;

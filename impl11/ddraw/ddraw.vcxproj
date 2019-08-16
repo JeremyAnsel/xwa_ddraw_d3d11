@@ -85,6 +85,7 @@ copy /Y $(TargetPath) "C:\Program Files (x86)\Steam\steamapps\common\Star Wars X
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <TreatWarningAsError>false</TreatWarningAsError>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -160,6 +161,10 @@ copy /Y $(TargetPath) "C:\Program Files (x86)\Steam\steamapps\common\Star Wars X
     <ClInclude Include="TextureSurface.h" />
     <ClInclude Include="utils.h" />
     <ClInclude Include="Vectors.h" />
+    <ClInclude Include="XWAEnums.h" />
+    <ClInclude Include="XWAFramework.h" />
+    <ClInclude Include="XWAObject.h" />
+    <ClInclude Include="XWATypes.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="ddraw.rc" />

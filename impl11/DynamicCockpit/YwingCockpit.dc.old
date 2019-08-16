@@ -1,0 +1,26 @@
+; Y-Wing
+; Targeting Computer
+[YwingCockpit.opt,TEX00069]
+cover_texture = DynamicCockpit\x-wing-targeting-comp-cover.png
+cover_texture_size = 256,128
+; In the Y-Wing the targeting box is mirrored in both axes, so we invert
+; the coordinates here as well to compensate (x1,y1) comes before (x0,y0)
+uv_coords    = TARGETING_COMPUTER_SRC, 242,115, 13,12
+; Also erases the laser/ion charge levels:
+erase_region = TARGET_AND_LASERS_REGION
+
+; Shields
+[YwingCockpit.opt,TEX00078]
+cover_texture = DynamicCockpit\y-wing-shields-cover.png
+cover_texture_size = 256,128
+; In the Y-Wing, the shields texture is mirrored on the Y-axis, so we
+; specify y1 first and then y0.
+uv_coords 	 = SHIELDS_SRC, 154,97, 244,9
+erase_region = SHIELDS_REGION
+
+; Lasers/Ion
+[YwingCockpit.opt,TEX00054]
+cover_texture = DynamicCockpit\y-wing-front-cover.png
+cover_texture_size = 256,256
+uv_coords = QUAD_LASERS_LEFT_SRC, 148,38, 128,21
+uv_coords = QUAD_LASERS_RIGHT_SRC, 108,38, 128,21

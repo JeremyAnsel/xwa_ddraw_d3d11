@@ -35,7 +35,15 @@ public:
 
 	HRESULT QuickSetZWriteEnabled(BOOL);
 
-	void GetBoundingBox(LPD3DINSTRUCTION instruction, UINT curIndex, float * minX, float * minY, float * maxX, float * maxY);
+	void GetBoundingBox(LPD3DINSTRUCTION instruction, UINT curIndex,
+		float * minX, float * minY, float * maxX, float * maxY, bool debug=false);
+
+	void GetBoundingBoxUVs(LPD3DINSTRUCTION instruction, UINT curIndex,
+		float *minX, float *minY, float *maxX, float *maxY,
+		float *minU, float *minV, float *maxU, float *maxV,
+		bool debug=false);
+
+	//void ClearBox(Box box, D3D11_VIEWPORT *viewport, bool fullScreen, float scale, D3DCOLOR clearColor);
 
 	STDMETHOD(Execute)(THIS_ LPDIRECT3DEXECUTEBUFFER, LPDIRECT3DVIEWPORT, DWORD);
 
@@ -73,6 +81,5 @@ public:
 
 	DWORD _maxExecuteBufferSize;
 	ComPtr<ID3D11Buffer> _vertexBuffer;
-	ComPtr<ID3D11Buffer> _vertexBuffer3D;
 	ComPtr<ID3D11Buffer> _indexBuffer;
 };

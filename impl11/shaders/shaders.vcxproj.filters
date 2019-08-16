@@ -27,11 +27,14 @@
     <FxCompile Include="BarrelPixelShader.hlsl" />
     <FxCompile Include="SingleBarrelPixelShader.hlsl" />
     <FxCompile Include="bloom\BloomPrePassPS.hlsl" />
-    <FxCompile Include="bloom\BloomCommon.fxh">
-      <Filter>Fichiers d%27en-tête</Filter>
-    </FxCompile>
     <FxCompile Include="bloom\BloomHGaussPS.hlsl" />
     <FxCompile Include="bloom\BloomVGaussPS.hlsl" />
     <FxCompile Include="bloom\BloomCombinePS.hlsl" />
+    <FxCompile Include="PassthroughVertexShader.hlsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="bloom\BloomCommon.fxh">
+      <Filter>Fichiers d%27en-tête</Filter>
+    </None>
   </ItemGroup>
 </Project>

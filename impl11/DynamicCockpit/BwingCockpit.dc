@@ -1,0 +1,21 @@
+; B-Wing
+; Targeting Computer
+[BwingCockpit.opt,TEX00036]
+cover_texture = DynamicCockpit\b-wing-target-comp-cover.png
+cover_texture_size = 512, 512
+uv_coords = TARGETING_COMPUTER_SRC, 150,430, 362,180
+uv_coords = B_WING_LASERS_SRC, 119.5,55.5, 393.5,18.5
+; Also erases the laser charge:
+erase_region = TARGET_AND_LASERS_REGION
+
+; Right sensor
+[BwingCockpit.opt,TEX00029]
+cover_texture_size = 256,256
+uv_coords = RIGHT_SENSOR_SRC, 0,256, 256,0; 0x0
+
+; Left sensor
+[BwingCockpit.opt,TEX00034]
+cover_texture_size = 256,256
+uv_coords = LEFT_SENSOR_SRC, 0,256, 256,0; 0x0
+
+

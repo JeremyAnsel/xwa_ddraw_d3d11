@@ -1,0 +1,56 @@
+[YwingCockpit.opt,TEX00081]
+cover_texture_size = 256,128
+uv_coords    = TARGETING_COMPUTER_SRC, 220,108, 36,20
+erase_region = TARGET_AND_LASERS_REGION
+
+[YwingCockpit.opt,TEX00082]
+cover_texture_size = 252,252
+uv_coords = LEFT_TEXT_BOX_SRC, 0,252, 252,0
+erase_region = LEFT_TEXT_BOX_REGION
+
+[YwingCockpit.opt,TEX00084]
+cover_texture_size = 252,252
+uv_coords = RIGHT_TEXT_BOX_SRC, 0,252, 252,0
+erase_region = RIGHT_TEXT_BOX_REGION
+
+; TEX00083 time, 64x32
+
+; TEX00089 -- shields round cover
+
+; Shields
+[YwingCockpit.opt,TEX00090]
+;cover_texture = DynamicCockpit\y-wing-shields-cover.png
+cover_texture_size = 128,128
+uv_coords 	 = SHIELDS_SRC, 0,128, 128,0; 0x0
+erase_region = SHIELDS_REGION
+
+[YwingCockpit.opt,TEX00034]
+cover_texture = DynamicCockpit\y-wing-left-cover.png
+cover_texture_size = 512, 128
+uv_coords 	 = LEFT_SENSOR_SRC, 447.5,118.5, 344.5,15.5; 0x0
+uv_coords 	 = QUAD_LASERS_LEFT_SRC, 171,116.5, 27,84; 0x0
+erase_region = LEFT_SENSOR_REGION
+
+[YwingCockpit.opt,TEX00035]
+cover_texture = DynamicCockpit\y-wing-right-cover.png
+cover_texture_size = 512,128
+uv_coords 		= RIGHT_SENSOR_SRC, 167.5,118.5, 64.5,15.5; 0x0
+uv_coords 		= QUAD_LASERS_RIGHT_SRC, 341,116.5, 485,84; 0x0
+erase_region 	= RIGHT_SENSOR_REGION
+
+[YwingCockpit.opt,TEX00088]
+cover_texture = DynamicCockpit\y-wing-beam-cover.png
+cover_texture_size = 256,128
+uv_coords = BEAM_LEVEL_SRC, 13,75, 69,13; 0x0
+erase_region = BEAM_REGION
+
+[YwingCockpit.opt,TEX00079]
+cover_texture = DynamicCockpit\y-wing-els-cover.png
+cover_texture_size = 256,128
+uv_coords = LASER_RECHARGE_SRC, 7,116, 20,63; 0x0
+uv_coords = SHIELD_RECHARGE_SRC, 7,57, 20,3; 0x0
+uv_coords = ENGINE_POWER_SRC, 72,116, 83,63; 0x0
+uv_coords = BEAM_RECHARGE_SRC, 72,57, 83,3; 0x0
+uv_coords = MISSILES_SRC, 186,93, 244,72; 0x0
+uv_coords = NUM_SHIPS_SRC, 186,113, 244,95; 0x0
+

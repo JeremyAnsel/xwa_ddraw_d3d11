@@ -15,7 +15,27 @@
 
 #define DBG_MAX_PRESENT_LOGS 0
 
+#include <vector>
+
+#include "XWAObject.h"
+extern PlayerDataEntry* PlayerDataTable;
+const auto mouseLook_Y = (int*)0x9E9624;
+const auto mouseLook_X = (int*)0x9E9620;
+extern uint32_t *g_playerInHangar;
+
 extern bool g_bNaturalConcourseAnimations;
+extern bool g_bIsTrianglePointer, g_bLastTrianglePointer, g_bFixedGUI;
+extern bool g_bHUDVerticesReady;
+extern std::vector<dc_element> g_DCElements;
+extern DCHUDBoxes g_DCHUDBoxes;
+extern move_region_coords g_DCMoveRegions;
+extern char g_sCurrentCockpit[128];
+
+extern VertexShaderCBuffer g_VSCBuffer;
+extern PixelShaderCBuffer g_PSCBuffer;
+extern float g_fAspectRatio, g_fGlobalScale, g_fBrightness, g_fGUIElemsScale, g_fHUDDepth, g_fFloatingGUIDepth;
+extern float g_fCurScreenWidth, g_fCurScreenHeight;
+extern D3D11_VIEWPORT g_nonVRViewport;
 
 #include <headers/openvr.h>
 const float PI = 3.141592f;
@@ -30,10 +50,12 @@ extern Vector3 g_headCenter;
 extern bool g_bResetHeadCenter, g_bSteamVRPosFromFreePIE, g_bReshadeEnabled, g_bBloomEnabled;
 extern vr::IVRSystem *g_pHMD;
 extern int g_iFreePIESlot;
-extern DynCockpitBoxes g_DynCockpitBoxes;
+//extern DynCockpitBoxes g_DynCockpitBoxes;
+extern Matrix4 g_fullMatrixLeft, g_fullMatrixRight, g_fullMatrixHead;
 
 // The following is used when the Dynamic Cockpit is enabled to render the HUD separately
-//D3DTLVERTEX g_HUDVertices[6] = { 0 };
+bool g_bHUDVerticesReady = false; // Set to true when the g_HUDVertices array has valid data
+ID3D11Buffer *g_HUDVertexBuffer = NULL, *g_ClearHUDVertexBuffer = NULL, *g_ClearFullScreenHUDVertexBuffer = NULL;
 
 /*
  * Convert a rotation matrix to a normalized quaternion.
@@ -168,7 +190,7 @@ extern int g_iDraw2DCounter;
 extern bool g_bStartedGUI, g_bPrevStartedGUI, g_bIsScaleableGUIElem, g_bPrevIsScaleableGUIElem, g_bScaleableHUDStarted, g_bDynCockpitEnabled;
 extern bool g_bEnableVR, g_bDisableBarrelEffect;
 extern bool g_bDumpGUI;
-extern int g_iDrawCounter, g_iExecBufCounter, g_iPresentCounter, g_iNonZBufferCounter;
+extern int g_iDrawCounter, g_iExecBufCounter, g_iPresentCounter, g_iNonZBufferCounter, g_iDrawCounterAfterHUD;
 extern bool g_bTargetCompDrawn, g_bPrevIsFloatingGUI3DObject, g_bIsFloating3DObject;
 extern unsigned int g_iFloatingGUIDrawnCounter;
 
@@ -180,7 +202,7 @@ extern Matrix4 g_viewMatrix;
 extern VertexShaderMatrixCB g_VSMatrixCB;
 
 
-extern HeadPos g_HeadPos;
+extern HeadPos g_HeadPosAnim, g_HeadPos;
 void animTickX();
 void animTickY();
 void animTickZ();
@@ -580,6 +602,15 @@ void PrimarySurface::barrelEffect2D(int iteration) {
 	auto& device = resources->_d3dDevice;
 	auto& context = resources->_d3dDeviceContext;
 
+	// Temporarily disable ZWrite: we won't need it for the barrel effect
+	D3D11_DEPTH_STENCIL_DESC desc;
+	ComPtr<ID3D11DepthStencilState> depthState;
+	desc.DepthEnable = FALSE;
+	desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+	desc.DepthFunc = D3D11_COMPARISON_ALWAYS;
+	desc.StencilEnable = FALSE;
+	resources->InitDepthStencilState(depthState, &desc);
+
 	float screen_res_x = (float)resources->_backbufferWidth;
 	float screen_res_y = (float)resources->_backbufferHeight;
 	float bgColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -651,11 +682,8 @@ void PrimarySurface::barrelEffect2D(int iteration) {
 	// Set the lens distortion constants for the barrel shader
 	resources->InitPSConstantBufferBarrel(resources->_barrelConstantBuffer.GetAddressOf(), g_fLensK1, g_fLensK2, g_fLensK3);
 
-	// Maybe it should be like this:
-	// context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
-	context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	context->ClearRenderTargetView(resources->_renderTargetViewPost, bgColor);
-	context->OMSetRenderTargets(1, resources->_renderTargetViewPost.GetAddressOf(), resources->_depthStencilViewL.Get());
+	context->OMSetRenderTargets(1, resources->_renderTargetViewPost.GetAddressOf(), NULL);
 	context->PSSetShaderResources(0, 1, resources->_offscreenAsInputShaderResourceView.GetAddressOf());
 
 	resources->InitViewport(&viewport);
@@ -710,13 +738,13 @@ void PrimarySurface::barrelEffect3D() {
 	desc.DepthFunc = D3D11_COMPARISON_ALWAYS;
 	desc.StencilEnable = FALSE;
 	resources->InitDepthStencilState(depthState, &desc);
-
-	// Create a new viewport to render the offscreen buffer as a texture
-	D3D11_VIEWPORT viewport{};
+	
 	float screen_res_x = (float)resources->_backbufferWidth;
 	float screen_res_y = (float)resources->_backbufferHeight;
 	float bgColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
+	// Create a new viewport to render the offscreen buffer as a texture
+	D3D11_VIEWPORT viewport{};
 	viewport.TopLeftX = (float)0;
 	viewport.TopLeftY = (float)0;
 	viewport.Width = (float)screen_res_x;
@@ -746,8 +774,7 @@ void PrimarySurface::barrelEffect3D() {
 	context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	// Clear the render target
 	context->ClearRenderTargetView(resources->_renderTargetViewPost, bgColor);
-	context->OMSetRenderTargets(1, resources->_renderTargetViewPost.GetAddressOf(), 
-		this->_deviceResources->_depthStencilViewL.Get());
+	context->OMSetRenderTargets(1, resources->_renderTargetViewPost.GetAddressOf(), NULL);
 	resources->InitViewport(&viewport);
 	context->IASetInputLayout(resources->_mainInputLayout);
 	context->Draw(6, 0);
@@ -869,20 +896,20 @@ void PrimarySurface::barrelEffectSteamVR() {
 	resources->InitPSConstantBufferBarrel(resources->_barrelConstantBuffer.GetAddressOf(), g_fLensK1, g_fLensK2, g_fLensK3);
 
 	// Clear the depth stencil and render target
-	context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
-	context->ClearDepthStencilView(resources->_depthStencilViewR, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
+	//context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
+	//context->ClearDepthStencilView(resources->_depthStencilViewR, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
 	context->ClearRenderTargetView(resources->_renderTargetViewPost, bgColor);
 	context->ClearRenderTargetView(resources->_renderTargetViewPostR, bgColor);
 	context->IASetInputLayout(resources->_mainInputLayout);
 
 	context->PSSetShaderResources(0, 1, resources->_offscreenAsInputShaderResourceView.GetAddressOf());
-	context->OMSetRenderTargets(1, resources->_renderTargetViewPost.GetAddressOf(),
-		resources->_depthStencilViewL.Get());
+	context->OMSetRenderTargets(1, resources->_renderTargetViewPost.GetAddressOf(), NULL);
+		//resources->_depthStencilViewL.Get());
 	context->Draw(6, 0);
 
 	context->PSSetShaderResources(0, 1, resources->_offscreenAsInputShaderResourceViewR.GetAddressOf());
-	context->OMSetRenderTargets(1, resources->_renderTargetViewPostR.GetAddressOf(),
-		resources->_depthStencilViewR.Get());
+	context->OMSetRenderTargets(1, resources->_renderTargetViewPostR.GetAddressOf(), NULL);
+		//resources->_depthStencilViewR.Get());
 	context->Draw(6, 0);
 
 #ifdef DBG_VR
@@ -1150,12 +1177,11 @@ void PrimarySurface::bloom(int pass) {
 	resources->InitDepthStencilState(depthState, &desc);
 
 	// Create a new viewport to render the offscreen buffer as a texture
-	D3D11_VIEWPORT viewport{};
 	float screen_res_x = (float)resources->_backbufferWidth;
 	float screen_res_y = (float)resources->_backbufferHeight;
-	
 	float bgColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
+	D3D11_VIEWPORT viewport{};
 	viewport.TopLeftX = (float)0;
 	viewport.TopLeftY = (float)0;
 	viewport.Width    = (float)screen_res_x;
@@ -1174,16 +1200,16 @@ void PrimarySurface::bloom(int pass) {
 			resources->InitPixelShader(resources->_bloomPrepassPS);
 			context->PSSetShaderResources(0, 1, resources->_offscreenAsInputReshadeSRV.GetAddressOf());
 			context->ClearRenderTargetView(resources->_renderTargetViewReshade1, bgColor);
-			context->OMSetRenderTargets(1, resources->_renderTargetViewReshade1.GetAddressOf(),
-				this->_deviceResources->_depthStencilViewL.Get());
+			context->OMSetRenderTargets(1, resources->_renderTargetViewReshade1.GetAddressOf(), NULL);
+				//this->_deviceResources->_depthStencilViewL.Get());
 			break;
 		case 1: // Threshold + Horizontal Gaussian Blur
 			// Output: _reshadeOutput2
 			resources->InitPixelShader(resources->_bloomHGaussPS);
 			context->PSSetShaderResources(0, 1, resources->_reshadeOutput1SRV.GetAddressOf());
 			context->ClearRenderTargetView(resources->_renderTargetViewReshade2, bgColor);
-			context->OMSetRenderTargets(1, resources->_renderTargetViewReshade2.GetAddressOf(),
-				this->_deviceResources->_depthStencilViewL.Get());
+			context->OMSetRenderTargets(1, resources->_renderTargetViewReshade2.GetAddressOf(), NULL);
+				//this->_deviceResources->_depthStencilViewL.Get());
 			break;
 		case 2: // Vertical Gaussian Blur
 			// Output: _reshadeOutput1
@@ -1191,8 +1217,8 @@ void PrimarySurface::bloom(int pass) {
 			resources->InitPixelShader(resources->_bloomVGaussPS);
 			context->PSSetShaderResources(0, 1, resources->_reshadeOutput2SRV.GetAddressOf());
 			context->ClearRenderTargetView(resources->_renderTargetViewReshade1, bgColor);
-			context->OMSetRenderTargets(1, resources->_renderTargetViewReshade1.GetAddressOf(),
-				this->_deviceResources->_depthStencilViewL.Get());
+			context->OMSetRenderTargets(1, resources->_renderTargetViewReshade1.GetAddressOf(), NULL);
+				//this->_deviceResources->_depthStencilViewL.Get());
 			break;
 		case 3: // Final pass to combine the bloom texture with the backbuffer
 			// Output: _reshadeOutput2
@@ -1201,18 +1227,13 @@ void PrimarySurface::bloom(int pass) {
 			context->PSSetShaderResources(0, 1, resources->_offscreenAsInputReshadeSRV.GetAddressOf());
 			context->PSSetShaderResources(1, 1, resources->_reshadeOutput1SRV.GetAddressOf());
 			context->ClearRenderTargetView(resources->_renderTargetViewReshade2, bgColor);
-			context->OMSetRenderTargets(1, resources->_renderTargetViewReshade2.GetAddressOf(),
-				this->_deviceResources->_depthStencilViewL.Get());
+			context->OMSetRenderTargets(1, resources->_renderTargetViewReshade2.GetAddressOf(), NULL);
+				//this->_deviceResources->_depthStencilViewL.Get());
 			break;
 	}
 
 	// Set the constant buffers
 	resources->InitVSConstantBuffer2D(resources->_mainShadersConstantBuffer.GetAddressOf(), 0.0f, 1.0f, 1.0f, 1.0f, 0.0f); // Do not use 3D projection matrices
-	//resources->InitPSConstantBufferBarrel(resources->_barrelConstantBuffer.GetAddressOf(), g_fLensK1, g_fLensK2, g_fLensK3);
-
-	// Clear the depth stencil
-	// Maybe I should be using resources->clearDepth instead of 1.0f:
-	//context->ClearDepthStencilView(resources->_depthStencilViewL, D3D11_CLEAR_DEPTH, resources->clearDepth, 0);
 	resources->InitViewport(&viewport);
 	context->IASetInputLayout(resources->_mainInputLayout);
 	context->Draw(6, 0);
@@ -1265,12 +1286,307 @@ void PrimarySurface::bloom(int pass) {
 inline void WaitGetPoses() {
 	// We need to call WaitGetPoses so that SteamVR gets the focus, otherwise we'll just get
 	// error 101 when doing VRCompositor->Submit()
-	//if (g_pVRCompositor == NULL) log_debug("[DBG] VRCompositor is NULL");
 	vr::EVRCompositorError error = g_pVRCompositor->WaitGetPoses(&g_rTrackedDevicePose,
 		0, NULL, 0);
-	// It's probably not a great idea to log if there was an error since this will cause a big
-	// performance hit.
-	//if (error) log_debug("[DBG] WaitGetPoses error: %d", error);
+}
+
+void PrimarySurface::ClearBox(uvfloat4 box, D3D11_VIEWPORT *viewport, D3DCOLOR clearColor) {
+	HRESULT hr;
+	auto& resources = _deviceResources;
+	auto& device = resources->_d3dDevice;
+	auto& context = resources->_d3dDeviceContext;
+
+	D3D11_BLEND_DESC blendDesc{};
+	blendDesc.AlphaToCoverageEnable = FALSE;
+	blendDesc.IndependentBlendEnable = FALSE;
+	blendDesc.RenderTarget[0].BlendEnable = FALSE;
+	blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
+	blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_ZERO;
+	blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+	blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+	blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+	hr = resources->InitBlendState(nullptr, &blendDesc);
+
+	// Set the constant buffers
+	//VertexShaderCBuffer tempVSBuffer = g_VSCBuffer;
+	//tempVSBuffer.viewportScale[0] =  2.0f / resources->_displayWidth;
+	//tempVSBuffer.viewportScale[1] = -2.0f / resources->_displayHeight;
+	//tempVSBuffer.viewportScale[2] =  scale;
+	//tempVSBuffer.viewportScale[3] =  g_fGlobalScale;
+	//resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &tempVSBuffer);
+
+	// Set the vertex buffer
+	// D3DCOLOR seems to be AARRGGBB
+	//if (!fullScreen)
+	{
+		D3DTLVERTEX vertices[6];
+		vertices[0].sx = box.x0; vertices[0].sy = box.y0; vertices[0].sz = 0.98f; vertices[0].rhw = 34.0f; vertices[0].color = clearColor;
+		vertices[1].sx = box.x1; vertices[1].sy = box.y0; vertices[1].sz = 0.98f; vertices[1].rhw = 34.0f; vertices[1].color = clearColor;
+		vertices[2].sx = box.x1; vertices[2].sy = box.y1; vertices[2].sz = 0.98f; vertices[2].rhw = 34.0f; vertices[2].color = clearColor;
+
+		vertices[3].sx = box.x1; vertices[3].sy = box.y1; vertices[3].sz = 0.98f; vertices[3].rhw = 34.0f; vertices[3].color = clearColor;
+		vertices[4].sx = box.x0; vertices[4].sy = box.y1; vertices[4].sz = 0.98f; vertices[4].rhw = 34.0f; vertices[4].color = clearColor;
+		vertices[5].sx = box.x0; vertices[5].sy = box.y0; vertices[5].sz = 0.98f; vertices[5].rhw = 34.0f; vertices[5].color = clearColor;
+		D3D11_MAPPED_SUBRESOURCE map;
+		hr = context->Map(g_ClearHUDVertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
+		if (SUCCEEDED(hr)) {
+			memcpy(map.pData, vertices, sizeof(D3DTLVERTEX) * 6);
+			context->Unmap(g_ClearHUDVertexBuffer, 0);
+		}
+	}
+
+	D3D11_DEPTH_STENCIL_DESC zDesc;
+	// Temporarily disable ZWrite: we won't need it to display the HUD
+	ComPtr<ID3D11DepthStencilState> depthState;
+	zDesc.DepthEnable = FALSE;
+	zDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+	zDesc.DepthFunc = D3D11_COMPARISON_ALWAYS;
+	zDesc.StencilEnable = FALSE;
+	resources->InitDepthStencilState(depthState, &zDesc);
+
+	resources->InitTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	resources->InitRasterizerState(resources->_rasterizerState);
+
+	// Change the shaders
+	resources->InitVertexShader(resources->_passthroughVertexShader);
+	resources->InitPixelShader(resources->_pixelShaderSolid);
+	// Change the render target
+	// Set two RTVs: one for the foreground HUD and one for the HUD background
+	// Binding 2 RTVs implies that _pixelShaderSolid can output to 2 SV_TARGETs
+	ID3D11RenderTargetView *rtvs[2] = {
+		resources->_renderTargetViewDynCockpitAsInput.Get(),
+		resources->_renderTargetViewDynCockpitAsInputBG.Get() 
+	};
+	context->OMSetRenderTargets(2, rtvs, NULL);
+	//context->OMSetRenderTargets(1, resources->_renderTargetViewDynCockpitAsInput.GetAddressOf(), NULL);
+	//context->OMSetRenderTargets(1, resources->_renderTargetViewDynCockpitAsInputBG.GetAddressOf(), NULL);
+	// Set the viewport
+	resources->InitViewport(viewport);
+	// Set the vertex buffer (map the vertices from the box)
+	UINT stride = sizeof(D3DTLVERTEX);
+	UINT offset = 0;
+	//if (!fullScreen)
+	resources->InitVertexBuffer(&g_ClearHUDVertexBuffer, &stride, &offset);
+	//else
+	//resources->InitVertexBuffer(&g_ClearFullScreenHUDVertexBuffer, &stride, &offset);
+	// Draw
+	context->Draw(6, 0);
+}
+
+void PrimarySurface::ClearHUDRegions() {
+	D3D11_VIEWPORT viewport = { 0 };
+	viewport.TopLeftX = 0.0f;
+	viewport.TopLeftY = 0.0f;
+	viewport.Width    = (float )_deviceResources->_backbufferWidth;
+	viewport.Height   = (float )_deviceResources->_backbufferHeight;
+	viewport.MinDepth = D3D11_MIN_DEPTH;
+	viewport.MaxDepth = D3D11_MAX_DEPTH;
+
+	int size = (int)g_DCElements.size();
+	for (int i = 0; i < size; i++) {
+		dc_element *dc_elem = &g_DCElements[i];
+		if (g_sCurrentCockpit[0] != 0 && !dc_elem->bNameHasBeenTested)
+		{
+			if (strstr(dc_elem->name, g_sCurrentCockpit) != NULL) {
+				dc_elem->bActive = true;
+				dc_elem->bNameHasBeenTested = true;
+				//log_debug("[DBG] [DC] ACTIVATED: '%s'", dc_elem->name);
+			}
+		}
+		// Only clear HUD regions for active dc_elements
+		if (!dc_elem->bActive)
+			continue;
+
+		if (dc_elem->num_erase_slots == 0)
+			continue;
+
+		for (int j = 0; j < dc_elem->num_erase_slots; j++) {
+			int erase_slot = dc_elem->erase_slots[j];
+			DCHUDBox *dcSrcBox = &g_DCHUDBoxes.boxes[erase_slot];
+			if (dcSrcBox->bLimitsComputed)
+				ClearBox(dcSrcBox->erase_coords, &viewport, 0);
+		}
+	}
+
+
+	/*
+	unsigned int size = g_DCHUDBoxes.boxes.size();
+	for (unsigned int i = 0; i < size; i++) {
+		DCHUDBox *dcSrcBox = &g_DCHUDBoxes.boxes[i];
+		if (dcSrcBox->bLimitsComputed && dcSrcBox->bErase)
+			ClearBox(dcSrcBox->erase_coords, &viewport, 0);
+	}
+	*/
+}
+
+void PrimarySurface::DrawHUDVertices() {
+	auto& resources = this->_deviceResources;
+	auto& device = resources->_d3dDevice;
+	auto& context = resources->_d3dDeviceContext;
+	D3D11_VIEWPORT viewport;
+	HRESULT hr;
+
+	D3D11_BLEND_DESC blendDesc{};
+	blendDesc.AlphaToCoverageEnable = FALSE;
+	blendDesc.IndependentBlendEnable = FALSE;
+	blendDesc.RenderTarget[0].BlendEnable = TRUE;
+	blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+	blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+	blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_SRC_ALPHA;
+	blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
+	blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+	hr = resources->InitBlendState(nullptr, &blendDesc);
+	
+	/*
+	// Dump the HUD offscreen buffer for debugging purposes
+	static bool bDumped = false;
+	if (g_iPresentCounter > 100 && !bDumped) {
+		hr = DirectX::SaveWICTextureToFile(context.Get(),
+			resources->_offscreenAsInputDynCockpitBG.Get(), GUID_ContainerFormatPng, L"c://temp//offscreenBuf-DC-BG.png");
+		log_debug("[DBG] Dumping _offscreenAsInputDynCockpitBG");
+		bDumped = true;
+	}
+	*/
+
+	// We don't need to clear the current vertex and pixel constant buffers.
+	// Since we've just finished rendering 3D, they should contain values that
+	// can be reused. So let's just overwrite those values that we need.
+	g_VSCBuffer.aspect_ratio      =  g_fAspectRatio;
+	g_VSCBuffer.z_override        = -1.0f;
+	g_VSCBuffer.sz_override       = -1.0f;
+	g_VSCBuffer.mult_z_override   = -1.0f;
+	g_VSCBuffer.cockpit_threshold = -1.0f;
+	g_VSCBuffer.bPreventTransform =  0.0f;
+	g_VSCBuffer.bFullTransform    =  0.0f;
+	if (g_bEnableVR) {
+		g_VSCBuffer.viewportScale[0] = 1.0f / resources->_displayWidth;
+		g_VSCBuffer.viewportScale[1] = 1.0f / resources->_displayHeight;
+	}
+	else {
+		g_VSCBuffer.viewportScale[0] =  2.0f / resources->_displayWidth;
+		g_VSCBuffer.viewportScale[1] = -2.0f / resources->_displayHeight;
+	}
+	//g_VSCBuffer.viewportScale[2] = 1.0f; // scale;
+	//g_VSCBuffer.viewportScale[3] = g_fGlobalScale;
+
+	// Reduce the scale for GUI elements, except for the HUD
+	g_VSCBuffer.viewportScale[3] = g_fGUIElemsScale;
+	// Enable/Disable the fixed GUI
+	g_VSCBuffer.bFullTransform = g_bFixedGUI ? 1.0f : 0.0f;
+	// Since the HUD is all rendered on a flat surface, we lose vrparams that make the 3D object
+	// and text float
+	g_VSCBuffer.z_override = g_fFloatingGUIDepth;
+
+	//g_PSCBuffer.brightness        = g_fBrightness;
+	g_PSCBuffer.brightness		  = 1.0f; // TODO: Check if g_fBrightness is already applied when the textures are rendered
+	g_PSCBuffer.bUseCoverTexture  = 0;
+	g_PSCBuffer.bRenderHUD		  = 1;
+	// Add the move_regions commands.
+	int numCoords = 0;
+	for (int i = 0; i < g_DCMoveRegions.numCoords; i++) {
+		int region_slot = g_DCMoveRegions.region_slot[i];
+		// Skip invalid src slots
+		if (region_slot < 0)
+			continue;
+		// Skip regions if their limits haven't been computed
+		if (!g_DCHUDBoxes.boxes[region_slot].bLimitsComputed)
+			continue;
+		// Fetch the source uv coords:
+		g_PSCBuffer.src[numCoords] = g_DCHUDBoxes.boxes[region_slot].erase_coords;
+		// Fetch the destination uv coords:
+		g_PSCBuffer.dst[numCoords] = g_DCMoveRegions.dst[i];
+		numCoords++;
+	}
+	g_PSCBuffer.DynCockpitSlots = numCoords;
+
+	resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
+	resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
+
+	UINT stride = sizeof(D3DTLVERTEX);
+	UINT offset = 0;
+	resources->InitVertexBuffer(&g_HUDVertexBuffer, &stride, &offset);
+	resources->InitInputLayout(resources->_inputLayout);
+	if (g_bEnableVR)
+		resources->InitVertexShader(resources->_sbsVertexShader);
+	else
+		// The original code used _vertexShader:
+		resources->InitVertexShader(resources->_vertexShader);
+	resources->InitPixelShader(resources->_pixelShaderTexture);
+	resources->InitTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	resources->InitRasterizerState(resources->_rasterizerState);
+
+	// Temporarily disable ZWrite: we won't need it to display the HUD
+	D3D11_DEPTH_STENCIL_DESC desc;
+	ComPtr<ID3D11DepthStencilState> depthState;
+	desc.DepthEnable = FALSE;
+	desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+	desc.DepthFunc = D3D11_COMPARISON_ALWAYS;
+	desc.StencilEnable = FALSE;
+	resources->InitDepthStencilState(depthState, &desc);
+
+	// Don't clear the render target, the offscreenBuffer already has the 3D render in it
+	// Render the left image
+	if (g_bUseSteamVR)
+		context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(), NULL);
+	else
+		context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(), NULL);
+	// VIEWPORT-LEFT
+	if (g_bEnableVR) {
+		if (g_bUseSteamVR)
+			viewport.Width = (float)resources->_backbufferWidth;
+		else
+			viewport.Width = (float)resources->_backbufferWidth / 2.0f;
+	}
+	else // Non-VR path
+		viewport.Width = (float)resources->_backbufferWidth;
+	viewport.Height = (float)resources->_backbufferHeight;
+	viewport.TopLeftX = 0.0f;
+	viewport.TopLeftY = 0.0f;
+	viewport.MinDepth = D3D11_MIN_DEPTH;
+	viewport.MaxDepth = D3D11_MAX_DEPTH;
+	resources->InitViewport(&viewport);
+	// Set the left projection matrix
+	g_VSMatrixCB.projEye = g_fullMatrixLeft;
+	// The viewMatrix is set at the beginning of the frame
+	resources->InitVSConstantBufferMatrix(resources->_VSMatrixBuffer.GetAddressOf(), &g_VSMatrixCB);
+	// Set the HUD foreground and background textures:
+	context->PSSetShaderResources(0, 1, resources->_offscreenAsInputSRVDynCockpit.GetAddressOf());
+	context->PSSetShaderResources(1, 1, resources->_offscreenAsInputSRVDynCockpitBG.GetAddressOf());
+	// Draw the Left Image
+	context->Draw(6, 0);
+
+	if (!g_bEnableVR) // Shortcut for the non-VR path
+		return;
+
+	// Render the right image
+	if (g_bUseSteamVR)
+		context->OMSetRenderTargets(1, resources->_renderTargetViewR.GetAddressOf(), NULL);
+	else
+		context->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(), NULL);
+
+	// VIEWPORT-RIGHT
+	if (g_bUseSteamVR) {
+		viewport.Width = (float)resources->_backbufferWidth;
+		viewport.TopLeftX = 0.0f;
+	}
+	else {
+		viewport.Width = (float)resources->_backbufferWidth / 2.0f;
+		viewport.TopLeftX = 0.0f + viewport.Width;
+	}
+	viewport.Height = (float)resources->_backbufferHeight;
+	viewport.TopLeftY = 0.0f;
+	viewport.MinDepth = D3D11_MIN_DEPTH;
+	viewport.MaxDepth = D3D11_MAX_DEPTH;
+	resources->InitViewport(&viewport);
+	// Set the right projection matrix
+	g_VSMatrixCB.projEye = g_fullMatrixRight;
+	resources->InitVSConstantBufferMatrix(resources->_VSMatrixBuffer.GetAddressOf(), &g_VSMatrixCB);
+	// Draw the Right Image
+	context->Draw(6, 0);
 }
 
 HRESULT PrimarySurface::Flip(
@@ -1556,6 +1872,16 @@ HRESULT PrimarySurface::Flip(
 		auto &resources = this->_deviceResources;
 		auto &context = resources->_d3dDeviceContext;
 
+		// This moves the external camera when in the hangar:
+		//static __int16 yaw = 0;
+		//PlayerDataTable[0].cameraYaw   += 40 * *mouseLook_X;
+		//PlayerDataTable[0].cameraPitch += 15 * *mouseLook_Y;
+		//yaw += 600;
+		//log_debug("[DBG] roll: %0.3f", PlayerDataTable[0].roll / 32768.0f * 180.0f);
+		// This looks like it's always 0:
+		//log_debug("[DBG] els Lasers: %d, Shields: %d, Beam: %d",
+		//	PlayerDataTable[0].elsLasers, PlayerDataTable[0].elsShields, PlayerDataTable[0].elsBeam);
+
 		if (this->_deviceResources->_swapChain)
 		{
 			hr = DD_OK;
@@ -1598,6 +1924,27 @@ HRESULT PrimarySurface::Flip(
 				}
 			}
 
+			// Apply the HUD *after* we have re-shaded it (if necessary)
+			if (g_bDynCockpitEnabled) {
+				// Clear everything we don't want to display from the HUD
+				ClearHUDRegions();
+
+				/*
+				static bool bDumped = false;
+				if (!bDumped && g_iPresentCounter == 100) {
+					hr = DirectX::SaveWICTextureToFile(context.Get(),
+						resources->_offscreenBufferAsInputDynCockpit.Get(), GUID_ContainerFormatPng, L"c://temp//HUD-FG.png");
+					hr = DirectX::SaveWICTextureToFile(context.Get(),
+						resources->_offscreenBufferAsInputDynCockpitBG.Get(), GUID_ContainerFormatPng, L"c://temp//HUD-BG.png");
+					log_debug("[DBG] Dumping offscreenBufferDynCockpitBG");
+					bDumped = true;
+				}
+				*/
+
+				// Display the HUD
+				DrawHUDVertices();
+			}
+
 			// In the original code, the offscreenBuffer is resolved to the backBuffer
 			//this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0, this->_deviceResources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
 
@@ -1615,7 +1962,8 @@ HRESULT PrimarySurface::Flip(
 					// Resolve steamVRPresentBuffer to backBuffer so that it gets presented
 					this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0,
 						this->_deviceResources->_steamVRPresentBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
-				} else { // Direct SBS mode
+				} 
+				else { // Direct SBS mode
 					if (!g_bDisableBarrelEffect) {
 						barrelEffect3D();
 						this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0,
@@ -1629,7 +1977,8 @@ HRESULT PrimarySurface::Flip(
 					this->_deviceResources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
 
 			// Let's reset some frame counters and other control variables
-			g_iDrawCounter = 0; g_iExecBufCounter = 0; g_iNonZBufferCounter = 0; 
+			g_iDrawCounter = 0; g_iExecBufCounter = 0;
+			g_iNonZBufferCounter = 0; g_iDrawCounterAfterHUD = -1;
 			g_iFloatingGUIDrawnCounter = 0;
 			g_bTargetCompDrawn = false;
 			g_bPrevIsFloatingGUI3DObject = false;
@@ -1639,18 +1988,25 @@ HRESULT PrimarySurface::Flip(
 			g_bIsScaleableGUIElem = false;
 			g_bPrevIsScaleableGUIElem = false;
 			g_bScaleableHUDStarted = false;
+			g_bIsTrianglePointer = false;
+			g_bLastTrianglePointer = false;
+			//*g_playerInHangar = 0;
 
 			if (g_bDynCockpitEnabled) {
-				_deviceResources->_d3dDeviceContext->ResolveSubresource(_deviceResources->_offscreenBufferAsInputDynCockpit,
+				_deviceResources->_d3dDeviceContext->ResolveSubresource(_deviceResources->_offscreenAsInputDynCockpit,
 					0, _deviceResources->_offscreenBufferDynCockpit, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
-				//this->_deviceResources->_d3dDeviceContext->ClearRenderTargetView(this->_deviceResources->_renderTargetViewDynCockpit, 
-				//	this->_deviceResources->clearColor);
-				if (!g_DynCockpitBoxes.LasersLimitsComputed && g_iPresentCounter == 10) { // The limits for the laser boxes were not updated in the last frame, stop updating it
-					g_DynCockpitBoxes.LasersLimitsComputed = true;
-					log_debug("[DBG] Lasers Indicator FINAL limits: (%0.3f, %0.3f)-(%0.3f, %0.3f)",
-						g_DynCockpitBoxes.LasersBox.left, g_DynCockpitBoxes.LasersBox.top,
-						g_DynCockpitBoxes.LasersBox.right, g_DynCockpitBoxes.LasersBox.bottom);
+				_deviceResources->_d3dDeviceContext->ResolveSubresource(_deviceResources->_offscreenAsInputDynCockpitBG,
+					0, _deviceResources->_offscreenBufferDynCockpitBG, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+
+				/*
+				static bool bDumped = false;
+				if (!bDumped && g_iPresentCounter == 100) {
+					hr = DirectX::SaveWICTextureToFile(context.Get(),
+						resources->_offscreenBufferAsInputDynCockpitBG.Get(), GUID_ContainerFormatPng, L"c://temp//HUD-BG.png");
+					log_debug("[DBG] Dumping offscreenBufferDynCockpitBG");
+					bDumped = true;
 				}
+				*/
 			}
 
 			// Perform the lean left/right etc animations
@@ -1688,7 +2044,6 @@ HRESULT PrimarySurface::Flip(
 						headCenter[0] = g_FreePIEData.x;
 						headCenter[1] = g_FreePIEData.y;
 						headCenter[2] = g_FreePIEData.z;
-						log_debug("[DBG] New Head Center: (%0.3f, %0.3f, %0.3f)", headCenter[0], headCenter[1], headCenter[2]);
 						g_bResetHeadCenter = false;
 					}
 					x = g_FreePIEData.x - headCenter[0];
@@ -1754,13 +2109,16 @@ HRESULT PrimarySurface::Flip(
 				Vector3 headPosFromKeyboard(g_HeadPos.x, g_HeadPos.y, g_HeadPos.z); // Regular keyboard functionality
 				//Vector3 headPosFromKeyboard(-g_HeadPos.x, g_HeadPos.y, -g_HeadPos.z);
 				
+				if (g_bResetHeadCenter) {
+					g_HeadPos = { 0 };
+					g_HeadPosAnim = { 0 };
+				}
+
 				if (ReadFreePIE(g_iFreePIESlot)) {
 					if (g_bResetHeadCenter) {
 						headCenter[0] = g_FreePIEData.x;
 						headCenter[1] = g_FreePIEData.y;
 						headCenter[2] = g_FreePIEData.z;
-						log_debug("[DBG] New Head Center: (%0.3f, %0.3f, %0.3f)", headCenter[0], headCenter[1], headCenter[2]);
-						g_bResetHeadCenter = false;
 					}
 					Vector4 pos(g_FreePIEData.x, g_FreePIEData.y, g_FreePIEData.z, 1.0f);
 					yaw   = g_FreePIEData.yaw   * g_fYawMultiplier;
@@ -1771,7 +2129,11 @@ HRESULT PrimarySurface::Flip(
 					headPos = (pos - headCenter);
 				}
 
-				headPos[0] = headPos[0] * g_fPosXMultiplier + headPosFromKeyboard[0];
+				if (g_bResetHeadCenter)
+					g_bResetHeadCenter = false;
+
+				headPos[0] = headPos[0] * g_fPosXMultiplier + headPosFromKeyboard[0]; 
+				//headPos[0] = headPos[0] * g_fPosXMultiplier; // HACK to roll-through-keyboard
 				headPos[1] = headPos[1] * g_fPosYMultiplier + headPosFromKeyboard[1];
 				headPos[2] = headPos[2] * g_fPosZMultiplier + headPosFromKeyboard[2];
 
@@ -1803,7 +2165,8 @@ HRESULT PrimarySurface::Flip(
 				headPos = rotMatrixYaw * headPos;
 
 				g_viewMatrix.identity();
-				g_viewMatrix.rotateZ(roll);
+				g_viewMatrix.rotateZ(roll); 
+				//g_viewMatrix.rotateZ(roll + 30.0f * headPosFromKeyboard[0]); // HACK to enable roll-through keyboard
 				g_viewMatrix[12] = headPos[0];
 				g_viewMatrix[13] = headPos[1];
 				g_viewMatrix[14] = headPos[2];
@@ -1859,19 +2222,16 @@ HRESULT PrimarySurface::Flip(
 			g_bRendering3D = true;
 			// Doing Present(1, 0) limits the framerate to 30fps, without it, it can go up to 60; but usually
 			// stays around 45 in my system
-			//log_debug("[DBG] Present");
+			//log_debug("[DBG] Present 3D");
 			g_iPresentCounter++;
 			if (FAILED(hr = this->_deviceResources->_swapChain->Present(0, 0)))
 			{
 				static bool messageShown = false;
-
 				if (!messageShown)
 				{
 					MessageBox(nullptr, _com_error(hr).ErrorMessage(), __FUNCTION__, MB_ICONERROR);
 				}
-
 				messageShown = true;
-
 				hr = DDERR_SURFACELOST;
 			}
 			if (g_bUseSteamVR) {
