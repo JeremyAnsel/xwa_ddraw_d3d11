@@ -6,9 +6,9 @@
 
 class TextureSurface;
 
-#define TRIANGLE_PTR_CRC 0x6cf63265		// Triangle that indicates where is the target (master branch)
-#define WARHEAD_CRC 0xa4870ab3			// Main Warhead HUD (master branch)
-#define TARGETING_COMP_CRC 0x3b9a3741   // The main targeting computer, where the targeted craft is displayed
+//#define TRIANGLE_PTR_CRC 0x6cf63265		// Triangle that indicates where is the target (master branch)
+//#define WARHEAD_CRC 0xa4870ab3			// Main Warhead HUD (master branch)
+//#define TARGETING_COMP_CRC 0x3b9a3741   // The main targeting computer, where the targeted craft is displayed
 
 class Direct3DTexture : public IDirect3DTexture
 {

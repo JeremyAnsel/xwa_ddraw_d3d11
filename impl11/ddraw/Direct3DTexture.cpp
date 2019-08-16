@@ -14,20 +14,39 @@
 #include <wincodec.h>
 #include <vector>
 
+const char *TRIANGLE_PTR_RESNAME = "dat,13000,100";
+const char *TARGETING_COMP_RESNAME = "dat,12000,1100";
+
 std::vector<uint32_t> HUD_CRCs = {
-	0x19f6f5a2, // Next laser available to fire. (master branch)
-	0x6acc3e3a, // Green dot for next laser available. (master branch)
-	0xdcb8e4f4, // Main Laser HUD (master branch).
-	0x1c5e0b86, // HUD warning indicator, left. (master branch)
-	0xc54d8171, // HUD warning indicator, mid-left. (master branch)
-	0xf4388255, // HUD warning indicator, mid-right. (master branch)
-	0xee802582, // HUD warning indicator, right. (master branch)
-	0xa4870ab3, // Main Warhead HUD. (master branch)
-	0x671e8041, // Warhead HUD, left. (master branch)
-	0x6cd5d81f, // Warhead HUD, mid-left,right (master branch)
-	0xc33a94b3, // Warhead HUD, right. (master branch)
-	0x0793c7d6, // Semi circles that indicate target is ready to be fired upon. (master branch)
-	0x756c8f81, // Warhead semi-circles that indicate lock is being acquired. (master branch)
+	0x19f6f5a2, // NAME Next laser available to fire. (master branch)
+	0x6acc3e3a, // NAME Green dot for next laser available. (master branch)
+	0xdcb8e4f4, // NAME Main Laser HUD (master branch).
+	0x1c5e0b86, // NAME HUD warning indicator, left. (master branch)
+	0xc54d8171, // NAME HUD warning indicator, mid-left. (master branch)
+	0xf4388255, // NAME HUD warning indicator, mid-right. (master branch)
+	0xee802582, // NAME HUD warning indicator, right. (master branch)
+	0xa4870ab3, // NAME Main Warhead HUD. (master branch)
+	0x671e8041, // NAME Warhead HUD, left. (master branch)
+	0x6cd5d81f, // NAME Warhead HUD, mid-left,right (master branch)
+	0xc33a94b3, // NAME Warhead HUD, right. (master branch)
+	0x0793c7d6, // NAME Semi circles that indicate target is ready to be fired upon. (master branch)
+	0x756c8f81, // NAME Warhead semi-circles that indicate lock is being acquired. (master branch)
+};
+std::vector<char *> HUD_ResNames = {
+	"dat,12000,1000", // 0x19f6f5a2, // Next laser available to fire. (master branch)
+	"dat,12000,900",  // 0x6acc3e3a, // Green dot for next laser available. (master branch)
+	"dat,12000,500",  // 0xdcb8e4f4, // Main Laser HUD (master branch).
+	"dat,12000,1500", // 0x1c5e0b86, // HUD warning indicator, left. (master branch)
+	"dat,12000,1600", // 0xc54d8171, // HUD warning indicator, mid-left. (master branch)
+	"dat,12000,1700", // 0xf4388255, // HUD warning indicator, mid-right. (master branch)
+	"dat,12000,1800", // 0xee802582, // HUD warning indicator, right. (master branch)
+	"dat,12000,700",  // 0xa4870ab3, // Main Warhead HUD. (master branch)
+	"dat,12000,1900", // 0x671e8041, // Warhead HUD, left. (master branch)
+	"dat,12000,2000", // 0x6cd5d81f, // Warhead HUD, mid-left,right (master branch) CRC collision!
+	"dat,12000,2100", // 0x6cd5d81f, // Warhead HUD, mid-left,right (master branch) CRC collision!
+	"dat,12000,2200", // 0xc33a94b3, // Warhead HUD, right. (master branch)
+	"dat,12000,600",  // 0x0793c7d6, // Semi circles that indicate target is ready to be fired upon. (master branch)
+	"dat,12000,800",  // 0x756c8f81, // Warhead semi-circles that indicate lock is being acquired. (master branch)
 };
 
 std::vector<uint32_t> Text_CRCs = {
@@ -35,27 +54,48 @@ std::vector<uint32_t> Text_CRCs = {
 	0xfcf50e34, // 256x256 (master branch) This is the font that is actually used pretty much everywhere
 	0x42654667  // 256x256 (master branch)
 };
+std::vector<char *> Text_ResNames = {
+	"dat,16000"
+};
 
 std::vector<uint32_t> Floating_GUI_CRCs = {
-	0xd08b4437, // (16x16) Laser charge. (master branch)
-	0xd0168df9, // (64x64) Laser charge boxes. (master branch)
-	0xe321d785, // (64x64) Laser and ion charge boxes on B - Wing. (master branch)
-	0xca2a5c48, // (8x8) Laser and ion charge on B - Wing. (master branch)
-	0x3b9a3741, // (256x128) Full targetting computer, solid. (master branch)
-	0x7e1b021d, // (128x128) Left targetting computer, solid. (master branch)
-	0x771a714c  // (256x256) Left targetting computer, frame only. (master branch)
+	0xd08b4437, // NAME (16x16) Laser charge. (master branch)
+	0xd0168df9, // NAME (64x64) Laser charge boxes. (master branch)
+	0xe321d785, // NAME (64x64) Laser and ion charge boxes on B - Wing. (master branch)
+	0xca2a5c48, // NAME (8x8) Laser and ion charge on B - Wing. (master branch)
+	0x3b9a3741, // NAME (256x128) Full targetting computer, solid. (master branch)
+	0x7e1b021d, // NAME (128x128) Left targetting computer, solid. (master branch)
+	0x771a714c  // NAME (256x256) Left targetting computer, frame only. (master branch)
+};
+std::vector<char *> Floating_GUI_ResNames = {
+	"dat,12000,2400", // 0xd08b4437, (16x16) Laser charge. (master branch)
+	"dat,12000,2300", // 0xd0168df9, (64x64) Laser charge boxes.
+	"dat,12000,2500", // 0xe321d785, (64x64) Laser and ion charge boxes on B - Wing. (master branch)
+	"dat,12000,2600", // 0xca2a5c48, (8x8) Laser and ion charge on B - Wing. (master branch)
+	"dat,12000,1100", // 0x3b9a3741, (256x128) Full targetting computer, solid. (master branch)
+	"dat,12000,100",  // 0x7e1b021d, (128x128) Left targetting computer, solid. (master branch)
+	"dat,12000,200",  // 0x771a714,  (256x256) Left targetting computer, frame only. (master branch)
 };
 
 // List of regular GUI elements (this is not an exhaustive list). It's mostly used to detect when
 // the game has started rendering the GUI
 std::vector<uint32_t> GUI_CRCs = {
-	0xc2416bf9, // (256x32) Top-left bracket (master branch)
-	0x71ce88f1, // (256x32) Top-right bracket (master branch)
-	0x75b9e062, // (128x128) Left radar (master branch)
-	0x1ec963a9, // (128x128) Right radar (master branch)
-	0xbe6846fb, // Right radar when no tractor beam is present
-	0x3188119f, // (128x128) Left Shield Display (master branch)
-	0x75082e5e, // (128x128) Right Tractor Beam Display (master branch)
+	0xc2416bf9, // NAME (256x32) Top-left bracket (master branch)
+	0x71ce88f1, // NAME (256x32) Top-right bracket (master branch)
+	0x75b9e062, // NAME (128x128) Left radar (master branch)
+	0x1ec963a9, // NAME (128x128) Right radar (master branch)
+	0xbe6846fb, // NAME Right radar when no tractor beam is present
+	0x3188119f, // NAME (128x128) Left Shield Display (master branch)
+	0x75082e5e, // NAME (128x128) Right Tractor Beam Display (master branch)
+};
+std::vector<char *> GUI_ResNames = {
+	"dat,12000,2700", // 0xc2416bf9, // (256x32) Top-left bracket (master branch)
+	"dat,12000,2800", // 0x71ce88f1, // (256x32) Top-right bracket (master branch)
+	"dat,12000,4500", // 0x75b9e062, // (128x128) Left radar (master branch)
+	"dat,12000,4600", // 0x1ec963a9, // (128x128) Right radar (master branch)
+	"dat,12000,400",  // 0xbe6846fb, // Right radar when no tractor beam is present
+	"dat,12000,4300", // 0x3188119f, // (128x128) Left Shield Display (master branch)
+	"dat,12000,4400", // 0x75082e5e, // (128x128) Right Tractor Beam Display (master branch)
 };
 
 /*
@@ -81,6 +121,13 @@ void CockpitNameToDCParamsFile(char *CockpitName, char *sFileName, int iFileName
 bool isInVector(uint32_t crc, std::vector<uint32_t> &vector) {
 	for (uint32_t x : vector)
 		if (x == crc)
+			return true;
+	return false;
+}
+
+bool isInVector(char *name, std::vector<char *> &vector) {
+	for (char *x : vector)
+		if (strstr(name, x) != NULL)
 			return true;
 	return false;
 }
@@ -526,28 +573,46 @@ HRESULT Direct3DTexture::Load(
 			#endif
 
 			// Check this CRC to see if it's interesting
-			if (this->crc == TRIANGLE_PTR_CRC) {
-				//log_debug("[DBG] Triangle Ptr, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
+			/* if (this->crc == TRIANGLE_PTR_CRC) {
+				log_debug("[DBG] Triangle Ptr, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
 				this->is_TrianglePointer = true;
-			} 
-			else if (this->crc == TARGETING_COMP_CRC) {
-				//log_debug("[DBG] Targeting Comp, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
+			} */
+			if (strstr(surface->_name, TRIANGLE_PTR_RESNAME) != NULL) {
+				this->is_TrianglePointer = true;
+			}
+			/* else if (this->crc == TARGETING_COMP_CRC) {
+				log_debug("[DBG] Targeting Comp, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
+				this->is_TargetingComp = true;
+			} */
+			else if (strstr(surface->_name, TARGETING_COMP_RESNAME) != NULL) {
 				this->is_TargetingComp = true;
 			}
-			else if (isInVector(this->crc, HUD_CRCs)) {
-				//log_debug("[DBG] HUD, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
+			/* else if (isInVector(this->crc, HUD_CRCs)) {
+				log_debug("[DBG] HUD, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
+				this->is_HUD = true;
+			} */
+			else if (isInVector(surface->_name, HUD_ResNames)) {
 				this->is_HUD = true;
 			}
-			else if (isInVector(this->crc, Floating_GUI_CRCs)) {
-				//log_debug("[DBG] Floating GUI, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
+			/* else if (isInVector(this->crc, Floating_GUI_CRCs)) {
+				log_debug("[DBG] Floating GUI, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
+				this->is_Floating_GUI = true;
+			} */
+			else if (isInVector(surface->_name, Floating_GUI_ResNames)) {
 				this->is_Floating_GUI = true;
 			}
-			else if (isInVector(this->crc, Text_CRCs)) {
-				//log_debug("[DBG] Text, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
+			/* else if (isInVector(this->crc, Text_CRCs)) {
+				log_debug("[DBG] Text, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
+				this->is_Text = true;
+			} */
+			else if (isInVector(surface->_name, Text_ResNames)) {
 				this->is_Text = true;
 			}
-			else if (isInVector(this->crc, GUI_CRCs)) {
-				//log_debug("[DBG] GUI, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
+			/* else if (isInVector(this->crc, GUI_CRCs)) {
+				log_debug("[DBG] GUI, CRC: 0x%x, name: '%s'", this->crc, surface->_name);
+				this->is_GUI = true;
+			} */
+			else if (isInVector(surface->_name, GUI_ResNames)) {
 				this->is_GUI = true;
 			}
 		}
