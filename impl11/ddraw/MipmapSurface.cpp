@@ -4,12 +4,15 @@
 #include "common.h"
 #include "DeviceResources.h"
 #include "MipmapSurface.h"
+#include "TextureSurface.h"
 #include "Direct3DTexture.h"
 
-MipmapSurface::MipmapSurface(DeviceResources* deviceResources, DWORD width, DWORD height, DDPIXELFORMAT& pixelFormat, DWORD mipmapCount, char* buffer)
+MipmapSurface::MipmapSurface(DeviceResources* deviceResources, TextureSurface* surface, DWORD width, DWORD height, DDPIXELFORMAT& pixelFormat, DWORD mipmapCount, char* buffer)
 {
 	this->_refCount = 1;
 	this->_deviceResources = deviceResources;
+
+	this->_surface = surface;
 
 	this->_width = width;
 	this->_height = height;
@@ -21,7 +24,7 @@ MipmapSurface::MipmapSurface(DeviceResources* deviceResources, DWORD width, DWOR
 
 	if (this->_mipmapCount > 1)
 	{
-		*this->_mipmap.GetAddressOf() = new MipmapSurface(this->_deviceResources, max(this->_width / 2, 1), max(this->_height / 2, 1), this->_pixelFormat, this->_mipmapCount - 1, this->_buffer + this->_bufferSize);
+		*this->_mipmap.GetAddressOf() = new MipmapSurface(this->_deviceResources, surface, max(this->_width / 2, 1), max(this->_height / 2, 1), this->_pixelFormat, this->_mipmapCount - 1, this->_buffer + this->_bufferSize);
 	}
 }
 
@@ -735,6 +738,25 @@ HRESULT MipmapSurface::Unlock(
 	str << this << " " << __FUNCTION__;
 	LogText(str.str());
 #endif
+
+	if (this->_mipmapCount == 1)
+	{
+		this->_surface->_d3dTexture->Load(this->_surface->_d3dTexture);
+
+		if (this->_surface->_buffer != nullptr)
+		{
+			delete[] this->_surface->_buffer;
+			this->_surface->_buffer = nullptr;
+			this->_surface->_bufferSize = 0;
+			this->_surface->_width = 0;
+			this->_surface->_height = 0;
+
+			this->_buffer = nullptr;
+			this->_bufferSize = 0;
+			this->_width = 0;
+			this->_height = 0;
+		}
+	}
 
 	return DD_OK;
 }

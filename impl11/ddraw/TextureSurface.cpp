@@ -32,7 +32,7 @@ TextureSurface::TextureSurface(DeviceResources* deviceResources, bool allocOnLoa
 
 		if (this->_mipmapCount > 1)
 		{
-			*this->_mipmap.GetAddressOf() = new MipmapSurface(this->_deviceResources, max(this->_width / 2, 1), max(this->_height / 2, 1), this->_pixelFormat, this->_mipmapCount - 1, this->_buffer + this->_bufferSize / 2);
+			*this->_mipmap.GetAddressOf() = new MipmapSurface(this->_deviceResources, this, max(this->_width / 2, 1), max(this->_height / 2, 1), this->_pixelFormat, this->_mipmapCount - 1, this->_buffer + this->_bufferSize / 2);
 		}
 	}
 
@@ -44,6 +44,7 @@ TextureSurface::~TextureSurface()
 	if (this->_buffer != nullptr)
 	{
 		delete[] this->_buffer;
+		this->_buffer = nullptr;
 	}
 }
 
@@ -779,6 +780,21 @@ HRESULT TextureSurface::Unlock(
 	str << this << " " << __FUNCTION__;
 	LogText(str.str());
 #endif
+
+	// do not free memory for ModelIndex_418_16000_0_ResData_Fonts
+	if (this->_pixelFormat.dwRGBBitCount == 32 && this->_mipmapCount == 1)
+	{
+		this->_d3dTexture->Load(this->_d3dTexture);
+
+		if (this->_buffer != nullptr)
+		{
+			delete[] this->_buffer;
+			this->_buffer = nullptr;
+			this->_bufferSize = 0;
+			this->_width = 0;
+			this->_height = 0;
+		}
+	}
 
 	return DD_OK;
 }
