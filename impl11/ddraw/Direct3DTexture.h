@@ -35,8 +35,23 @@ public:
 	int DCElementIndex;
 	// True for all textures that can be used as destinations for the dynamic cockpit.
 	bool is_DynCockpitDst;
-	// True for the additional textures loaded in Hi-Res mode that provide additional glow
+	// True for the light textures loaded in Hi-Res mode that provide additional glow
 	bool is_DynCockpitAlphaOverlay;
+	// True for all the source HUD textures
+	bool is_DC_HUDSource;
+	// True for specific DC HUD source textures
+	bool is_DC_TargetCompSrc;
+	bool is_DC_LeftSensorSrc;
+	bool is_DC_RightSensorSrc;
+	bool is_DC_RightSensor2Src;
+	bool is_DC_ShieldsSrc;
+	bool is_DC_SolidMsgSrc;
+	bool is_DC_BorderMsgSrc;
+	bool is_DC_LaserBoxSrc;
+	bool is_DC_IonBoxSrc;
+	bool is_DC_BeamBoxSrc;
+	bool is_DC_TopLeftSrc;
+	bool is_DC_TopRightSrc;
 
 	Direct3DTexture(DeviceResources* deviceResources, TextureSurface* surface);
 

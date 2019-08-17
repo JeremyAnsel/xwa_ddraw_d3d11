@@ -190,6 +190,20 @@ struct MainVertex
 	}
 };
 
+const char *DC_TARGET_COMP_SRC_RESNAME		= "dat,12000,1100,";
+const char *DC_LEFT_SENSOR_SRC_RESNAME		= "dat,12000,4500,";
+const char *DC_RIGHT_SENSOR_SRC_RESNAME		= "dat,12000,4600,";
+const char *DC_RIGHT_SENSOR_2_SRC_RESNAME	= "dat,12000,400,";
+const char *DC_SHIELDS_SRC_RESNAME			= "dat,12000,4300,";
+const char *DC_SOLID_MSG_SRC_RESNAME			= "dat,12000,100,";
+const char *DC_BORDER_MSG_SRC_RESNAME		= "dat,12000,200,";
+const char *DC_LASER_BOX_SRC_RESNAME			= "dat,12000,2300,";
+const char *DC_ION_BOX_SRC_RESNAME			= "dat,12000,2500,";
+const char *DC_BEAM_BOX_SRC_RESNAME			= "dat,12000,4400,";
+const char *DC_TOP_LEFT_SRC_RESNAME			= "dat,12000,2700,";
+const char *DC_TOP_RIGHT_SRC_RESNAME			= "dat,12000,2800,";
+
+
 std::vector<const char *>g_HUDRegionNames = {
 	"LEFT_SENSOR_REGION",		// 0
 	"RIGHT_SENSOR_REGION",		// 1

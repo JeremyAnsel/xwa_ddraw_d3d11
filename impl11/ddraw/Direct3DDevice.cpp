@@ -3458,7 +3458,7 @@ HRESULT Direct3DDevice::Execute(
 				// Capture the bounds for the left radar:
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL)
 				{
-					if (lastTextureSelected->crc == DYN_COCKPIT_LEFT_RADAR_SRC_CRC)
+					if (lastTextureSelected->is_DC_LeftSensorSrc)
 					{
 						if (!g_DCHUDBoxes.boxes[LEFT_RADAR_HUD_BOX_IDX].bLimitsComputed)
 						{
@@ -3513,8 +3513,8 @@ HRESULT Direct3DDevice::Execute(
 				// Capture the bounds for the right radar:
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL)
 				{
-					if ((lastTextureSelected->crc == DYN_COCKPIT_RIGHT_RADAR_SRC_CRC) ||
-					    (lastTextureSelected->crc == DYN_COCKPIT_RIGHT_RADAR_2_SRC_CRC))
+					if ((lastTextureSelected->is_DC_RightSensorSrc) ||
+					    (lastTextureSelected->is_DC_RightSensor2Src))
 					{
 						if (!g_DCHUDBoxes.boxes[RIGHT_RADAR_HUD_BOX_IDX].bLimitsComputed)
 						{
@@ -3558,7 +3558,7 @@ HRESULT Direct3DDevice::Execute(
 				// Capture the bounds for the shields:
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL)
 				{
-					if (lastTextureSelected->crc == DYN_COCKPIT_SHIELDS_SRC_CRC)
+					if (lastTextureSelected->is_DC_ShieldsSrc)
 					{
 						if (!g_DCHUDBoxes.boxes[SHIELDS_HUD_BOX_IDX].bLimitsComputed)
 						{
@@ -3590,7 +3590,7 @@ HRESULT Direct3DDevice::Execute(
 				// Capture the bounds for the tractor beam:
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL)
 				{
-					if (lastTextureSelected->crc == DYN_COCKPIT_BEAM_BOX_SRC_CRC)
+					if (lastTextureSelected->is_DC_BeamBoxSrc)
 					{
 						if (!g_DCHUDBoxes.boxes[BEAM_HUD_BOX_IDX].bLimitsComputed)
 						{
@@ -3622,7 +3622,7 @@ HRESULT Direct3DDevice::Execute(
 				// Capture the bounds for the targeting computer:
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL)
 				{
-					if (lastTextureSelected->crc == DYN_COCKPIT_TARGET_COMP_SRC_CRC)
+					if (lastTextureSelected->is_DC_TargetCompSrc)
 					{
 						if (!g_DCHUDBoxes.boxes[TARGET_HUD_BOX_IDX].bLimitsComputed)
 						{
@@ -3712,8 +3712,8 @@ HRESULT Direct3DDevice::Execute(
 				// Capture the bounds for the left/right message boxes:
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL)
 				{
-					if (lastTextureSelected->crc == DYN_COCKPIT_BORDER_MSG_SRC_CRC ||
-						lastTextureSelected->crc == DYN_COCKPIT_SOLID_MSG_SRC_CRC)
+					if (lastTextureSelected->is_DC_BorderMsgSrc ||
+						lastTextureSelected->is_DC_SolidMsgSrc)
 					{
 						DCHUDBox *dcSrcBoxL = &g_DCHUDBoxes.boxes[LEFT_MSG_HUD_BOX_IDX];
 						DCHUDBox *dcSrcBoxR = &g_DCHUDBoxes.boxes[RIGHT_MSG_HUD_BOX_IDX];
@@ -3763,7 +3763,7 @@ HRESULT Direct3DDevice::Execute(
 				// Capture the bounds for the top-left bracket:
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL)
 				{
-					if (lastTextureSelected->crc == DYN_COCKPIT_TOP_LEFT_SRC_CRC)
+					if (lastTextureSelected->is_DC_TopLeftSrc)
 					{
 						if (!g_DCHUDBoxes.boxes[TOP_LEFT_BOX_IDX].bLimitsComputed)
 						{
@@ -3801,7 +3801,7 @@ HRESULT Direct3DDevice::Execute(
 				// Capture the bounds for the top-right bracket:
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL)
 				{
-					if (lastTextureSelected->crc == DYN_COCKPIT_TOP_RIGHT_SRC_CRC)
+					if (lastTextureSelected->is_DC_TopRightSrc)
 					{
 						if (!g_DCHUDBoxes.boxes[TOP_RIGHT_BOX_IDX].bLimitsComputed)
 						{
@@ -3838,18 +3838,7 @@ HRESULT Direct3DDevice::Execute(
 
 				// Render HUD backgrounds to their own layer (HUD BG)
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL)
-					if (lastTextureSelected->crc == DYN_COCKPIT_LEFT_RADAR_SRC_CRC ||
-						lastTextureSelected->crc == DYN_COCKPIT_RIGHT_RADAR_SRC_CRC ||
-						lastTextureSelected->crc == DYN_COCKPIT_RIGHT_RADAR_2_SRC_CRC ||
-						lastTextureSelected->crc == DYN_COCKPIT_SOLID_MSG_SRC_CRC ||
-						lastTextureSelected->crc == DYN_COCKPIT_BORDER_MSG_SRC_CRC ||
-						lastTextureSelected->crc == DYN_COCKPIT_TARGET_COMP_SRC_CRC ||
-						lastTextureSelected->crc == DYN_COCKPIT_SHIELDS_SRC_CRC ||
-						lastTextureSelected->crc == DYN_COCKPIT_LASER_BOX_SRC_CRC ||
-						lastTextureSelected->crc == DYN_COCKPIT_ION_BOX_SRC_CRC ||
-						lastTextureSelected->crc == DYN_COCKPIT_TOP_LEFT_SRC_CRC ||
-						lastTextureSelected->crc == DYN_COCKPIT_TOP_RIGHT_SRC_CRC ||
-						lastTextureSelected->crc == DYN_COCKPIT_BEAM_BOX_SRC_CRC)
+					if (lastTextureSelected->is_DC_HUDSource)
 						bRenderToDynCockpitBGBuffer = true;
 
 				//if (bIsNoZWrite && _renderStates->GetZFunc() == D3DCMP_GREATER) {
