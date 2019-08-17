@@ -13,7 +13,7 @@ SamplerState sampler0 : register(s0);
 Texture2D    texture1 : register(t1);
 SamplerState sampler1 : register(s1);
 
-#define MAX_DC_COORDS 8
+#define MAX_DC_COORDS 6
 
 cbuffer ConstantBuffer : register(b0)
 {
@@ -29,6 +29,8 @@ cbuffer ConstantBuffer : register(b0)
 	float4 src[MAX_DC_COORDS];			// HLSL packs each element in an array in its own 4-vector (16 bytes) slot, so .xy is src0 and .zw is src1
 	float4 dst[MAX_DC_COORDS];
 	float4 bgColor[MAX_DC_COORDS];		// Background colors to use for the dynamic cockpit
+
+	uint bShadeless;				// True for shadeless objects, like the lasers
 };
 
 struct PixelShaderInput
@@ -40,6 +42,14 @@ struct PixelShaderInput
 
 // From http://www.chilliant.com/rgb2hsv.html
 static float Epsilon = 1e-10;
+
+float3 HUEtoRGB(in float H)
+{
+	float R = abs(H * 6 - 3) - 1;
+	float G = 2 - abs(H * 6 - 2);
+	float B = 2 - abs(H * 6 - 4);
+	return saturate(float3(R, G, B));
+}
 
 float3 RGBtoHCV(in float3 RGB)
 {
@@ -58,6 +68,13 @@ float3 RGBtoHSV(in float3 RGB)
 	return float3(HCV.x, S, HCV.z);
 }
 
+float3 HSVtoRGB(in float3 HSV)
+{
+	float3 RGB = HUEtoRGB(HSV.x);
+	return ((RGB - 1) * HSV.y + 1) * HSV.z;
+}
+
+/*
 float3 RGBtoHSL(in float3 RGB)
 {
 	float3 HCV = RGBtoHCV(RGB);
@@ -65,6 +82,14 @@ float3 RGBtoHSL(in float3 RGB)
 	float S = HCV.y / (1 - abs(L * 2 - 1) + Epsilon);
 	return float3(HCV.x, S, L);
 }
+
+float3 HSLtoRGB(in float3 HSL)
+{
+	float3 RGB = HUEtoRGB(HSL.x);
+	float C = (1 - abs(2 * HSL.z - 1)) * HSL.y;
+	return (RGB - 0.5) * C + HSL.z;
+}
+*/
 
 float4 main(PixelShaderInput input) : SV_TARGET
 {
@@ -76,6 +101,16 @@ float4 main(PixelShaderInput input) : SV_TARGET
 	//if (dot(texelColor.xyz, 0.333) < 0.9)
 	//	diffuse = 0.8 * diffuse;
 	//diffuse = float3(1.0, 1.0, 1.0);
+
+	// Early exit: lasers are shadeless, make them brighter!
+	if (bShadeless > 0) {
+		//diffuse = float3(1, 1, 1);
+		float3 HSV = RGBtoHSV(texelColor.xyz);
+		// Saturate this color
+		HSV[1] *= 1.5;
+		HSV[2] *= 2.0;
+		return float4(HSVtoRGB(HSV), 1.2 * texelColor.w);
+	}
 
 	if (bRenderHUD) {
 		// Render the captured HUD
@@ -113,8 +148,7 @@ float4 main(PixelShaderInput input) : SV_TARGET
 		texelColor.xyz = lerp(texelColorBG.xyz, texelColor.xyz, alpha);
 		texelColor.w += 3 * alphaBG;
 		return texelColor;
-	} else
-	if (DynCockpitSlots > 0) {
+	} else if (DynCockpitSlots > 0) {
 		// DEBUG: Display uvs as colors. Some meshes have UVs beyond the range [0..1]
 		//if (input.tex.x > 1.0) 	return float4(1, 0, 1, 1);
 		//if (input.tex.y > 1.0) 	return float4(0, 0, 1, 1);
@@ -173,5 +207,6 @@ float4 main(PixelShaderInput input) : SV_TARGET
 		return float4(a, a, a, 1);
 	}
 	*/
+
 	return float4(brightness * diffuse * texelColor.xyz, texelColor.w);
 }

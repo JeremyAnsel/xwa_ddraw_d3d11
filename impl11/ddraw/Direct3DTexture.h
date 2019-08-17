@@ -28,6 +28,8 @@ public:
 	bool is_GUI;
 	// This flag is set to true if this is the main targeting computer HUD background (center, low)
 	bool is_TargetingComp;
+	// True if this texture is a laser or ion and should be shadeless/bright
+	bool is_Laser;
 
 	// **** DYNAMIC COCKPIT MEMBERS **** //
 	// Textures in the cockpit that can be replaced with new textures

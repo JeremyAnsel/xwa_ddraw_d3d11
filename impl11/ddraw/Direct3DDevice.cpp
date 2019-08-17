@@ -3048,6 +3048,7 @@ HRESULT Direct3DDevice::Execute(
 	g_PSCBuffer.DynCockpitSlots  = 0;
 	g_PSCBuffer.bUseCoverTexture = 0;
 	g_PSCBuffer.bRenderHUD		 = 0;
+	g_PSCBuffer.bShadeless		 = 0;
 	//g_PSCBuffer.bAlphaOnly		 = 0;
 
 	// Save the current viewMatrix: if the Dynamic Cockpit is enabled, we'll need it later to restore the transform
@@ -4127,6 +4128,12 @@ HRESULT Direct3DDevice::Execute(
 					g_VSCBuffer.z_override = g_fTextDepth;
 				}
 
+				// Make the lasers shadeless
+				if (lastTextureSelected != NULL && lastTextureSelected->is_Laser) {
+					bModifiedShaders = true;
+					g_PSCBuffer.bShadeless = 1;
+				}
+
 				/*
 				// HACK
 				// Skip the text call after the triangle pointer is rendered
@@ -4259,6 +4266,7 @@ HRESULT Direct3DDevice::Execute(
 					g_PSCBuffer.bUseCoverTexture  = 0;
 					g_PSCBuffer.DynCockpitSlots   = 0;
 					g_PSCBuffer.bRenderHUD		  = 0;
+					g_PSCBuffer.bShadeless		  = 0;
 					//g_PSCBuffer.bAlphaOnly		  = 0;
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 					resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);

@@ -6,32 +6,19 @@
 #include "Matrices.h"
 #include <vector>
 
-// Also found in the Floating_GUI_CRCs list:
-//const uint32_t DYN_COCKPIT_TARGET_COMP_SRC_CRC   = 0x3b9a3741;
+// Also found in the Floating_GUI_RESNAME list:
 extern const char *DC_TARGET_COMP_SRC_RESNAME;
-//const uint32_t DYN_COCKPIT_LEFT_RADAR_SRC_CRC    = 0x75b9e062;
 extern const char *DC_LEFT_SENSOR_SRC_RESNAME;
-//const uint32_t DYN_COCKPIT_RIGHT_RADAR_SRC_CRC   = 0x1ec963a9;
 extern const char *DC_RIGHT_SENSOR_SRC_RESNAME;
-//const uint32_t DYN_COCKPIT_RIGHT_RADAR_2_SRC_CRC = 0xbe6846fb;
 extern const char *DC_RIGHT_SENSOR_2_SRC_RESNAME;
-//const uint32_t DYN_COCKPIT_SHIELDS_SRC_CRC       = 0x3188119f;
 extern const char *DC_SHIELDS_SRC_RESNAME;
-//const uint32_t DYN_COCKPIT_SOLID_MSG_SRC_CRC     = 0x7e1b021d;
 extern const char *DC_SOLID_MSG_SRC_RESNAME;
-//const uint32_t DYN_COCKPIT_BORDER_MSG_SRC_CRC    = 0x771a714c;
 extern const char *DC_BORDER_MSG_SRC_RESNAME;
-//const uint32_t DYN_COCKPIT_LASER_BOX_SRC_CRC     = 0xd0168df9;
 extern const char *DC_LASER_BOX_SRC_RESNAME;
-//const uint32_t DYN_COCKPIT_ION_BOX_SRC_CRC	     = 0xe321d785;
 extern const char *DC_ION_BOX_SRC_RESNAME;
-//const uint32_t DYN_COCKPIT_BEAM_BOX_SRC_CRC      = 0x75082e5e;
 extern const char *DC_BEAM_BOX_SRC_RESNAME;
-//const uint32_t DYN_COCKPIT_TOP_LEFT_SRC_CRC      = 0xc2416bf9;
 extern const char *DC_TOP_LEFT_SRC_RESNAME;
-//const uint32_t DYN_COCKPIT_TOP_RIGHT_SRC_CRC     = 0x71ce88f1;
 extern const char *DC_TOP_RIGHT_SRC_RESNAME;
-
 
 typedef struct Box_struct {
 	float x0, y0, x1, y1;
@@ -189,20 +176,27 @@ typedef struct float4_struct {
 	float x, y, z, w;
 } float4;
 
-const int MAX_DC_COORDS = 8;
+const int MAX_DC_COORDS = 6;
 typedef struct PixelShaderCBStruct {
 	float brightness;			// Used to control the brightness of some elements -- mostly for ReShade compatibility
 	uint32_t DynCockpitSlots;
 	uint32_t bUseCoverTexture;
 	uint32_t bRenderHUD;
+	// 16 bytes
 
 	//uint32_t bAlphaOnly;
 	//uint32_t unused[3];
 
 	uvfloat4 src[MAX_DC_COORDS];
+	// 4 * MAX_DC_COORDS * 4 = 96
 	uvfloat4 dst[MAX_DC_COORDS];
+	// 4 * MAX_DC_COORDS * 4 = 96
 	float4 bgColor[MAX_DC_COORDS];   // Background colors (dynamic cockpit)
-
+	// 4 * MAX_DC_COORDS * 4 = 96
+	
+	uint32_t bShadeless;
+	uint32_t unused[3];
+	// 16 bytes
 } PixelShaderCBuffer;
 
 typedef struct uv_coords_src_dst_struct {
