@@ -1012,7 +1012,7 @@ bool LoadDCUVCoords(char *buf, float width, float height, uv_src_dst_coords *coo
 
 	try {
 		int len;
-		uColor = 0x121233FF;
+		uColor = 0x121233;
 
 		src_slot = -1;
 		slot_name[0] = 0;
@@ -1043,8 +1043,8 @@ bool LoadDCUVCoords(char *buf, float width, float height, uv_src_dst_coords *coo
 			coords->dst[idx].y0 = y0 / height;
 			coords->dst[idx].x1 = x1 / width;
 			coords->dst[idx].y1 = y1 / height;
-			if (res == 5) // A color was read, add the alpha
-				uColor = (uColor << 8) | 0xFF;
+			//if (res == 5) // A color was read, add the alpha
+			//	uColor = (uColor << 8) | 0xFF;
 			coords->uBGColor[idx] = uColor;
 			coords->numCoords++;
 		}
@@ -3045,10 +3045,10 @@ HRESULT Direct3DDevice::Execute(
 
 	g_PSCBuffer = { 0 };
 	g_PSCBuffer.brightness       = MAX_BRIGHTNESS;
-	g_PSCBuffer.DynCockpitSlots  = 0;
-	g_PSCBuffer.bUseCoverTexture = 0;
-	g_PSCBuffer.bRenderHUD		 = 0;
-	g_PSCBuffer.bShadeless		 = 0;
+	//g_PSCBuffer.DynCockpitSlots  = 0;
+	//g_PSCBuffer.bUseCoverTexture = 0;
+	//g_PSCBuffer.bRenderHUD		 = 0;
+	//g_PSCBuffer.bEnhaceLasers	 = 0;
 	//g_PSCBuffer.bAlphaOnly		 = 0;
 
 	// Save the current viewMatrix: if the Dynamic Cockpit is enabled, we'll need it later to restore the transform
@@ -3270,6 +3270,9 @@ HRESULT Direct3DDevice::Execute(
 						else
 						{
 							texture->_refCount++;
+							//if (texture->is_RebelLaser)
+							//	context->PSSetShaderResources(0, 1, &g_RebelLaser);
+							//else
 							context->PSSetShaderResources(0, 1, texture->_textureView.GetAddressOf());
 							texture->_refCount--;
 
@@ -3451,6 +3454,20 @@ HRESULT Direct3DDevice::Execute(
 				/*************************************************************************
 					State management ends here
 				 *************************************************************************/
+
+				/*
+				if (lastTextureSelected != NULL && lastTextureSelected->is_RebelLaser) {
+					ID3D11Resource *res = NULL;
+					static int counter = 0;
+					wchar_t name[120];
+					swprintf_s(name, 120, L"c:\\Temp\\RebelLaser%d.png", counter);
+					lastTextureSelected->is_RebelLaser = false;
+					lastTextureSelected->_textureView->GetResource(&res);					
+					hr = DirectX::SaveWICTextureToFile(context.Get(),
+						res, GUID_ContainerFormatPng, name);
+					counter++;
+				}
+				*/
 
 				//if (PlayerDataTable[0].cockpitDisplayed)
 				//if (PlayerDataTable[0].cockpitDisplayed2)
@@ -3842,13 +3859,14 @@ HRESULT Direct3DDevice::Execute(
 					if (lastTextureSelected->is_DC_HUDSource)
 						bRenderToDynCockpitBGBuffer = true;
 
+				// Dynamic Cockpit: Remove all the alpha overlays in hi-res mode
+				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitAlphaOverlay)
+					goto out;
+
 				//if (bIsNoZWrite && _renderStates->GetZFunc() == D3DCMP_GREATER) {
 				//	goto out;
 					//log_debug("[DBG] NoZWrite, ZFunc: %d", _renderStates->GetZFunc());
 				//}
-
-				//if (lastTextureSelected != NULL && lastTextureSelected->crc == 0xfcf50e34)
-				//	goto out;
 
 				 // Skip specific draw calls for debugging purposes.
 #ifdef DBG_VR
@@ -3890,10 +3908,6 @@ HRESULT Direct3DDevice::Execute(
 				// so that we can restore the state at the end of the draw call.
 				bModifiedShaders = false;
 
-				// Dynamic Cockpit: Remove all the alpha overlays in hi-res mode
-				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitAlphaOverlay)
-					goto out;
-
 				//if (g_bDynCockpitEnabled && !g_bPrevIsFloatingGUI3DObject && g_bIsFloating3DObject) {
 					// The targeted craft is about to be drawn!
 					// Let's clear the render target view for the dynamic cockpit
@@ -3906,6 +3920,8 @@ HRESULT Direct3DDevice::Execute(
 				// present the backbuffer. That prevents resolving the texture multiple times (and we
 				// also don't have to resolve it here).
 
+				// Modify the state for both VR and regular game modes:
+
 				// DYNAMIC COCKPIT: REPLACE TEXTURES AT RUN-TIME:
 				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitDst)
 				{
@@ -3915,7 +3931,6 @@ HRESULT Direct3DDevice::Execute(
 
 					bModifiedShaders = true;
 					dc_element *dc_element = &g_DCElements[idx];
-					float bgColor[4];
 					int numCoords = 0;
 					for (int i = 0; i < dc_element->coords.numCoords; i++) {
 						int src_slot = dc_element->coords.src_slot[i];
@@ -3932,13 +3947,7 @@ HRESULT Direct3DDevice::Execute(
 						uv_src.x1 = src_box->coords.x1; uv_src.y1 = src_box->coords.y1;
 						g_PSCBuffer.src[numCoords] = uv_src;
 						g_PSCBuffer.dst[numCoords] = dc_element->coords.dst[i];
-
-						uint32_t uColor = dc_element->coords.uBGColor[i];
-						bgColor[3] =  (uColor        & 0xFF) / 255.0f;
-						bgColor[2] = ((uColor >> 8)  & 0xFF) / 255.0f;
-						bgColor[1] = ((uColor >> 16) & 0xFF) / 255.0f;
-						bgColor[0] = ((uColor >> 24) & 0xFF) / 255.0f;
-						memcpy(&(g_PSCBuffer.bgColor[numCoords]), bgColor, 4 * sizeof(float));
+						g_PSCBuffer.bgColor[numCoords] = dc_element->coords.uBGColor[i];
 						numCoords++;
 					}
 					g_PSCBuffer.DynCockpitSlots = numCoords;
@@ -3960,6 +3969,41 @@ HRESULT Direct3DDevice::Execute(
 						bDumped = true;
 					}
 					*/
+				}
+
+				// Make the lasers bright in 32-bit mode
+				if (lastTextureSelected != NULL && lastTextureSelected->is_Laser) {
+					if (g_config.EnhanceLasers) {
+						bModifiedShaders = true;
+						g_PSCBuffer.bEnhaceLasers = 1;
+					}
+
+					//if (lastTextureSelected->is_LightTexture) {
+					//	bModifiedShaders = true;
+					//	g_PSCBuffer.bIsLightTexture = 1;
+					//	log_debug("[DBG] Rendering Laser + Light texture");
+						/*static bool bDumped = false;
+						if (!bDumped) {
+							ID3D11Resource *res = NULL;
+							lastTextureSelected->_textureView->GetResource(&res);
+							hr = DirectX::SaveWICTextureToFile(context.Get(),
+								res, GUID_ContainerFormatPng, L"c://temp//LaserRebel-light.png");
+							log_debug("[DBG] Dumping LaserRebel-light.png");
+							bDumped = true;
+						}*/
+					//}
+				}
+
+				// Send the flag for light texture to the pixel shader
+				if (lastTextureSelected != NULL && lastTextureSelected->is_LightTexture) {
+					bModifiedShaders = true;
+					g_PSCBuffer.bIsLightTexture = 1;
+				}
+
+				// Dim all the GUI elements
+				if (g_bStartedGUI && !g_bIsFloating3DObject) {
+					bModifiedShaders = true;
+					g_PSCBuffer.brightness = g_fBrightness;
 				}
 
 				// Early exit 1: Render the HUD/GUI to the Dynamic Cockpit (BG) RTV and continue
@@ -4057,12 +4101,6 @@ HRESULT Direct3DDevice::Execute(
 						g_VSCBuffer.bFullTransform = 1.0f;
 				}
 
-				// Dim all the GUI elements
-				if (g_bStartedGUI && !g_bIsFloating3DObject) {
-					bModifiedShaders = true;
-					g_PSCBuffer.brightness = g_fBrightness;
-				}
-
 				// The game renders brackets with ZWrite disabled; but we need to enable it temporarily so that we
 				// can place the brackets at infinity and avoid visual contention
 				if (bIsBracket) {
@@ -4126,12 +4164,6 @@ HRESULT Direct3DDevice::Execute(
 				if (bIsText) {
 					bModifiedShaders = true;
 					g_VSCBuffer.z_override = g_fTextDepth;
-				}
-
-				// Make the lasers shadeless
-				if (lastTextureSelected != NULL && lastTextureSelected->is_Laser) {
-					bModifiedShaders = true;
-					g_PSCBuffer.bShadeless = 1;
 				}
 
 				/*
@@ -4262,12 +4294,13 @@ HRESULT Direct3DDevice::Execute(
 					g_VSCBuffer.bPreventTransform =  0.0f;
 					g_VSCBuffer.bFullTransform    =  0.0f;
 
+					g_PSCBuffer = { 0 };
 					g_PSCBuffer.brightness        = MAX_BRIGHTNESS;
-					g_PSCBuffer.bUseCoverTexture  = 0;
-					g_PSCBuffer.DynCockpitSlots   = 0;
-					g_PSCBuffer.bRenderHUD		  = 0;
-					g_PSCBuffer.bShadeless		  = 0;
-					//g_PSCBuffer.bAlphaOnly		  = 0;
+					//g_PSCBuffer.bUseCoverTexture  = 0;
+					//g_PSCBuffer.DynCockpitSlots   = 0;
+					//g_PSCBuffer.bRenderHUD		  = 0;
+					//g_PSCBuffer.bEnhaceLasers	  = 0;
+					//g_PSCBuffer.bIsLightTexture   = 0;
 					resources->InitVSConstantBuffer3D(resources->_VSConstantBuffer.GetAddressOf(), &g_VSCBuffer);
 					resources->InitPSConstantBuffer3D(resources->_PSConstantBuffer.GetAddressOf(), &g_PSCBuffer);
 				}

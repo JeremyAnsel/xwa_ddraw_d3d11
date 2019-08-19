@@ -625,20 +625,6 @@ ColorConverterTables::ColorConverterTables()
 
 ColorConverterTables g_colorConverterTables;
 
-// From: https://stackoverflow.com/questions/27939882/fast-crc-algorithm
-uint32_t crc32c(uint32_t crc, const unsigned char *buf, size_t len)
-{
-	int k;
-
-	crc = ~crc;
-	while (len--) {
-		crc ^= *buf++;
-		for (k = 0; k < 8; k++)
-			crc = crc & 1 ? (crc >> 1) ^ POLY : crc >> 1;
-	}
-	return ~crc;
-}
-
 //#if LOGGER
 
 int GetEncoderClsid(const WCHAR* format, CLSID* pClsid)

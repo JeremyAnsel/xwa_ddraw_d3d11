@@ -115,6 +115,8 @@ extern bool g_bSteamVREnabled, g_bUseSteamVR;
 //void ProcessVREvent(const vr::VREvent_t & event);
 //vr::TrackedDevicePose_t m_rTrackedDevicePose[vr::k_unMaxTrackedDeviceCount];
 
+//ID3D11ShaderResourceView *g_RebelLaser = NULL;
+
 void ClearDynCockpitVector(std::vector<dc_element> &DCElements);
 
 void log_err(const char *format, ...)
@@ -582,6 +584,10 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		this->_offscreenAsInputDynCockpitBG.Release();
 		this->_offscreenAsInputSRVDynCockpit.Release();
 		this->_offscreenAsInputSRVDynCockpitBG.Release();
+		// Reshade-test
+		//this->_offscreenBufferBloomF.Release();
+		//this->_renderTargetViewBloomF.Release();
+		//this->_reshadeBloomFSRV.Release();
 	}
 	if (g_bReshadeEnabled) {
 		this->_offscreenBufferAsInputReshade.Release();
@@ -833,6 +839,30 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		}
 		*/
 
+		/*
+		UINT curFlags = desc.BindFlags;
+		//desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+		desc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+		desc.BindFlags |= D3D11_BIND_RENDER_TARGET;
+		desc.SampleDesc.Count = 1;
+		desc.SampleDesc.Quality = 0;
+		log_err("Added D3D11_BIND_RENDER_TARGET flag\n");
+		log_err("Flags: 0x%x\n", desc.BindFlags);
+		step = "_offscreenBufferBloomF";
+		hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBufferBloomF);
+		if (FAILED(hr)) {
+			log_err("Failed to create _offscreenBufferBloomF\n");
+			log_err("GetDeviceRemovedReason: 0x%x\n", this->_d3dDevice->GetDeviceRemovedReason());
+			log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
+			log_err_desc(step, hWnd, hr, desc);
+			goto out;
+		}
+		else {
+			log_debug("[DBG] _offscreenBufferBloomF FLOAT buffer created with combined flags");
+			log_err("Successfully created _offscreenBufferBloomF with combined flags\n");
+		}
+		*/
+
 		// No MSAA after this point
 		// offscreenBufferAsInput must not have MSAA enabled since it will be used as input for the barrel shader.
 		step = "offscreenBufferAsInput";
@@ -955,6 +985,20 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			goto out;
 		}
 
+		/*
+		step = "_reshadeBloomFSRV";
+		DXGI_FORMAT format = desc.Format;
+		shaderResourceViewDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+		hr = this->_d3dDevice->CreateShaderResourceView(this->_offscreenBufferBloomF,
+			&shaderResourceViewDesc, &this->_reshadeBloomFSRV);
+		if (FAILED(hr)) {
+			log_err("dwWidth, Height: %u, %u\n", dwWidth, dwHeight);
+			log_shaderres_view(step, hWnd, hr, shaderResourceViewDesc);
+			goto out;
+		}
+		desc.Format = format;
+		*/
+
 		if (g_bReshadeEnabled) {
 			step = "_offscreenAsInputReshadeSRV";
 			hr = this->_d3dDevice->CreateShaderResourceView(this->_offscreenBufferAsInputReshade,
@@ -1074,6 +1118,12 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			if (FAILED(hr)) goto out;
 		}
 
+		/*
+		CD3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDescNoMSAA(D3D11_RTV_DIMENSION_TEXTURE2D);
+		step = "_renderTargetViewBloomF";
+		hr = this->_d3dDevice->CreateRenderTargetView(this->_offscreenBufferBloomF, &renderTargetViewDescNoMSAA, &this->_renderTargetViewBloomF);
+		if (FAILED(hr)) goto out;
+		*/
 		if (g_bReshadeEnabled) {
 			// These RTVs render to non-MSAA buffers
 			CD3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDescNoMSAA(D3D11_RTV_DIMENSION_TEXTURE2D);

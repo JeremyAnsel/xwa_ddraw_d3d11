@@ -25,6 +25,8 @@ Config::Config()
 
 	this->ProcessAffinityCore = 2;
 
+	this->EnhanceLasers = false;
+
 	ifstream file("ddraw.cfg");
 
 	if (file.is_open())
@@ -83,6 +85,10 @@ Config::Config()
 			else if (name == "ProcessAffinityCore")
 			{
 				this->ProcessAffinityCore = stoi(value);
+			}
+			else if (name == "EnhanceLasers")
+			{
+				this->EnhanceLasers = (bool)stoi(value);
 			}
 		}
 	}

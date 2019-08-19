@@ -176,7 +176,7 @@ typedef struct float4_struct {
 	float x, y, z, w;
 } float4;
 
-const int MAX_DC_COORDS = 6;
+const int MAX_DC_COORDS = 8;
 typedef struct PixelShaderCBStruct {
 	float brightness;			// Used to control the brightness of some elements -- mostly for ReShade compatibility
 	uint32_t DynCockpitSlots;
@@ -188,15 +188,17 @@ typedef struct PixelShaderCBStruct {
 	//uint32_t unused[3];
 
 	uvfloat4 src[MAX_DC_COORDS];
-	// 4 * MAX_DC_COORDS * 4 = 96
+	// 4 * MAX_DC_COORDS * 4 = 128
 	uvfloat4 dst[MAX_DC_COORDS];
-	// 4 * MAX_DC_COORDS * 4 = 96
-	float4 bgColor[MAX_DC_COORDS];   // Background colors (dynamic cockpit)
-	// 4 * MAX_DC_COORDS * 4 = 96
+	// 4 * MAX_DC_COORDS * 4 = 128
+	uint32_t bgColor[MAX_DC_COORDS];   // Background colors (dynamic cockpit)
+	// 4 * MAX_DC_COORDS = 32
 	
-	uint32_t bShadeless;
-	uint32_t unused[3];
+	uint32_t bEnhaceLasers;
+	uint32_t bIsLightTexture;
+	uint32_t unused[2];
 	// 16 bytes
+	// 320 bytes total
 } PixelShaderCBuffer;
 
 typedef struct uv_coords_src_dst_struct {
@@ -227,6 +229,8 @@ typedef struct move_region_coords_struct {
 	uvfloat4 dst[MAX_HUD_BOXES];
 	int numCoords;
 } move_region_coords;
+
+//extern ID3D11ShaderResourceView *g_RebelLaser;
 
 class DeviceResources
 {
@@ -296,8 +300,10 @@ public:
 	ComPtr<ID3D11Texture2D> _offscreenBufferPost; // This is the output of the barrel effect
 	ComPtr<ID3D11Texture2D> _offscreenBufferPostR; // This is the output of the barrel effect for the right image when using SteamVR
 	ComPtr<ID3D11Texture2D> _steamVRPresentBuffer; // This is the buffer that will be presented for SteamVR
+
 	ComPtr<ID3D11Texture2D> _reshadeOutput1; // Output from reshade pass 1
 	ComPtr<ID3D11Texture2D> _reshadeOutput2; // Output from reshade pass 2
+	//ComPtr<ID3D11Texture2D> _offscreenBufferBloomF; // Float buffer (test)
 	ComPtr<ID3D11RenderTargetView> _renderTargetView;
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewR; // When SteamVR is used, _renderTargetView is the left eye, and this one is the right eye
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewDynCockpit; // Used to render the HUD to an offscreen buffer
@@ -309,6 +315,7 @@ public:
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewSteamVRResize; // Used for the barrel effect
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewReshade1; // Renders to reshadeOutput1
 	ComPtr<ID3D11RenderTargetView> _renderTargetViewReshade2; // Renders to reshadeOutput2
+	//ComPtr<ID3D11RenderTargetView> _renderTargetViewBloomF; // Renders to _offscreenBufferBloomF
 
 	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputShaderResourceView;
 	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputShaderResourceViewR; // When SteamVR is enabled, this is the SRV for the right eye
@@ -317,6 +324,7 @@ public:
 	ComPtr<ID3D11ShaderResourceView> _offscreenAsInputReshadeSRV;
 	ComPtr<ID3D11ShaderResourceView> _reshadeOutput1SRV; // SRV for reshadeOutput1
 	ComPtr<ID3D11ShaderResourceView> _reshadeOutput2SRV; // SRV for reshadeOutput2
+	//ComPtr<ID3D11ShaderResourceView> _reshadeBloomFSRV; // SRV for _offscreenBufferBloomF
 	ComPtr<ID3D11Texture2D> _depthStencilL;
 	ComPtr<ID3D11Texture2D> _depthStencilR;
 	ComPtr<ID3D11DepthStencilView> _depthStencilViewL;

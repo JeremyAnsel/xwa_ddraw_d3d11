@@ -6,15 +6,11 @@
 
 class TextureSurface;
 
-//#define TRIANGLE_PTR_CRC 0x6cf63265		// Triangle that indicates where is the target (master branch)
-//#define WARHEAD_CRC 0xa4870ab3			// Main Warhead HUD (master branch)
-//#define TARGETING_COMP_CRC 0x3b9a3741   // The main targeting computer, where the targeted craft is displayed
-
 class Direct3DTexture : public IDirect3DTexture
 {
 public:
 	// The CRC of the texture
-	uint32_t crc;
+	//uint32_t crc;
 	// Used to tell whether the current texture is part of the aiming HUD and should not be scalled.
 	// This flag is set during resource Load, by comparing its CRC with the set of known CRCs.
 	bool is_HUD;
@@ -30,6 +26,10 @@ public:
 	bool is_TargetingComp;
 	// True if this texture is a laser or ion and should be shadeless/bright
 	bool is_Laser;
+	// True if this is an "illumination" or "light" texture
+	bool is_LightTexture;
+	// TODO: Remove this later, I'm only using this to dump the rebel lasers for debugging purposes
+	//bool is_RebelLaser;
 
 	// **** DYNAMIC COCKPIT MEMBERS **** //
 	// Textures in the cockpit that can be replaced with new textures

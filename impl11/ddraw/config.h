@@ -17,6 +17,7 @@ public:
 	float Concourse3DScale;
 
 	int ProcessAffinityCore;
+	bool EnhanceLasers;
 };
 
 extern Config g_config;

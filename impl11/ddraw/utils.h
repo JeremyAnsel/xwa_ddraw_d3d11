@@ -71,14 +71,6 @@ inline unsigned int convertColorB5G6R5toB8G8R8A8(unsigned short color16)
 	return g_colorConverterTables.B5G6R5toB8G8R8A8[color16];
 }
 
-/* CRC algorithm from:
- * https://stackoverflow.com/questions/27939882/fast-crc-algorithm
- */
-/* CRC-32C (iSCSI) polynomial in reversed bit order. */
-#define POLY 0x82f63b78
-
-uint32_t crc32c(uint32_t crc, const unsigned char *buf, size_t len);
-
 //#if LOGGER
 void saveSurface(std::wstring name, char* buffer, DWORD width, DWORD height, DWORD bpp);
 //#endif

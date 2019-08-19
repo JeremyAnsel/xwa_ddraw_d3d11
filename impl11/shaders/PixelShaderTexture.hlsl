@@ -13,7 +13,7 @@ SamplerState sampler0 : register(s0);
 Texture2D    texture1 : register(t1);
 SamplerState sampler1 : register(s1);
 
-#define MAX_DC_COORDS 6
+#define MAX_DC_COORDS 8
 
 cbuffer ConstantBuffer : register(b0)
 {
@@ -26,11 +26,15 @@ cbuffer ConstantBuffer : register(b0)
 	//uint bAlphaOnly;			// Output only the alpha component for debug purposes
 	//uint unused[3];
 	
-	float4 src[MAX_DC_COORDS];			// HLSL packs each element in an array in its own 4-vector (16 bytes) slot, so .xy is src0 and .zw is src1
+	float4 src[MAX_DC_COORDS];		// HLSL packs each element in an array in its own 4-vector (16 bytes) slot, so .xy is src0 and .zw is src1
 	float4 dst[MAX_DC_COORDS];
-	float4 bgColor[MAX_DC_COORDS];		// Background colors to use for the dynamic cockpit
+	uint4 bgColor[MAX_DC_COORDS / 4]; // Background colors to use for the dynamic cockpit, this divide by 4 is because HLSL packs each elem in a 4-vector,
+									  // So each elem here is actually 4 bgColors.
 
-	uint bShadeless;				// True for shadeless objects, like the lasers
+	uint bEnhaceLasers;				// True for Laser objects, setting this flag will make them bright
+	uint bIsLightTexture;			// True if this is a light texture being rendered
+	uint unused2;
+	uint unused3;
 };
 
 struct PixelShaderInput
@@ -91,6 +95,33 @@ float3 HSLtoRGB(in float3 HSL)
 }
 */
 
+float4 uintColorToFloat4(uint color) {
+	/* return float4(
+		((color >>  8) & 0xFF) / 255.0,
+		((color >> 16) & 0xFF) / 255.0,
+		((color >> 24) & 0xFF) / 255.0,
+		1); */
+	//(color % 256)
+	//16777216
+	float r, g, b;
+	b = (color % 256) / 255.0;
+	color = color / 256;
+	g = (color % 256) / 255.0;
+	color = color / 256;
+	r = (color % 256) / 255.0;
+	return float4(r, g, b, 1);
+	//if (color == 0)
+	//	return float4(0.0, 0.0, 0.0, 1.0);
+	//else
+	//	return float4(0.07, 0.07, 0.2, 1.0);
+}
+
+uint getBGColor(uint i) {
+	uint idx = i / 4;
+	uint sub_idx = i % 4;
+	return bgColor[idx][sub_idx];
+}
+
 float4 main(PixelShaderInput input) : SV_TARGET
 {
 	float4 texelColor = texture0.Sample(sampler0, input.tex);
@@ -103,13 +134,27 @@ float4 main(PixelShaderInput input) : SV_TARGET
 	//diffuse = float3(1.0, 1.0, 1.0);
 
 	// Early exit: lasers are shadeless, make them brighter!
-	if (bShadeless > 0) {
+	if (bEnhaceLasers > 0) {
 		//diffuse = float3(1, 1, 1);
 		float3 HSV = RGBtoHSV(texelColor.xyz);
 		// Saturate this color
 		HSV[1] *= 1.5;
 		HSV[2] *= 2.0;
 		return float4(HSVtoRGB(HSV), 1.2 * texelColor.w);
+	}
+
+	// Enhance the alpha for light textures (it's very dim right now)
+	if (bIsLightTexture > 0) {
+		//return float4(0, 1, 0, alpha * 10);
+		return float4(texelColor.xyz, alpha * 10);
+		// alpha > 0.5 doesn't work
+		// alpha > 0.25 doesn't work
+		// alpha > 0.175 works
+		// alpha > 0.1 works
+		//if (alpha > 0.175)
+		//	return float4(0, 1, 0, 1);
+		//else
+		//	return float4(0, 0, 0, 0);
 	}
 
 	if (bRenderHUD) {
@@ -130,6 +175,7 @@ float4 main(PixelShaderInput input) : SV_TARGET
 			}
 
 		// Execute the move_region commands: copy regions
+		[unroll]
 		for (i = 0; i < DynCockpitSlots; i++) {
 			float2 delta = dst[i].zw - dst[i].xy;
 			float2 s = (input.tex - dst[i].xy) / delta;
@@ -158,8 +204,9 @@ float4 main(PixelShaderInput input) : SV_TARGET
 		// HLSL packs each element in an array in its own 4-vector (16-byte) row. So src[0].xy is the
 		// upper-left corner of the box and src[0].zw is the lower-right corner. The same applies to
 		// dst uv coords
-			
-		float4 dc_texelColor = bgColor[0];
+		
+		float4 dc_texelColor = uintColorToFloat4(getBGColor(0));
+		[unroll]
 		for (uint i = 0; i < DynCockpitSlots; i++) {
 			float2 delta = dst[i].zw - dst[i].xy;
 			float2 s = (input.tex - dst[i].xy) / delta;
@@ -178,7 +225,7 @@ float4 main(PixelShaderInput input) : SV_TARGET
 				dc_texelColor = texture1.Sample(sampler1, dyn_uv); // "dc" is for "dynamic cockpit"
 				float dc_alpha = dc_texelColor.w;
 				// Add the background color to the dynamic cockpit display:
-				dc_texelColor = lerp(bgColor[i], dc_texelColor, dc_alpha);
+				dc_texelColor = lerp(uintColorToFloat4(getBGColor(i)), dc_texelColor, dc_alpha);
 			}
 		}
 		// At this point dc_texelColor has the color from the offscreen HUD buffer blended with bgColor
@@ -190,7 +237,8 @@ float4 main(PixelShaderInput input) : SV_TARGET
 			// on areas with a high lightness value
 			float3 HSV = RGBtoHSV(texelColor.xyz);
 			// Display the dynamic cockpit texture only where the texture cover is transparent:
-			texelColor = lerp(dc_texelColor, texelColor, alpha);
+			// In 32-bit mode, the cover textures appear brighter, we should probably dim them, that's what the 0.8 below is for:
+			texelColor = lerp(dc_texelColor, /* 0.8 * */ texelColor, alpha);
 			// The diffuse value will be 1 (shadeless) wherever the cover texture is transparent:
 			diffuse = lerp(float3(1, 1, 1), input.color.xyz, alpha);
 			if (HSV.z >= 0.80)
