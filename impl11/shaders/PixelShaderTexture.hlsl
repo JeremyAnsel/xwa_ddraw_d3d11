@@ -9,7 +9,7 @@ SamplerState sampler0 : register(s0);
 // if bUseDynCockpit is set, then texture0 will be the cover texture and
 // texture1 will be the dynamic element taken from the previous frame's HUD
 
-// If bRenderHUD is set, texture0 is HUD foreground and texture1 is HUD background
+// If bRenderHUD is set, texture0 is the cover_texture and texture1 is the offscreen HUD buffer
 Texture2D    texture1 : register(t1);
 SamplerState sampler1 : register(s1);
 
@@ -33,7 +33,7 @@ cbuffer ConstantBuffer : register(b0)
 
 	uint bEnhaceLasers;				// True for Laser objects, setting this flag will make them bright
 	uint bIsLightTexture;			// True if this is a light texture being rendered
-	uint unused2;
+	float ct_brightness;				// Cover texture brightness. In 32-bit mode the cover textures have to be dimmed.
 	uint unused3;
 };
 
@@ -101,8 +101,6 @@ float4 uintColorToFloat4(uint color) {
 		((color >> 16) & 0xFF) / 255.0,
 		((color >> 24) & 0xFF) / 255.0,
 		1); */
-	//(color % 256)
-	//16777216
 	float r, g, b;
 	b = (color % 256) / 255.0;
 	color = color / 256;
@@ -110,10 +108,6 @@ float4 uintColorToFloat4(uint color) {
 	color = color / 256;
 	r = (color % 256) / 255.0;
 	return float4(r, g, b, 1);
-	//if (color == 0)
-	//	return float4(0.0, 0.0, 0.0, 1.0);
-	//else
-	//	return float4(0.07, 0.07, 0.2, 1.0);
 }
 
 uint getBGColor(uint i) {
@@ -135,18 +129,21 @@ float4 main(PixelShaderInput input) : SV_TARGET
 
 	// Early exit: lasers are shadeless, make them brighter!
 	if (bEnhaceLasers > 0) {
-		//diffuse = float3(1, 1, 1);
 		float3 HSV = RGBtoHSV(texelColor.xyz);
-		// Saturate this color
-		HSV[1] *= 1.5;
-		HSV[2] *= 2.0;
+		// Increase the saturation and lightness
+		HSV.y *= 1.5;
+		HSV.z *= 2.0;
 		return float4(HSVtoRGB(HSV), 1.2 * texelColor.w);
 	}
 
 	// Enhance the alpha for light textures (it's very dim right now)
 	if (bIsLightTexture > 0) {
 		//return float4(0, 1, 0, alpha * 10);
-		return float4(texelColor.xyz, alpha * 10);
+		// Make the light textures brighter?
+		float3 HSV = RGBtoHSV(texelColor.xyz);
+		HSV.z *= 1.25;
+		return float4(HSVtoRGB(HSV), alpha * 10.0);
+		//return float4(texelColor.xyz, alpha * 10);
 		// alpha > 0.5 doesn't work
 		// alpha > 0.25 doesn't work
 		// alpha > 0.175 works
@@ -157,8 +154,9 @@ float4 main(PixelShaderInput input) : SV_TARGET
 		//	return float4(0, 0, 0, 0);
 	}
 
+	// Render the captured HUD, execute the move_region commands.
+	// The code returns a color from this path
 	if (bRenderHUD) {
-		// Render the captured HUD
 		// texture0 == HUD foreground
 		// texture1 == HUD background
 		float4 texelColorBG = texture1.Sample(sampler1, input.tex);
@@ -192,20 +190,23 @@ float4 main(PixelShaderInput input) : SV_TARGET
 		}
 		// Do the alpha blending
 		texelColor.xyz = lerp(texelColorBG.xyz, texelColor.xyz, alpha);
-		texelColor.w += 3 * alphaBG;
+		texelColor.w += 3.0 * alphaBG;
 		return texelColor;
-	} else if (DynCockpitSlots > 0) {
+	} 
+	// Render the Dynamic Cockpit captured buffer into the cockpit destination textures. 
+	// The code returns a color from this path
+	else if (DynCockpitSlots > 0) {
 		// DEBUG: Display uvs as colors. Some meshes have UVs beyond the range [0..1]
 		//if (input.tex.x > 1.0) 	return float4(1, 0, 1, 1);
 		//if (input.tex.y > 1.0) 	return float4(0, 0, 1, 1);
 		//return float4(input.tex.xy, 0, 1); // DEBUG: Display the uvs as colors
-		//return 0.7*dc_texelColor + 0.3*texelColor; // DEBUG DEBUG DEBUG!!! Remove this later! This helps position the elements easily
+		//return 0.7*hud_texelColor + 0.3*texelColor; // DEBUG DEBUG DEBUG!!! Remove this later! This helps position the elements easily
 				
 		// HLSL packs each element in an array in its own 4-vector (16-byte) row. So src[0].xy is the
 		// upper-left corner of the box and src[0].zw is the lower-right corner. The same applies to
 		// dst uv coords
 		
-		float4 dc_texelColor = uintColorToFloat4(getBGColor(0));
+		float4 hud_texelColor = uintColorToFloat4(getBGColor(0));
 		[unroll]
 		for (uint i = 0; i < DynCockpitSlots; i++) {
 			float2 delta = dst[i].zw - dst[i].xy;
@@ -222,31 +223,42 @@ float4 main(PixelShaderInput input) : SV_TARGET
 				dyn_uv.y >= src[i].y && dyn_uv.y <= src[i].w)
 			{
 				// Sample the dynamic cockpit texture:
-				dc_texelColor = texture1.Sample(sampler1, dyn_uv); // "dc" is for "dynamic cockpit"
-				float dc_alpha = dc_texelColor.w;
+				hud_texelColor = texture1.Sample(sampler1, dyn_uv); // "ct" is for "cover_texture"
+				float hud_alpha = hud_texelColor.w;
 				// Add the background color to the dynamic cockpit display:
-				dc_texelColor = lerp(uintColorToFloat4(getBGColor(i)), dc_texelColor, dc_alpha);
+				hud_texelColor = lerp(uintColorToFloat4(getBGColor(i)), hud_texelColor, hud_alpha);
 			}
 		}
-		// At this point dc_texelColor has the color from the offscreen HUD buffer blended with bgColor
+		// At this point hud_texelColor has the color from the offscreen HUD buffer blended with bgColor
 
-		// Blend the offscreen buffer HUD texture with the cover texture and go shadeless where transparent
-		// or where the cover texture is bright enough
+		// Blend the offscreen buffer HUD texture with the cover texture and go shadeless where transparent.
+		// Also go shadless where the cover texture is bright enough.
 		if (bUseCoverTexture > 0) {
 			// We don't have an alpha overlay texture anymore; but we can fake it by disabling shading
 			// on areas with a high lightness value
+			// texelColor is the cover_texture right now
+			//float ct_brightness = 0.7;
 			float3 HSV = RGBtoHSV(texelColor.xyz);
+			float brightness = ct_brightness;
+			if (HSV.z >= 0.8) {
+				// The cover texture is bright enough, go shadeless and make it brighter
+				diffuse = float3(1, 1, 1);
+				// Increase the brightness:
+				HSV = RGBtoHSV(texelColor.xyz);
+				HSV.z *= 1.2;
+				texelColor.xyz = HSVtoRGB(HSV);
+				brightness = 1.0;
+			}
 			// Display the dynamic cockpit texture only where the texture cover is transparent:
 			// In 32-bit mode, the cover textures appear brighter, we should probably dim them, that's what the 0.8 below is for:
-			texelColor = lerp(dc_texelColor, /* 0.8 * */ texelColor, alpha);
+			texelColor = lerp(hud_texelColor, brightness * texelColor, alpha);
 			// The diffuse value will be 1 (shadeless) wherever the cover texture is transparent:
-			diffuse = lerp(float3(1, 1, 1), input.color.xyz, alpha);
-			if (HSV.z >= 0.80)
-				diffuse = float3(1, 1, 1);
+			diffuse = lerp(float3(1, 1, 1), diffuse, alpha);
 		} else {
-			texelColor = dc_texelColor;
+			texelColor = hud_texelColor;
 			diffuse = float3(1, 1, 1);
 		}
+		return float4(diffuse * texelColor.xyz, texelColor.w);
 	}
 	
 	/*
@@ -255,6 +267,9 @@ float4 main(PixelShaderInput input) : SV_TARGET
 		return float4(a, a, a, 1);
 	}
 	*/
+
+	// Dim the texture brightness in 32-bit mode.
+	//diffuse *= 0.8;
 
 	return float4(brightness * diffuse * texelColor.xyz, texelColor.w);
 }

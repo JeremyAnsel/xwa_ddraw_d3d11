@@ -149,6 +149,7 @@ const char *COVER_TEX_NAME_DCPARAM		= "cover_texture";
 const char *COVER_TEX_SIZE_DCPARAM		= "cover_texture_size";
 const char *ERASE_REGION_DCPARAM			= "erase_region";
 const char *MOVE_REGION_DCPARAM			= "move_region";
+const char *CT_BRIGHTNESS_DCPARAM		= "cover_texture_brightness";
 const char *DC_TARGET_COMP_UV_COORDS_VRPARAM   = "dc_target_comp_uv_coords";
 const char *DC_LEFT_RADAR_UV_COORDS_VRPARAM    = "dc_left_radar_uv_coords";
 const char *DC_RIGHT_RADAR_UV_COORDS_VRPARAM   = "dc_right_radar_uv_coords";
@@ -279,6 +280,7 @@ float g_fAspectRatio = DEFAULT_ASPECT_RATIO;
 bool g_bZoomOut = DEFAULT_ZOOM_OUT_INITIAL_STATE;
 bool g_bZoomOutInitialState = DEFAULT_ZOOM_OUT_INITIAL_STATE;
 float g_fBrightness = DEFAULT_BRIGHTNESS;
+float g_fCoverTextureBrightness = 1.0f;
 float g_fGUIElemsScale = DEFAULT_GLOBAL_SCALE; // Used to reduce the size of all the GUI elements
 int g_iFreePIESlot = DEFAULT_FREEPIE_SLOT;
 bool g_bFixedGUI = DEFAULT_FIXED_GUI_STATE;
@@ -1369,6 +1371,9 @@ bool LoadDCParams() {
 				// Individual cockpit move_region commands override the global move_region commands:
 				if (!bCockpitParamsLoaded)
 					LoadDCMoveRegion(buf);
+			}
+			else if (_stricmp(param, CT_BRIGHTNESS_DCPARAM) == 0) {
+				g_fCoverTextureBrightness = value;
 			}
 		}
 	}
@@ -3045,6 +3050,7 @@ HRESULT Direct3DDevice::Execute(
 
 	g_PSCBuffer = { 0 };
 	g_PSCBuffer.brightness       = MAX_BRIGHTNESS;
+	g_PSCBuffer.ct_brightness	 = g_fCoverTextureBrightness;
 	//g_PSCBuffer.DynCockpitSlots  = 0;
 	//g_PSCBuffer.bUseCoverTexture = 0;
 	//g_PSCBuffer.bRenderHUD		 = 0;
@@ -3953,6 +3959,8 @@ HRESULT Direct3DDevice::Execute(
 					g_PSCBuffer.DynCockpitSlots = numCoords;
 					g_PSCBuffer.bUseCoverTexture = (dc_element->coverTexture != NULL) ? 1 : 0;
 
+					// slot 0 is the cover texture
+					// slot 1 is the HUD offscreen buffer
 					context->PSSetShaderResources(1, 1, resources->_offscreenAsInputSRVDynCockpit.GetAddressOf());
 					if (g_PSCBuffer.bUseCoverTexture)
 						context->PSSetShaderResources(0, 1, &(dc_element->coverTexture));
@@ -4296,6 +4304,7 @@ HRESULT Direct3DDevice::Execute(
 
 					g_PSCBuffer = { 0 };
 					g_PSCBuffer.brightness        = MAX_BRIGHTNESS;
+					g_PSCBuffer.ct_brightness	  = g_fCoverTextureBrightness;
 					//g_PSCBuffer.bUseCoverTexture  = 0;
 					//g_PSCBuffer.DynCockpitSlots   = 0;
 					//g_PSCBuffer.bRenderHUD		  = 0;

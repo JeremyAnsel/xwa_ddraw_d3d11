@@ -196,7 +196,8 @@ typedef struct PixelShaderCBStruct {
 	
 	uint32_t bEnhaceLasers;
 	uint32_t bIsLightTexture;
-	uint32_t unused[2];
+	float ct_brightness;
+	uint32_t unused;
 	// 16 bytes
 	// 320 bytes total
 } PixelShaderCBuffer;

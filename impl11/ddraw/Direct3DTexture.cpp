@@ -639,7 +639,7 @@ HRESULT Direct3DTexture::Load(
 			// Ignore "LaserBat.OPT"
 			if (strstr(surface->_name, "LaserBat") == NULL) {
 				this->is_Laser = true;
-				log_debug("[DBG] *** LASER: [%s]", surface->_name);
+				//log_debug("[DBG] *** LASER: [%s]", surface->_name);
 				// Detect Rebel lasers and load RebelLaser.png
 				/*
 				if (strstr(surface->_name, "Rebel") != NULL) {
@@ -674,9 +674,9 @@ HRESULT Direct3DTexture::Load(
 		// Catch light textures and mark them appropriately
 		if (strstr(surface->_name, ",light,") != NULL) {
 			this->is_LightTexture = true;
-			log_debug("[DBG] LightTexture: [%s]", surface->_name);
-			if (this->is_Laser)
-				log_debug("[DBG] *** [%s] is both Laser and Light texture", surface->_name);
+			//log_debug("[DBG] LightTexture: [%s]", surface->_name);
+			//if (this->is_Laser)
+			//	log_debug("[DBG] *** [%s] is both Laser and Light texture", surface->_name);
 		}
 
 		if (g_bDynCockpitEnabled) {
@@ -732,7 +732,7 @@ HRESULT Direct3DTexture::Load(
 				}
 				else if (strstr(surface->_name, ",light,") != NULL) {
 					this->is_DynCockpitAlphaOverlay = true;
-					log_debug("[DBG] [DC] Alpha Overlay: [%s]", surface->_name);
+					//log_debug("[DBG] [DC] Alpha Overlay: [%s]", surface->_name);
 					/*if (_stricmp(surface->_name, "TEX00036") == 0) {
 						log_debug("[DBG] Dumping light texture for TEX00036...");
 						saveSurface(L"c:\\temp\\TEX00036-light", (char *)textureData[0].pSysMem, surface->_width, surface->_height, bpp);
