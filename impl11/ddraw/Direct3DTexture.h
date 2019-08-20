@@ -28,6 +28,8 @@ public:
 	bool is_Laser;
 	// True if this is an "illumination" or "light" texture
 	bool is_LightTexture;
+	// True if this is an Engine Glow texture
+	bool is_EngineGlow;
 	// TODO: Remove this later, I'm only using this to dump the rebel lasers for debugging purposes
 	//bool is_RebelLaser;
 

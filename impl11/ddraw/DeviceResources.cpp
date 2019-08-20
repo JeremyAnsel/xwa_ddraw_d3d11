@@ -566,7 +566,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			dc_element *elem = &g_DCElements[i];
 			if (elem->bActive) {
 				if (elem->coverTexture != NULL) {
-					log_debug("[DBG] [DC] Releasing %s", elem->coverTextureName);
+					//log_debug("[DBG] [DC] Releasing %s", elem->coverTextureName);
 					elem->coverTexture->Release();
 					elem->coverTexture = NULL;
 				}

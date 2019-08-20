@@ -4008,6 +4008,12 @@ HRESULT Direct3DDevice::Execute(
 					g_PSCBuffer.bIsLightTexture = 1;
 				}
 
+				// Set the flag for EngineGlow
+				if (lastTextureSelected != NULL && lastTextureSelected->is_EngineGlow) {
+					bModifiedShaders = true;
+					g_PSCBuffer.bIsEngineGlow = 1;
+				}
+
 				// Dim all the GUI elements
 				if (g_bStartedGUI && !g_bIsFloating3DObject) {
 					bModifiedShaders = true;

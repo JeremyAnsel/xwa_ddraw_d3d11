@@ -224,6 +224,7 @@ Direct3DTexture::Direct3DTexture(DeviceResources* deviceResources, TextureSurfac
 	this->is_TargetingComp = false;
 	this->is_Laser = false;
 	this->is_LightTexture = false;
+	this->is_EngineGlow = false;
 	//this->is_RebelLaser = false;
 	// Dynamic cockpit data
 	this->DCElementIndex = -1;
@@ -415,6 +416,7 @@ HRESULT Direct3DTexture::Load(
 	this->is_TargetingComp = d3dTexture->is_TargetingComp;
 	this->is_Laser = d3dTexture->is_Laser;
 	this->is_LightTexture = d3dTexture->is_LightTexture;
+	this->is_EngineGlow = d3dTexture->is_EngineGlow;
 	//this->is_RebelLaser = d3dTexture->is_RebelLaser;
 	// Dynamic Cockpit data
 	this->is_DynCockpitDst = d3dTexture->is_DynCockpitDst;
@@ -542,8 +544,8 @@ HRESULT Direct3DTexture::Load(
 
 	if (surface->_mipmapCount == 1) {
 		if (surface->_width == 8 || surface->_width == 16 || surface->_width == 32 || surface->_width == 64 ||
-			surface->_width == 128 || surface->_width == 256) {
-			unsigned int size = surface->_width * surface->_height * (useBuffers ? 4 : bpp);
+			surface->_width == 128 || surface->_width == 256 || surface->_width == 512) {
+			//unsigned int size = surface->_width * surface->_height * (useBuffers ? 4 : bpp);
 
 			// Compute the CRC
 			//this->crc = crc32c(0, (const unsigned char *)textureData[0].pSysMem, size);
@@ -579,6 +581,10 @@ HRESULT Direct3DTexture::Load(
 				this->is_Text = true;
 			else if (isInVector(surface->_name, GUI_ResNames))
 				this->is_GUI = true;
+
+			// Catch the engine glow and mark it
+			if (strstr(surface->_name, "dat,1000,1,") != NULL)
+				this->is_EngineGlow = true;
 
 			/* Special handling for Dynamic Cockpit source HUD textures */
 			if (g_bDynCockpitEnabled) {
@@ -678,6 +684,13 @@ HRESULT Direct3DTexture::Load(
 			//if (this->is_Laser)
 			//	log_debug("[DBG] *** [%s] is both Laser and Light texture", surface->_name);
 		}
+
+		/*
+		// Catch the engine glow and mark it
+		if (strstr(surface->_name, "dat") != NULL) {
+			log_debug("[DBG] (1) dat: [%s]", surface->_name);
+		}
+		*/
 
 		if (g_bDynCockpitEnabled) {
 			// Capture and store the name of the cockpit

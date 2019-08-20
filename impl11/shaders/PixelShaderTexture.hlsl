@@ -33,8 +33,8 @@ cbuffer ConstantBuffer : register(b0)
 
 	uint bEnhaceLasers;				// True for Laser objects, setting this flag will make them bright
 	uint bIsLightTexture;			// True if this is a light texture being rendered
+	uint bIsEngineGlow;
 	float ct_brightness;				// Cover texture brightness. In 32-bit mode the cover textures have to be dimmed.
-	uint unused3;
 };
 
 struct PixelShaderInput
@@ -96,18 +96,11 @@ float3 HSLtoRGB(in float3 HSL)
 */
 
 float4 uintColorToFloat4(uint color) {
-	/* return float4(
-		((color >>  8) & 0xFF) / 255.0,
+	return float4(
 		((color >> 16) & 0xFF) / 255.0,
-		((color >> 24) & 0xFF) / 255.0,
-		1); */
-	float r, g, b;
-	b = (color % 256) / 255.0;
-	color = color / 256;
-	g = (color % 256) / 255.0;
-	color = color / 256;
-	r = (color % 256) / 255.0;
-	return float4(r, g, b, 1);
+		((color >> 8) & 0xFF) / 255.0,
+		(color & 0xFF) / 255.0,
+		1);
 }
 
 uint getBGColor(uint i) {
@@ -139,7 +132,7 @@ float4 main(PixelShaderInput input) : SV_TARGET
 	// Enhance the alpha for light textures (it's very dim right now)
 	if (bIsLightTexture > 0) {
 		//return float4(0, 1, 0, alpha * 10);
-		// Make the light textures brighter?
+		// Make the light textures brighter
 		float3 HSV = RGBtoHSV(texelColor.xyz);
 		HSV.z *= 1.25;
 		return float4(HSVtoRGB(HSV), alpha * 10.0);
@@ -152,6 +145,17 @@ float4 main(PixelShaderInput input) : SV_TARGET
 		//	return float4(0, 1, 0, 1);
 		//else
 		//	return float4(0, 0, 0, 0);
+	}
+
+	// Enhance engine glow. In this texture, the diffuse component also provides
+	// the hue
+	if (bIsEngineGlow > 0) {
+		texelColor.xyz *= diffuse;
+		float3 HSV = RGBtoHSV(texelColor.xyz);
+		HSV.y *= 1.15;
+		HSV.z *= 1.25;
+		return float4(HSVtoRGB(HSV), alpha);
+		//return float4(diffuse * texelColor.xyz, alpha);
 	}
 
 	// Render the captured HUD, execute the move_region commands.
@@ -207,7 +211,7 @@ float4 main(PixelShaderInput input) : SV_TARGET
 		// dst uv coords
 		
 		float4 hud_texelColor = uintColorToFloat4(getBGColor(0));
-		[unroll]
+		//[unroll]
 		for (uint i = 0; i < DynCockpitSlots; i++) {
 			float2 delta = dst[i].zw - dst[i].xy;
 			float2 s = (input.tex - dst[i].xy) / delta;
