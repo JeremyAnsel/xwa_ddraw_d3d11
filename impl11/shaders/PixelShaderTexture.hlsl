@@ -31,9 +31,9 @@ cbuffer ConstantBuffer : register(b0)
 	uint4 bgColor[MAX_DC_COORDS / 4]; // Background colors to use for the dynamic cockpit, this divide by 4 is because HLSL packs each elem in a 4-vector,
 									  // So each elem here is actually 4 bgColors.
 
-	uint bEnhaceLasers;				// True for Laser objects, setting this flag will make them bright
-	uint bIsLightTexture;			// True if this is a light texture being rendered
-	uint bIsEngineGlow;
+	uint bIsLaser;					// 1 for Laser objects, setting this to 2 will make them brighter (intended for 32-bit mode)
+	uint bIsLightTexture;			// 1 if this is a light texture, 2 will make it brighter (intended for 32-bit mode)
+	uint bIsEngineGlow;				// 1 if this is an engine glow textures, 2 will make it brighter (intended for 32-bit mode)
 	float ct_brightness;				// Cover texture brightness. In 32-bit mode the cover textures have to be dimmed.
 };
 
@@ -114,48 +114,51 @@ float4 main(PixelShaderInput input) : SV_TARGET
 	float4 texelColor = texture0.Sample(sampler0, input.tex);
 	float alpha = texelColor.w;
 	float3 diffuse = input.color.xyz;
-	
-	// Bloom fix
-	//if (dot(texelColor.xyz, 0.333) < 0.9)
-	//	diffuse = 0.8 * diffuse;
-	//diffuse = float3(1.0, 1.0, 1.0);
 
-	// Early exit: lasers are shadeless, make them brighter!
-	if (bEnhaceLasers > 0) {
-		float3 HSV = RGBtoHSV(texelColor.xyz);
-		// Increase the saturation and lightness
-		HSV.y *= 1.5;
-		HSV.z *= 2.0;
-		return float4(HSVtoRGB(HSV), 1.2 * texelColor.w);
+	// Process lasers (make them brighter in 32-bit mode)
+	if (bIsLaser > 0) {
+		// This is a laser texture, process the bloom mask accordingly
+		if (bIsLaser > 1) {
+			// Enhance the lasers in 32-bit mode
+			float3 HSV = RGBtoHSV(texelColor.xyz);
+			// Increase the saturation and lightness
+			HSV.y *= 1.5;
+			HSV.z *= 2.0;
+			return float4(HSVtoRGB(HSV), 1.2 * texelColor.w);
+		}
+		else
+			return texelColor; // Return the original color when 32-bit mode is off
 	}
 
-	// Enhance the alpha for light textures (it's very dim right now)
+	// Process light textures (make them brighter in 32-bit mode)
 	if (bIsLightTexture > 0) {
-		//return float4(0, 1, 0, alpha * 10);
-		// Make the light textures brighter
-		float3 HSV = RGBtoHSV(texelColor.xyz);
-		HSV.z *= 1.25;
-		return float4(HSVtoRGB(HSV), alpha * 10.0);
-		//return float4(texelColor.xyz, alpha * 10);
-		// alpha > 0.5 doesn't work
-		// alpha > 0.25 doesn't work
-		// alpha > 0.175 works
-		// alpha > 0.1 works
-		//if (alpha > 0.175)
-		//	return float4(0, 1, 0, 1);
-		//else
-		//	return float4(0, 0, 0, 0);
+		// This is a light texture, process the bloom mask accordingly
+		if (bIsLightTexture > 1) {
+			// Make the light textures brighter in 32-bit mode
+			float3 HSV = RGBtoHSV(texelColor.xyz);
+			HSV.z *= 1.25;
+			// The alpha for light textures is either 0 or >0.1, so we multiply by 10 to
+			// make it [0, 1]
+			return float4(HSVtoRGB(HSV), alpha * 10.0);
+		}
+		else
+			return texelColor; // Return the original color when 32-bit mode is off
 	}
 
 	// Enhance engine glow. In this texture, the diffuse component also provides
 	// the hue
 	if (bIsEngineGlow > 0) {
 		texelColor.xyz *= diffuse;
-		float3 HSV = RGBtoHSV(texelColor.xyz);
-		HSV.y *= 1.15;
-		HSV.z *= 1.25;
-		return float4(HSVtoRGB(HSV), alpha);
-		//return float4(diffuse * texelColor.xyz, alpha);
+		// This is an engine glow, process the bloom mask accordingly
+		if (bIsEngineGlow > 1) {
+			// Enhance the glow in 32-bit mode
+			float3 HSV = RGBtoHSV(texelColor.xyz);
+			HSV.y *= 1.15;
+			HSV.z *= 1.25;
+			return float4(HSVtoRGB(HSV), alpha);
+		}
+		else
+			return texelColor; // Return the original color when 32-bit mode is off
 	}
 
 	// Render the captured HUD, execute the move_region commands.

@@ -26,6 +26,8 @@ Config::Config()
 	this->ProcessAffinityCore = 2;
 
 	this->EnhanceLasers = false;
+	this->EnhanceIllumination = false;
+	this->EnhanceEngineGlow = false;
 
 	ifstream file("ddraw.cfg");
 
@@ -89,6 +91,14 @@ Config::Config()
 			else if (name == "EnhanceLasers")
 			{
 				this->EnhanceLasers = (bool)stoi(value);
+			}
+			else if (name == "EnhanceIlluminationTextures")
+			{
+				this->EnhanceIllumination = (bool)stoi(value);
+			}
+			else if (name == "EnhanceEngineGlow")
+			{
+				this->EnhanceEngineGlow = (bool)stoi(value);
 			}
 		}
 	}

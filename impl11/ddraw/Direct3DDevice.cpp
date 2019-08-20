@@ -3979,39 +3979,28 @@ HRESULT Direct3DDevice::Execute(
 					*/
 				}
 
-				// Make the lasers bright in 32-bit mode
+				// Send the flag for lasers (enhance them in 32-bit mode)
 				if (lastTextureSelected != NULL && lastTextureSelected->is_Laser) {
-					if (g_config.EnhanceLasers) {
-						bModifiedShaders = true;
-						g_PSCBuffer.bEnhaceLasers = 1;
-					}
-
-					//if (lastTextureSelected->is_LightTexture) {
-					//	bModifiedShaders = true;
-					//	g_PSCBuffer.bIsLightTexture = 1;
-					//	log_debug("[DBG] Rendering Laser + Light texture");
-						/*static bool bDumped = false;
-						if (!bDumped) {
-							ID3D11Resource *res = NULL;
-							lastTextureSelected->_textureView->GetResource(&res);
-							hr = DirectX::SaveWICTextureToFile(context.Get(),
-								res, GUID_ContainerFormatPng, L"c://temp//LaserRebel-light.png");
-							log_debug("[DBG] Dumping LaserRebel-light.png");
-							bDumped = true;
-						}*/
-					//}
+					bModifiedShaders = true;
+					g_PSCBuffer.bIsLaser = 1;
+					if (g_config.EnhanceLasers)
+						g_PSCBuffer.bIsLaser = 2; // Enhance the lasers (intended for 32-bit mode)
 				}
 
-				// Send the flag for light texture to the pixel shader
+				// Send the flag for light textures (enhance them in 32-bit mode)
 				if (lastTextureSelected != NULL && lastTextureSelected->is_LightTexture) {
 					bModifiedShaders = true;
 					g_PSCBuffer.bIsLightTexture = 1;
+					if (g_config.EnhanceIllumination)
+						g_PSCBuffer.bIsLightTexture = 2; // Enhance the light textures (intended for 32-bit mode)
 				}
 
-				// Set the flag for EngineGlow
+				// Set the flag for EngineGlow (enhance them in 32-bit mode)
 				if (lastTextureSelected != NULL && lastTextureSelected->is_EngineGlow) {
 					bModifiedShaders = true;
 					g_PSCBuffer.bIsEngineGlow = 1;
+					if (g_config.EnhanceEngineGlow)
+						g_PSCBuffer.bIsEngineGlow = 2; // Enhance the Engine Glow (intended for 32-bit mode)
 				}
 
 				// Dim all the GUI elements

@@ -194,7 +194,7 @@ typedef struct PixelShaderCBStruct {
 	uint32_t bgColor[MAX_DC_COORDS];   // Background colors (dynamic cockpit)
 	// 4 * MAX_DC_COORDS = 32
 	
-	uint32_t bEnhaceLasers;
+	uint32_t bIsLaser;
 	uint32_t bIsLightTexture;
 	uint32_t bIsEngineGlow;
 	float ct_brightness;
