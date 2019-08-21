@@ -32,6 +32,8 @@ public:
 	bool is_EngineGlow;
 	// TODO: Remove this later, I'm only using this to dump the rebel lasers for debugging purposes
 	//bool is_RebelLaser;
+	// TODO: Remove this later
+	//bool is_SpecialDebug;
 
 	// **** DYNAMIC COCKPIT MEMBERS **** //
 	// Textures in the cockpit that can be replaced with new textures

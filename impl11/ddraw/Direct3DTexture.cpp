@@ -225,7 +225,6 @@ Direct3DTexture::Direct3DTexture(DeviceResources* deviceResources, TextureSurfac
 	this->is_Laser = false;
 	this->is_LightTexture = false;
 	this->is_EngineGlow = false;
-	//this->is_RebelLaser = false;
 	// Dynamic cockpit data
 	this->DCElementIndex = -1;
 	this->is_DynCockpitDst = false;
@@ -407,7 +406,6 @@ HRESULT Direct3DTexture::Load(
 	// The changes from Jeremy's commit fe50cc59e03225bb7e39ae2852e87d305e7c7891 to reduce
 	// memory usage cause mipmapped textures to call Load() again. So we must copy all the
 	// settings from the input texture to this level.
-	//this->crc = d3dTexture->crc;
 	this->is_HUD = d3dTexture->is_HUD;
 	this->is_TrianglePointer = d3dTexture->is_TrianglePointer;
 	this->is_Text = d3dTexture->is_Text;
@@ -417,7 +415,9 @@ HRESULT Direct3DTexture::Load(
 	this->is_Laser = d3dTexture->is_Laser;
 	this->is_LightTexture = d3dTexture->is_LightTexture;
 	this->is_EngineGlow = d3dTexture->is_EngineGlow;
-	//this->is_RebelLaser = d3dTexture->is_RebelLaser;
+	// TODO: Remove later:
+	// TODO: We don't need to copy texture names around!
+	//strncpy_s(this->_surface->_name, d3dTexture->_surface->_name, MAX_TEXTURE_NAME);
 	// Dynamic Cockpit data
 	this->is_DynCockpitDst = d3dTexture->is_DynCockpitDst;
 	this->is_DynCockpitAlphaOverlay = d3dTexture->is_DynCockpitAlphaOverlay;
@@ -544,14 +544,12 @@ HRESULT Direct3DTexture::Load(
 
 	if (surface->_mipmapCount == 1) {
 		if (surface->_width == 8 || surface->_width == 16 || surface->_width == 32 || surface->_width == 64 ||
-			surface->_width == 128 || surface->_width == 256 || surface->_width == 512) {
-			//unsigned int size = surface->_width * surface->_height * (useBuffers ? 4 : bpp);
+			surface->_width == 128 || surface->_width == 256 || surface->_width == 512) 
+		{
 
-			// Compute the CRC
-			//this->crc = crc32c(0, (const unsigned char *)textureData[0].pSysMem, size);
-
-			#ifdef DBG_VR
 			// Capture the textures
+			#ifdef DBG_VR
+			
 			{
 				static int TexIndex = 0;
 				wchar_t filename[300];
@@ -645,20 +643,6 @@ HRESULT Direct3DTexture::Load(
 			// Ignore "LaserBat.OPT"
 			if (strstr(surface->_name, "LaserBat") == NULL) {
 				this->is_Laser = true;
-				//log_debug("[DBG] *** LASER: [%s]", surface->_name);
-				// Detect Rebel lasers and load RebelLaser.png
-				/*
-				if (strstr(surface->_name, "Rebel") != NULL) {
-					this->is_RebelLaser = true;
-					HRESULT res = DirectX::CreateWICTextureFromFile(surface->_deviceResources->_d3dDevice,
-						L".\\NewLasers\\RebelLaser.png", NULL, &g_RebelLaser);
-					if (SUCCEEDED(res))
-						log_debug("[DBG] Loaded RebelLaser.png");
-					else
-						log_debug("[DBG] Failed to load RebelLaser.png");
-				}
-				*/
-
 				// Dump the texture
 				/*
 				// Dump the texture, let's see it's contents...
@@ -678,33 +662,22 @@ HRESULT Direct3DTexture::Load(
 		}
 
 		// Catch light textures and mark them appropriately
-		if (strstr(surface->_name, ",light,") != NULL) {
+		if (strstr(surface->_name, ",light,") != NULL)
 			this->is_LightTexture = true;
-			//log_debug("[DBG] LightTexture: [%s]", surface->_name);
-			//if (this->is_Laser)
-			//	log_debug("[DBG] *** [%s] is both Laser and Light texture", surface->_name);
-		}
-
-		/*
-		// Catch the engine glow and mark it
-		if (strstr(surface->_name, "dat") != NULL) {
-			log_debug("[DBG] (1) dat: [%s]", surface->_name);
-		}
-		*/
 
 		if (g_bDynCockpitEnabled) {
 			// Capture and store the name of the cockpit
 			if (g_sCurrentCockpit[0] == 0) {
 				if (strstr(surface->_name, "Cockpit") != NULL) {
 					//strstr(surface->_name, "Gunner")  != NULL)  {
-					log_debug("[DBG] [DC] Cockpit found");
+					//log_debug("[DBG] [DC] Cockpit found");
 					char *start = strstr(surface->_name, "\\");
 					char *end = strstr(surface->_name, ".opt");
 					if (start != NULL && end != NULL) {
 						start += 1; // Skip the backslash
 						int size = end - start;
 						strncpy_s(g_sCurrentCockpit, 128, start, size);
-						log_debug("[DBG] [DC] COCKPIT NAME: '%s'", g_sCurrentCockpit);
+						log_debug("[DBG] [DC] Cockpit Name: '%s'", g_sCurrentCockpit);
 
 						// Load the relevant DC file for the current cockpit
 						char sFileName[80];
@@ -734,16 +707,15 @@ HRESULT Direct3DTexture::Load(
 						HRESULT res = DirectX::CreateWICTextureFromFile(surface->_deviceResources->_d3dDevice,
 							wTexName, NULL, &g_DCElements[idx].coverTexture);
 						if (FAILED(res)) {
-							//log_debug("[DBG] [DC] ***** Could not load cover texture '%s': 0x%x",
+							//log_debug("[DBG] [DC] ***** Could not load cover texture [%s]: 0x%x",
 							//	g_DCElements[idx].coverTextureName, res);
 							g_DCElements[idx].coverTexture = NULL;
 						}
 						//else {
-						//	log_debug("[DBG] [DC] ***** Loaded cover texture: '%s'", g_DCElements[idx].coverTextureName);
+						//	log_debug("[DBG] [DC] ***** Loaded cover texture [%s]", g_DCElements[idx].coverTextureName);
 						//}
 					}
-				}
-				else if (strstr(surface->_name, ",light,") != NULL) {
+				} else if (strstr(surface->_name, ",light") != NULL) {
 					this->is_DynCockpitAlphaOverlay = true;
 					//log_debug("[DBG] [DC] Alpha Overlay: [%s]", surface->_name);
 					/*if (_stricmp(surface->_name, "TEX00036") == 0) {
@@ -751,27 +723,6 @@ HRESULT Direct3DTexture::Load(
 						saveSurface(L"c:\\temp\\TEX00036-light", (char *)textureData[0].pSysMem, surface->_width, surface->_height, bpp);
 					}*/
 				}
-
-#ifdef DBG_VR
-				// Capture the textures
-				{
-					static int MipTexIndex = 0;
-					unsigned int size = surface->_width * surface->_height * (useBuffers ? 4 : bpp);
-					uint32_t crc = crc32c(0, (const unsigned char *)textureData[0].pSysMem, size);
-					wchar_t filename[300];
-					swprintf_s(filename, 300, L"c:\\XWA-Tex-w-names-2\\img-%d.png", MipTexIndex);
-					saveSurface(filename, (char *)textureData[0].pSysMem, surface->_width, surface->_height, bpp);
-
-					char buf[300];
-					sprintf_s(buf, 300, "c:\\XWA-Tex-w-names-2\\data-%d.txt", MipTexIndex);
-					FILE *file;
-					fopen_s(&file, buf, "wt");
-					fprintf(file, "0x%x, size: %d, %d, name: '%s'\n", crc, surface->_width, surface->_height, surface->_name);
-					fclose(file);
-
-					MipTexIndex++;
-				}
-#endif
 			}
 		} // if (g_bDynCockpitEnabled)
 	}

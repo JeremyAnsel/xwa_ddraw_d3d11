@@ -350,6 +350,7 @@ HRESULT DirectDraw::CreateSurface(
 		TextureSurface* textureSurface = new TextureSurface(this->_deviceResources, allocOnLoad, lpDDSurfaceDesc->dwWidth, lpDDSurfaceDesc->dwHeight, lpDDSurfaceDesc->ddpfPixelFormat, mipmapCount);
 		*lplpDDSurface = textureSurface;
 		textureSurface->_name[0] = 0;
+		// TODO: Replace texture names with dynamically-allocated char*'s and release them after they are classified during Load()
 		if (bTexNameAvailable)
 			strcpy_s(textureSurface->_name, MAX_TEXTURE_NAME, texName);		
 

@@ -5,13 +5,17 @@
 Texture2D    texture0 : register(t0);
 SamplerState sampler0 : register(s0);
 
-// Used for the dynamic cockpit contents
-// if bUseDynCockpit is set, then texture0 will be the cover texture and
-// texture1 will be the dynamic element taken from the previous frame's HUD
-
-// If bRenderHUD is set, texture0 is the cover_texture and texture1 is the offscreen HUD buffer
 Texture2D    texture1 : register(t1);
 SamplerState sampler1 : register(s1);
+
+// When the Dynamic Cockpit is active:
+// texture0 == cover texture and
+// texture1 == HUD offscreen buffer
+
+// If bRenderHUD is set:
+// texture0 == HUD foreground
+// texture1 == HUD background
+
 
 #define MAX_DC_COORDS 8
 
@@ -124,30 +128,41 @@ float4 main(PixelShaderInput input) : SV_TARGET
 			// Increase the saturation and lightness
 			HSV.y *= 1.5;
 			HSV.z *= 2.0;
-			return float4(HSVtoRGB(HSV), 1.2 * texelColor.w);
+			//return float4(0, 1, 0, 2.0 * 1.2 * alpha);
+			return float4(HSVtoRGB(HSV), 1.2 * alpha);
 		}
-		else
+		else {
+			//return float4(0, 1, 0, alpha);
 			return texelColor; // Return the original color when 32-bit mode is off
+		}
 	}
 
 	// Process light textures (make them brighter in 32-bit mode)
 	if (bIsLightTexture > 0) {
 		// This is a light texture, process the bloom mask accordingly
+		float3 HSV = RGBtoHSV(texelColor.xyz);
+		float val = HSV.z;
 		if (bIsLightTexture > 1) {
 			// Make the light textures brighter in 32-bit mode
-			float3 HSV = RGBtoHSV(texelColor.xyz);
 			HSV.z *= 1.25;
 			// The alpha for light textures is either 0 or >0.1, so we multiply by 10 to
 			// make it [0, 1]
-			return float4(HSVtoRGB(HSV), alpha * 10.0);
+			alpha *= 10.0;
+			//if (val > 0.8 && alpha > 0.5)
+			//	return float4(0, 1, 0, val);				
+			return float4(HSVtoRGB(HSV), alpha);
 		}
-		else
+		else {
+			//if (val > 0.8 && alpha > 0.5)
+			//	return float4(0, 1, 0, val);
 			return texelColor; // Return the original color when 32-bit mode is off
+		}
 	}
 
 	// Enhance engine glow. In this texture, the diffuse component also provides
 	// the hue
 	if (bIsEngineGlow > 0) {
+		//return float4(0, 1, 0, alpha);
 		texelColor.xyz *= diffuse;
 		// This is an engine glow, process the bloom mask accordingly
 		if (bIsEngineGlow > 1) {
@@ -214,17 +229,11 @@ float4 main(PixelShaderInput input) : SV_TARGET
 		// dst uv coords
 		
 		float4 hud_texelColor = uintColorToFloat4(getBGColor(0));
-		//[unroll]
+		[unroll]
 		for (uint i = 0; i < DynCockpitSlots; i++) {
 			float2 delta = dst[i].zw - dst[i].xy;
 			float2 s = (input.tex - dst[i].xy) / delta;
 			float2 dyn_uv = lerp(src[i].xy, src[i].zw, s);
-
-			//if (input.tex.x >= src[i].x && input.tex.y >= src[i].y &&
-			//	input.tex.x <= src[i].z && input.tex.y <= src[i].w)
-			//if (input.tex.x >= dst[i].x && input.tex.y >= dst[i].y &&
-			//	input.tex.x <= dst[i].z && input.tex.y <= dst[i].w)
-			//	texelColor = float4(1, 0, 0, 1);
 
 			if (dyn_uv.x >= src[i].x && dyn_uv.x <= src[i].z &&
 				dyn_uv.y >= src[i].y && dyn_uv.y <= src[i].w)
@@ -243,12 +252,13 @@ float4 main(PixelShaderInput input) : SV_TARGET
 		if (bUseCoverTexture > 0) {
 			// We don't have an alpha overlay texture anymore; but we can fake it by disabling shading
 			// on areas with a high lightness value
+
 			// texelColor is the cover_texture right now
-			//float ct_brightness = 0.7;
 			float3 HSV = RGBtoHSV(texelColor.xyz);
 			float brightness = ct_brightness;
-			if (HSV.z >= 0.8) {
+			if (HSV.z * alpha >= 0.8) {
 				// The cover texture is bright enough, go shadeless and make it brighter
+				//return float4(1, 0, 1, 1);
 				diffuse = float3(1, 1, 1);
 				// Increase the brightness:
 				HSV = RGBtoHSV(texelColor.xyz);
@@ -268,15 +278,5 @@ float4 main(PixelShaderInput input) : SV_TARGET
 		return float4(diffuse * texelColor.xyz, texelColor.w);
 	}
 	
-	/*
-	if (bAlphaOnly) {
-		float a = texelColor.w;
-		return float4(a, a, a, 1);
-	}
-	*/
-
-	// Dim the texture brightness in 32-bit mode.
-	//diffuse *= 0.8;
-
 	return float4(brightness * diffuse * texelColor.xyz, texelColor.w);
 }

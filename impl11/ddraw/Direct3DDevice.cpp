@@ -15,6 +15,8 @@
 #include "Direct3DTexture.h"
 #include "BackbufferSurface.h"
 #include "ExecuteBufferDumper.h"
+// TODO: Remove later
+//#include "TextureSurface.h"
 
 #include <ScreenGrab.h>
 #include <wincodec.h>
@@ -3866,8 +3868,11 @@ HRESULT Direct3DDevice::Execute(
 						bRenderToDynCockpitBGBuffer = true;
 
 				// Dynamic Cockpit: Remove all the alpha overlays in hi-res mode
-				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitAlphaOverlay)
+				if (g_bDynCockpitEnabled && lastTextureSelected != NULL && lastTextureSelected->is_DynCockpitAlphaOverlay) {
+					//if (lastTextureSelected->is_SpecialDebug)
+					//	log_debug("[DBG] Skipping: [%s]", lastTextureSelected->_surface->_name);
 					goto out;
+				}
 
 				//if (bIsNoZWrite && _renderStates->GetZFunc() == D3DCMP_GREATER) {
 				//	goto out;
