@@ -25,6 +25,13 @@ Config::Config()
 
 	this->ProcessAffinityCore = 2;
 
+	this->D3dHookExists = false;
+
+	if (ifstream("Hook_D3d.dll"))
+	{
+		this->D3dHookExists = true;
+	}
+
 	ifstream file("ddraw.cfg");
 
 	if (file.is_open())
@@ -107,7 +114,7 @@ Config::Config()
 					{
 						processAffinityMask &= ~mask;
 					}
-	
+
 					currentCore++;
 				}
 

@@ -17,6 +17,8 @@ public:
 	float Concourse3DScale;
 
 	int ProcessAffinityCore;
+
+	bool D3dHookExists;
 };
 
 extern Config g_config;
