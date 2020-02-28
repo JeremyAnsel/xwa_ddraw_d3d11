@@ -422,7 +422,7 @@ HRESULT Direct3DDevice::CreateExecuteBuffer(
 		this->_maxExecuteBufferSize = lpDesc->dwBufferSize;
 	}
 
-	*lplpDirect3DExecuteBuffer = new Direct3DExecuteBuffer(this->_deviceResources, lpDesc->dwBufferSize, this);
+	*lplpDirect3DExecuteBuffer = new Direct3DExecuteBuffer(this->_deviceResources, lpDesc->dwBufferSize * 2, this);
 
 #if LOGGER
 	str.str("");
