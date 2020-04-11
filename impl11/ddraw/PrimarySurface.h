@@ -88,6 +88,8 @@ public:
 
 	STDMETHOD(UpdateOverlayZOrder)(THIS_ DWORD, LPDIRECTDRAWSURFACE);
 
+	void RenderText();
+
 	ULONG _refCount;
 
 	DeviceResources* _deviceResources;

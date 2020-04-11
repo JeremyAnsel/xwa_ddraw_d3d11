@@ -4,6 +4,7 @@
 #include "common.h"
 #include "utils.h"
 
+#include <sstream>
 #include <memory>
 #include <gdiplus.h>
 
@@ -15,6 +16,13 @@ std::string wchar_tostring(LPCWSTR text)
 {
 	std::wstring wstr(text);
 	return std::string(wstr.begin(), wstr.end());
+}
+
+std::wstring char_towstring(const char* text)
+{
+	std::wstringstream path;
+	path << text;
+	return path.str();
 }
 
 #if LOGGER

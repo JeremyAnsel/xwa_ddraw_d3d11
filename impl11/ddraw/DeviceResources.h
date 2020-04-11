@@ -71,6 +71,11 @@ public:
 	ComPtr<ID3D11Texture2D> _depthStencil;
 	ComPtr<ID3D11DepthStencilView> _depthStencilView;
 
+	ComPtr<ID2D1Factory> _d2d1Factory;
+	ComPtr<IDWriteFactory> _dwriteFactory;
+	ComPtr<ID2D1RenderTarget> _d2d1RenderTarget;
+	ComPtr<ID2D1DrawingStateBlock> _d2d1DrawingStateBlock;
+
 	ComPtr<ID3D11VertexShader> _mainVertexShader;
 	ComPtr<ID3D11InputLayout> _mainInputLayout;
 	ComPtr<ID3D11PixelShader> _mainPixelShader;

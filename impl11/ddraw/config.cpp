@@ -27,6 +27,9 @@ Config::Config()
 
 	this->D3dHookExists = false;
 
+	this->TextFontFamily = L"Verdana";
+	this->TextWidthDelta = 0;
+
 	if (ifstream("Hook_D3d.dll"))
 	{
 		this->D3dHookExists = true;
@@ -56,7 +59,8 @@ Config::Config()
 			name.erase(remove_if(name.begin(), name.end(), std::isspace), name.end());
 
 			string value = line.substr(pos + 1);
-			value.erase(remove_if(value.begin(), value.end(), std::isspace), value.end());
+			value.erase(0, value.find_first_not_of(" \t\n\r\f\v"));
+			value.erase(value.find_last_not_of(" \t\n\r\f\v") + 1);
 
 			if (!name.length() || !value.length())
 			{
@@ -90,6 +94,14 @@ Config::Config()
 			else if (name == "ProcessAffinityCore")
 			{
 				this->ProcessAffinityCore = stoi(value);
+			}
+			else if (name == "TextFontFamily")
+			{
+				this->TextFontFamily = char_towstring(value.c_str());
+			}
+			else if (name == "TextWidthDelta")
+			{
+				this->TextWidthDelta = stoi(value);
 			}
 		}
 	}
