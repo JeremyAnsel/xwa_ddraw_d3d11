@@ -97,7 +97,7 @@ Config::Config()
 			}
 			else if (name == "TextFontFamily")
 			{
-				this->TextFontFamily = char_towstring(value.c_str());
+				this->TextFontFamily = string_towstring(value);
 			}
 			else if (name == "TextWidthDelta")
 			{

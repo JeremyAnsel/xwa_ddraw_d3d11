@@ -18,11 +18,9 @@ std::string wchar_tostring(LPCWSTR text)
 	return std::string(wstr.begin(), wstr.end());
 }
 
-std::wstring char_towstring(const char* text)
+std::wstring string_towstring(const std::string& text)
 {
-	std::wstringstream path;
-	path << text;
-	return path.str();
+	return std::wstring(text.begin(), text.end());
 }
 
 #if LOGGER

@@ -1132,14 +1132,30 @@ void PrimarySurface::RenderText()
 				if (fontSize == fontSizes[index])
 				{
 					textFormat = textFormats[index];
+					break;
 				}
 			}
 		}
 
+		if (!brush)
+		{
+			continue;
+		}
+
+		if (!textFormat)
+		{
+			continue;
+		}
+
+		std::wstring wtext = string_towstring(xwaText.text);
+
+		if (wtext.empty())
+		{
+			continue;
+		}
+
 		float x = (float)left + (float)xwaText.positionX * scaleX;
 		float y = (float)top + (float)xwaText.positionY * scaleY;
-
-		std::wstring wtext = char_towstring(xwaText.text.c_str());
 
 		this->_deviceResources->_d2d1RenderTarget->DrawTextA(
 			wtext.c_str(),

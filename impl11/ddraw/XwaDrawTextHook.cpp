@@ -47,7 +47,7 @@ void ComputeMetricsHook()
 			t[0] = (char)i;
 			t[1] = 0;
 
-			std::wstring wtext = char_towstring(t);
+			std::wstring wtext = string_towstring(t);
 
 			ComPtr<IDWriteTextLayout> layout;
 			dwriteFactory->CreateTextLayout(wtext.c_str(), 1, textFormat, 100, 100, &layout);
