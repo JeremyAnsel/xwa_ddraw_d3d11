@@ -8,6 +8,7 @@
 #include "FrontbufferSurface.h"
 #include "XwaDrawTextHook.h"
 #include "XwaDrawRadarHook.h"
+#include "XwaDrawBracketHook.h"
 
 PrimarySurface::PrimarySurface(DeviceResources* deviceResources, bool hasBackbufferAttached)
 {
@@ -531,6 +532,7 @@ HRESULT PrimarySurface::Flip(
 		{
 			hr = DD_OK;
 
+			this->RenderBracket();
 			this->RenderRadar();
 			this->RenderText();
 
@@ -1267,4 +1269,109 @@ void PrimarySurface::RenderRadar()
 	g_xwa_radar.clear();
 	g_xwa_radar_selected_positionX = -1;
 	g_xwa_radar_selected_positionY = -1;
+}
+
+void PrimarySurface::RenderBracket()
+{
+	this->_deviceResources->_d2d1RenderTarget->SaveDrawingState(this->_deviceResources->_d2d1DrawingStateBlock);
+	this->_deviceResources->_d2d1RenderTarget->BeginDraw();
+
+	UINT w;
+	UINT h;
+
+	if (g_config.AspectRatioPreserved)
+	{
+		if (this->_deviceResources->_backbufferHeight * this->_deviceResources->_displayWidth <= this->_deviceResources->_backbufferWidth * this->_deviceResources->_displayHeight)
+		{
+			w = this->_deviceResources->_backbufferHeight * this->_deviceResources->_displayWidth / this->_deviceResources->_displayHeight;
+			h = this->_deviceResources->_backbufferHeight;
+		}
+		else
+		{
+			w = this->_deviceResources->_backbufferWidth;
+			h = this->_deviceResources->_backbufferWidth * this->_deviceResources->_displayHeight / this->_deviceResources->_displayWidth;
+		}
+	}
+	else
+	{
+		w = this->_deviceResources->_backbufferWidth;
+		h = this->_deviceResources->_backbufferHeight;
+	}
+
+	UINT left = (this->_deviceResources->_backbufferWidth - w) / 2;
+	UINT top = (this->_deviceResources->_backbufferHeight - h) / 2;
+
+	float scaleX = (float)w / (float)this->_deviceResources->_displayWidth;
+	float scaleY = (float)h / (float)this->_deviceResources->_displayHeight;
+
+	ComPtr<ID2D1SolidColorBrush> brush;
+	unsigned int brushColor = 0;
+	this->_deviceResources->_d2d1RenderTarget->CreateSolidColorBrush(D2D1::ColorF(brushColor), &brush);
+
+	for (const auto& xwaBracket : g_xwa_bracket)
+	{
+		unsigned short si = ((unsigned short*)0x08D9420)[xwaBracket.colorIndex];
+		unsigned int esi;
+
+		if (((bool(*)())0x0050DC50)() != 0)
+		{
+			unsigned short eax = si & 0x001F;
+			unsigned short ecx = si & 0x7C00;
+			unsigned short edx = si & 0x03E0;
+
+			esi = (eax << 3) | (edx << 6) | (ecx << 9);
+		}
+		else
+		{
+			unsigned short eax = si & 0x001F;
+			unsigned short edx = si & 0xF800;
+			unsigned short ecx = si & 0x07E0;
+
+			esi = (eax << 3) | (ecx << 5) | (edx << 8);
+		}
+
+		if (esi != brushColor)
+		{
+			brushColor = esi;
+			this->_deviceResources->_d2d1RenderTarget->CreateSolidColorBrush(D2D1::ColorF(brushColor), &brush);
+		}
+
+		float posX = left + (float)xwaBracket.positionX * scaleX;
+		float posY = top + (float)xwaBracket.positionY * scaleY;
+		float posW = (float)xwaBracket.width * scaleX;
+		float posH = (float)xwaBracket.height * scaleY;
+		float posSide = 0.125;
+
+		float strokeWidth = 2.0f * min(scaleX, scaleY);
+
+		bool fill = xwaBracket.width <= 4 || xwaBracket.height <= 4;
+
+		if (fill)
+		{
+			this->_deviceResources->_d2d1RenderTarget->FillRectangle(D2D1::RectF(posX, posY, posX + posW, posY + posH), brush);
+		}
+		else
+		{
+			// top left
+			this->_deviceResources->_d2d1RenderTarget->DrawLine(D2D1::Point2F(posX, posY), D2D1::Point2F(posX + posW * posSide, posY), brush, strokeWidth);
+			this->_deviceResources->_d2d1RenderTarget->DrawLine(D2D1::Point2F(posX, posY), D2D1::Point2F(posX, posY + posH * posSide), brush, strokeWidth);
+
+			// top right
+			this->_deviceResources->_d2d1RenderTarget->DrawLine(D2D1::Point2F(posX + posW - posW * posSide, posY), D2D1::Point2F(posX + posW, posY), brush, strokeWidth);
+			this->_deviceResources->_d2d1RenderTarget->DrawLine(D2D1::Point2F(posX + posW, posY), D2D1::Point2F(posX + posW, posY + posH * posSide), brush, strokeWidth);
+
+			// bottom left
+			this->_deviceResources->_d2d1RenderTarget->DrawLine(D2D1::Point2F(posX, posY + posH - posH * posSide), D2D1::Point2F(posX, posY + posH), brush, strokeWidth);
+			this->_deviceResources->_d2d1RenderTarget->DrawLine(D2D1::Point2F(posX, posY + posH), D2D1::Point2F(posX + posW * posSide, posY + posH), brush, strokeWidth);
+
+			// bottom right
+			this->_deviceResources->_d2d1RenderTarget->DrawLine(D2D1::Point2F(posX + posW - posW * posSide, posY + posH), D2D1::Point2F(posX + posW, posY + posH), brush, strokeWidth);
+			this->_deviceResources->_d2d1RenderTarget->DrawLine(D2D1::Point2F(posX + posW, posY + posH - posH * posSide), D2D1::Point2F(posX + posW, posY + posH), brush, strokeWidth);
+		}
+	}
+
+	this->_deviceResources->_d2d1RenderTarget->EndDraw();
+	this->_deviceResources->_d2d1RenderTarget->RestoreDrawingState(this->_deviceResources->_d2d1DrawingStateBlock);
+
+	g_xwa_bracket.clear();
 }
