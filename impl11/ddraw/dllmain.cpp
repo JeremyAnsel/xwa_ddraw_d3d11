@@ -8,6 +8,7 @@
 #include <Windows.h>
 
 #include "XwaDrawTextHook.h"
+#include "XwaDrawRadarHook.h"
 
 bool IsXwaExe()
 {
@@ -42,6 +43,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 			// ComputeMetricsHook
 			*(unsigned char*)(0x00510385 + 0x00) = 0xE8;
 			*(int*)(0x00510385 + 0x01) = (int)ComputeMetricsHook - (0x00510385 + 0x05);
+
+			// DrawRadarHook
+			*(int*)(0x00434977 + 0x06) = (int)DrawRadarHook;
+			*(int*)(0x00434995 + 0x06) = (int)DrawRadarSelectedHook;
 		}
 
 		break;

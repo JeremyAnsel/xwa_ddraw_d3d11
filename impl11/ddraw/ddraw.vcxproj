@@ -115,6 +115,7 @@
     <ClCompile Include="PrimarySurface.cpp" />
     <ClCompile Include="TextureSurface.cpp" />
     <ClCompile Include="utils.cpp" />
+    <ClCompile Include="XwaDrawRadarHook.cpp" />
     <ClCompile Include="XwaDrawTextHook.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -141,6 +142,7 @@
     <ClInclude Include="targetver.h" />
     <ClInclude Include="TextureSurface.h" />
     <ClInclude Include="utils.h" />
+    <ClInclude Include="XwaDrawRadarHook.h" />
     <ClInclude Include="XwaDrawTextHook.h" />
   </ItemGroup>
   <ItemGroup>

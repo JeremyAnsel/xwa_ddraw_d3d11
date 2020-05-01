@@ -90,6 +90,8 @@ public:
 
 	void RenderText();
 
+	void RenderRadar();
+
 	ULONG _refCount;
 
 	DeviceResources* _deviceResources;
