@@ -1151,7 +1151,11 @@ void PrimarySurface::RenderText()
 			continue;
 		}
 
-		std::wstring wtext = string_towstring(xwaText.text);
+		char t[2];
+		t[0] = xwaText.textChar;
+		t[1] = 0;
+
+		std::wstring wtext = string_towstring(t);
 
 		if (wtext.empty())
 		{
