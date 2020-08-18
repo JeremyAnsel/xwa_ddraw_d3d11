@@ -1073,111 +1073,132 @@ HRESULT PrimarySurface::UpdateOverlayZOrder(
 
 void PrimarySurface::RenderText()
 {
-	this->_deviceResources->_d2d1RenderTarget->SaveDrawingState(this->_deviceResources->_d2d1DrawingStateBlock);
-	this->_deviceResources->_d2d1RenderTarget->BeginDraw();
+	static DWORD s_displayWidth = 0;
+	static DWORD s_displayHeight = 0;
+	static int s_fontSizes[3] = { 12, 16, 10 };
+	static ComPtr<IDWriteTextFormat> s_textFormats[3];
+	static ComPtr<IDWriteTextLayout> s_textLayouts[3 * 256];
+	static ComPtr<ID2D1SolidColorBrush> s_brush;
+	static UINT s_left;
+	static UINT s_top;
+	static float s_scaleX;
+	static float s_scaleY;
 
-	UINT w;
-	UINT h;
-
-	if (g_config.AspectRatioPreserved)
+	if (this->_deviceResources->_displayWidth != s_displayWidth || this->_deviceResources->_displayHeight != s_displayHeight)
 	{
-		if (this->_deviceResources->_backbufferHeight * this->_deviceResources->_displayWidth <= this->_deviceResources->_backbufferWidth * this->_deviceResources->_displayHeight)
+		s_displayWidth = this->_deviceResources->_displayWidth;
+		s_displayHeight = this->_deviceResources->_displayHeight;
+
+		UINT w;
+		UINT h;
+
+		if (g_config.AspectRatioPreserved)
 		{
-			w = this->_deviceResources->_backbufferHeight * this->_deviceResources->_displayWidth / this->_deviceResources->_displayHeight;
-			h = this->_deviceResources->_backbufferHeight;
+			if (this->_deviceResources->_backbufferHeight * this->_deviceResources->_displayWidth <= this->_deviceResources->_backbufferWidth * this->_deviceResources->_displayHeight)
+			{
+				w = this->_deviceResources->_backbufferHeight * this->_deviceResources->_displayWidth / this->_deviceResources->_displayHeight;
+				h = this->_deviceResources->_backbufferHeight;
+			}
+			else
+			{
+				w = this->_deviceResources->_backbufferWidth;
+				h = this->_deviceResources->_backbufferWidth * this->_deviceResources->_displayHeight / this->_deviceResources->_displayWidth;
+			}
 		}
 		else
 		{
 			w = this->_deviceResources->_backbufferWidth;
-			h = this->_deviceResources->_backbufferWidth * this->_deviceResources->_displayHeight / this->_deviceResources->_displayWidth;
-		}
-	}
-	else
-	{
-		w = this->_deviceResources->_backbufferWidth;
-		h = this->_deviceResources->_backbufferHeight;
-	}
-
-	UINT left = (this->_deviceResources->_backbufferWidth - w) / 2;
-	UINT top = (this->_deviceResources->_backbufferHeight - h) / 2;
-
-	float scaleX = (float)w / (float)this->_deviceResources->_displayWidth;
-	float scaleY = (float)h / (float)this->_deviceResources->_displayHeight;
-
-	ComPtr<IDWriteTextFormat> textFormats[3];
-	int fontSizes[] = { 12, 16, 10 };
-
-	for (int index = 0; index < 3; index++)
-	{
-		this->_deviceResources->_dwriteFactory->CreateTextFormat(
-			g_config.TextFontFamily.c_str(),
-			nullptr,
-			DWRITE_FONT_WEIGHT_NORMAL,
-			DWRITE_FONT_STYLE_NORMAL,
-			DWRITE_FONT_STRETCH_NORMAL,
-			(float)fontSizes[index] * min(scaleX, scaleY),
-			L"en-US",
-			&textFormats[index]);
-	}
-
-	ComPtr<ID2D1SolidColorBrush> brush;
-	unsigned int brushColor = 0;
-
-	IDWriteTextFormat* textFormat = nullptr;
-	int fontSize = 0;
-
-	for (const auto& xwaText : g_xwa_text)
-	{
-		if (xwaText.color != brushColor)
-		{
-			brushColor = xwaText.color;
-			this->_deviceResources->_d2d1RenderTarget->CreateSolidColorBrush(D2D1::ColorF(brushColor), &brush);
+			h = this->_deviceResources->_backbufferHeight;
 		}
 
-		if (xwaText.fontSize != fontSize)
-		{
-			fontSize = xwaText.fontSize;
+		s_left = (this->_deviceResources->_backbufferWidth - w) / 2;
+		s_top = (this->_deviceResources->_backbufferHeight - h) / 2;
 
-			for (int index = 0; index < 3; index++)
+		s_scaleX = (float)w / (float)this->_deviceResources->_displayWidth;
+		s_scaleY = (float)h / (float)this->_deviceResources->_displayHeight;
+
+		for (int index = 0; index < 3; index++)
+		{
+			this->_deviceResources->_dwriteFactory->CreateTextFormat(
+				g_config.TextFontFamily.c_str(),
+				nullptr,
+				DWRITE_FONT_WEIGHT_NORMAL,
+				DWRITE_FONT_STYLE_NORMAL,
+				DWRITE_FONT_STRETCH_NORMAL,
+				(float)s_fontSizes[index] * min(s_scaleX, s_scaleY),
+				L"en-US",
+				&s_textFormats[index]);
+
+			for (int c = 33; c < 256; c++)
 			{
-				if (fontSize == fontSizes[index])
+				char t[2];
+				t[0] = (char)c;
+				t[1] = 0;
+
+				std::wstring wtext = string_towstring(t);
+
+				if (wtext.empty())
 				{
-					textFormat = textFormats[index];
-					break;
+					continue;
 				}
+
+				int layoutIndex = index * 256 + c;
+				this->_deviceResources->_dwriteFactory->CreateTextLayout(
+					wtext.c_str(),
+					wtext.length(),
+					s_textFormats[index],
+					(FLOAT)this->_deviceResources->_backbufferWidth,
+					(FLOAT)this->_deviceResources->_backbufferHeight,
+					&s_textLayouts[layoutIndex]);
 			}
 		}
 
-		if (!brush)
+		this->_deviceResources->_d2d1RenderTarget->CreateSolidColorBrush(D2D1::ColorF(0), &s_brush);
+	}
+
+	this->_deviceResources->_d2d1RenderTarget->SaveDrawingState(this->_deviceResources->_d2d1DrawingStateBlock);
+	this->_deviceResources->_d2d1RenderTarget->BeginDraw();
+
+	unsigned int brushColor = 0;
+	s_brush->SetColor(D2D1::ColorF(brushColor));
+
+	for (const auto& xwaText : g_xwa_text)
+	{
+		if (xwaText.textChar == ' ')
 		{
 			continue;
 		}
 
-		if (!textFormat)
+		IDWriteTextLayout* textLayout = nullptr;
+
+		for (int index = 0; index < 3; index++)
+		{
+			if (xwaText.fontSize == s_fontSizes[index])
+			{
+				int layoutIndex = index * 256 + (int)(unsigned char)xwaText.textChar;
+				textLayout = s_textLayouts[layoutIndex];
+				break;
+			}
+		}
+
+		if (!textLayout)
 		{
 			continue;
 		}
 
-		char t[2];
-		t[0] = xwaText.textChar;
-		t[1] = 0;
-
-		std::wstring wtext = string_towstring(t);
-
-		if (wtext.empty())
+		if (xwaText.color != brushColor)
 		{
-			continue;
+			brushColor = xwaText.color;
+			s_brush->SetColor(D2D1::ColorF(brushColor));
 		}
 
-		float x = (float)left + (float)xwaText.positionX * scaleX;
-		float y = (float)top + (float)xwaText.positionY * scaleY;
+		float x = (float)s_left + (float)xwaText.positionX * s_scaleX;
+		float y = (float)s_top + (float)xwaText.positionY * s_scaleY;
 
-		this->_deviceResources->_d2d1RenderTarget->DrawTextA(
-			wtext.c_str(),
-			wtext.length(),
-			textFormat,
-			D2D1::RectF(x, y, (float)this->_deviceResources->_backbufferWidth, (float)this->_deviceResources->_backbufferHeight),
-			brush);
+		this->_deviceResources->_d2d1RenderTarget->DrawTextLayout(
+			D2D1_POINT_2F{ x, y },
+			textLayout,
+			s_brush);
 	}
 
 	this->_deviceResources->_d2d1RenderTarget->EndDraw();
