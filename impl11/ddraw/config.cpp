@@ -23,7 +23,7 @@ Config::Config()
 
 	this->Concourse3DScale = 0.6f;
 
-	this->ProcessAffinityCore = 2;
+	this->ProcessAffinityCore = 0;
 
 	this->D3dHookExists = false;
 
