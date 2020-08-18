@@ -1210,40 +1210,55 @@ void PrimarySurface::RenderText()
 
 void PrimarySurface::RenderRadar()
 {
-	this->_deviceResources->_d2d1RenderTarget->SaveDrawingState(this->_deviceResources->_d2d1DrawingStateBlock);
-	this->_deviceResources->_d2d1RenderTarget->BeginDraw();
+	static DWORD s_displayWidth = 0;
+	static DWORD s_displayHeight = 0;
+	static ComPtr<ID2D1SolidColorBrush> s_brush;
+	static UINT s_left;
+	static UINT s_top;
+	static float s_scaleX;
+	static float s_scaleY;
 
-	UINT w;
-	UINT h;
-
-	if (g_config.AspectRatioPreserved)
+	if (this->_deviceResources->_displayWidth != s_displayWidth || this->_deviceResources->_displayHeight != s_displayHeight)
 	{
-		if (this->_deviceResources->_backbufferHeight * this->_deviceResources->_displayWidth <= this->_deviceResources->_backbufferWidth * this->_deviceResources->_displayHeight)
+		s_displayWidth = this->_deviceResources->_displayWidth;
+		s_displayHeight = this->_deviceResources->_displayHeight;
+
+		UINT w;
+		UINT h;
+
+		if (g_config.AspectRatioPreserved)
 		{
-			w = this->_deviceResources->_backbufferHeight * this->_deviceResources->_displayWidth / this->_deviceResources->_displayHeight;
-			h = this->_deviceResources->_backbufferHeight;
+			if (this->_deviceResources->_backbufferHeight * this->_deviceResources->_displayWidth <= this->_deviceResources->_backbufferWidth * this->_deviceResources->_displayHeight)
+			{
+				w = this->_deviceResources->_backbufferHeight * this->_deviceResources->_displayWidth / this->_deviceResources->_displayHeight;
+				h = this->_deviceResources->_backbufferHeight;
+			}
+			else
+			{
+				w = this->_deviceResources->_backbufferWidth;
+				h = this->_deviceResources->_backbufferWidth * this->_deviceResources->_displayHeight / this->_deviceResources->_displayWidth;
+			}
 		}
 		else
 		{
 			w = this->_deviceResources->_backbufferWidth;
-			h = this->_deviceResources->_backbufferWidth * this->_deviceResources->_displayHeight / this->_deviceResources->_displayWidth;
+			h = this->_deviceResources->_backbufferHeight;
 		}
+
+		s_left = (this->_deviceResources->_backbufferWidth - w) / 2;
+		s_top = (this->_deviceResources->_backbufferHeight - h) / 2;
+
+		s_scaleX = (float)w / (float)this->_deviceResources->_displayWidth;
+		s_scaleY = (float)h / (float)this->_deviceResources->_displayHeight;
+
+		this->_deviceResources->_d2d1RenderTarget->CreateSolidColorBrush(D2D1::ColorF(0), &s_brush);
 	}
-	else
-	{
-		w = this->_deviceResources->_backbufferWidth;
-		h = this->_deviceResources->_backbufferHeight;
-	}
 
-	UINT left = (this->_deviceResources->_backbufferWidth - w) / 2;
-	UINT top = (this->_deviceResources->_backbufferHeight - h) / 2;
+	this->_deviceResources->_d2d1RenderTarget->SaveDrawingState(this->_deviceResources->_d2d1DrawingStateBlock);
+	this->_deviceResources->_d2d1RenderTarget->BeginDraw();
 
-	float scaleX = (float)w / (float)this->_deviceResources->_displayWidth;
-	float scaleY = (float)h / (float)this->_deviceResources->_displayHeight;
-
-	ComPtr<ID2D1SolidColorBrush> brush;
 	unsigned int brushColor = 0;
-	this->_deviceResources->_d2d1RenderTarget->CreateSolidColorBrush(D2D1::ColorF(brushColor), &brush);
+	s_brush->SetColor(D2D1::ColorF(brushColor));
 
 	for (const auto& xwaRadar : g_xwa_radar)
 	{
@@ -1270,29 +1285,29 @@ void PrimarySurface::RenderRadar()
 		if (esi != brushColor)
 		{
 			brushColor = esi;
-			this->_deviceResources->_d2d1RenderTarget->CreateSolidColorBrush(D2D1::ColorF(brushColor), &brush);
+			s_brush->SetColor(D2D1::ColorF(brushColor));
 		}
 
-		float x = left + (float)xwaRadar.positionX * scaleX;
-		float y = top + (float)xwaRadar.positionY * scaleY;
+		float x = s_left + (float)xwaRadar.positionX * s_scaleX;
+		float y = s_top + (float)xwaRadar.positionY * s_scaleY;
 
-		float deltaX = 2.0f * scaleX;
-		float deltaY = 2.0f * scaleY;
+		float deltaX = 2.0f * s_scaleX;
+		float deltaY = 2.0f * s_scaleY;
 
-		this->_deviceResources->_d2d1RenderTarget->FillEllipse(D2D1::Ellipse(D2D1::Point2F(x, y), deltaX, deltaY), brush);
+		this->_deviceResources->_d2d1RenderTarget->FillEllipse(D2D1::Ellipse(D2D1::Point2F(x, y), deltaX, deltaY), s_brush);
 	}
 
 	if (g_xwa_radar_selected_positionX != -1 && g_xwa_radar_selected_positionY != -1)
 	{
-		this->_deviceResources->_d2d1RenderTarget->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Yellow), &brush);
+		s_brush->SetColor(D2D1::ColorF(D2D1::ColorF::Yellow));
 
-		float x = left + (float)g_xwa_radar_selected_positionX * scaleX;
-		float y = top + (float)g_xwa_radar_selected_positionY * scaleY;
+		float x = s_left + (float)g_xwa_radar_selected_positionX * s_scaleX;
+		float y = s_top + (float)g_xwa_radar_selected_positionY * s_scaleY;
 
-		float deltaX = 4.0f * scaleX;
-		float deltaY = 4.0f * scaleY;
+		float deltaX = 4.0f * s_scaleX;
+		float deltaY = 4.0f * s_scaleY;
 
-		this->_deviceResources->_d2d1RenderTarget->FillEllipse(D2D1::Ellipse(D2D1::Point2F(x, y), deltaX, deltaY), brush);
+		this->_deviceResources->_d2d1RenderTarget->FillEllipse(D2D1::Ellipse(D2D1::Point2F(x, y), deltaX, deltaY), s_brush);
 	}
 
 	this->_deviceResources->_d2d1RenderTarget->EndDraw();
