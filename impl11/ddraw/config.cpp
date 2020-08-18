@@ -30,6 +30,9 @@ Config::Config()
 	this->TextFontFamily = L"Verdana";
 	this->TextWidthDelta = 0;
 
+	this->Text2DRendererEnabled = true;
+	this->Radar2DRendererEnabled = true;
+
 	if (ifstream("Hook_D3d.dll"))
 	{
 		this->D3dHookExists = true;
@@ -102,6 +105,14 @@ Config::Config()
 			else if (name == "TextWidthDelta")
 			{
 				this->TextWidthDelta = stoi(value);
+			}
+			else if (name == "Text2DRendererEnabled")
+			{
+				this->Text2DRendererEnabled = stoi(value) != 0;
+			}
+			else if (name == "Radar2DRendererEnabled")
+			{
+				this->Radar2DRendererEnabled = stoi(value) != 0;
 			}
 		}
 	}

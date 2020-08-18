@@ -24,6 +24,9 @@ public:
 
 	std::wstring TextFontFamily;
 	int TextWidthDelta;
+
+	bool Text2DRendererEnabled;
+	bool Radar2DRendererEnabled;
 };
 
 extern Config g_config;

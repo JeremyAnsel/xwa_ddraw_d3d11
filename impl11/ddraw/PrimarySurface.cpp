@@ -532,9 +532,16 @@ HRESULT PrimarySurface::Flip(
 		{
 			hr = DD_OK;
 
-			this->RenderBracket();
-			this->RenderRadar();
-			this->RenderText();
+			if (g_config.Radar2DRendererEnabled)
+			{
+				this->RenderBracket();
+				this->RenderRadar();
+			}
+
+			if (g_config.Text2DRendererEnabled)
+			{
+				this->RenderText();
+			}
 
 			this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0, this->_deviceResources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
 
