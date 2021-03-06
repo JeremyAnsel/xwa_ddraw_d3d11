@@ -10,6 +10,8 @@
 #include "XwaDrawRadarHook.h"
 #include "XwaDrawBracketHook.h"
 
+static bool g_PrimarySurfaceInitialized = false;
+
 PrimarySurface::PrimarySurface(DeviceResources* deviceResources, bool hasBackbufferAttached)
 {
 	this->_refCount = 1;
@@ -24,6 +26,8 @@ PrimarySurface::PrimarySurface(DeviceResources* deviceResources, bool hasBackbuf
 	}
 
 	this->_flipFrames = 0;
+
+	g_PrimarySurfaceInitialized = true;
 }
 
 PrimarySurface::~PrimarySurface()
@@ -40,6 +44,11 @@ PrimarySurface::~PrimarySurface()
 	{
 		this->_deviceResources->_primarySurface = nullptr;
 	}
+
+	g_PrimarySurfaceInitialized = false;
+	this->RenderText();
+	this->RenderRadar();
+	this->RenderBracket();
 }
 
 HRESULT PrimarySurface::QueryInterface(
@@ -1073,6 +1082,7 @@ HRESULT PrimarySurface::UpdateOverlayZOrder(
 
 void PrimarySurface::RenderText()
 {
+	static ID2D1RenderTarget* s_d2d1RenderTarget = nullptr;
 	static DWORD s_displayWidth = 0;
 	static DWORD s_displayHeight = 0;
 	static int s_fontSizes[3] = { 12, 16, 10 };
@@ -1084,8 +1094,30 @@ void PrimarySurface::RenderText()
 	static float s_scaleX;
 	static float s_scaleY;
 
-	if (this->_deviceResources->_displayWidth != s_displayWidth || this->_deviceResources->_displayHeight != s_displayHeight)
+	if (!g_PrimarySurfaceInitialized)
 	{
+		s_d2d1RenderTarget = nullptr;
+		s_displayWidth = 0;
+		s_displayHeight = 0;
+
+		for (int index = 0; index < 3; index++)
+		{
+			s_textFormats[index].Release();
+
+			for (int c = 0; c < 256; c++)
+			{
+				int layoutIndex = index * 256 + c;
+				s_textLayouts[layoutIndex].Release();
+			}
+		}
+
+		s_brush.Release();
+		return;
+	}
+
+	if (this->_deviceResources->_d2d1RenderTarget != s_d2d1RenderTarget || this->_deviceResources->_displayWidth != s_displayWidth || this->_deviceResources->_displayHeight != s_displayHeight)
+	{
+		s_d2d1RenderTarget = this->_deviceResources->_d2d1RenderTarget;
 		s_displayWidth = this->_deviceResources->_displayWidth;
 		s_displayHeight = this->_deviceResources->_displayHeight;
 
@@ -1210,6 +1242,7 @@ void PrimarySurface::RenderText()
 
 void PrimarySurface::RenderRadar()
 {
+	static ID2D1RenderTarget* s_d2d1RenderTarget = nullptr;
 	static DWORD s_displayWidth = 0;
 	static DWORD s_displayHeight = 0;
 	static ComPtr<ID2D1SolidColorBrush> s_brush;
@@ -1218,8 +1251,19 @@ void PrimarySurface::RenderRadar()
 	static float s_scaleX;
 	static float s_scaleY;
 
-	if (this->_deviceResources->_displayWidth != s_displayWidth || this->_deviceResources->_displayHeight != s_displayHeight)
+	if (!g_PrimarySurfaceInitialized)
 	{
+		s_d2d1RenderTarget = nullptr;
+		s_displayWidth = 0;
+		s_displayHeight = 0;
+
+		s_brush.Release();
+		return;
+	}
+
+	if (this->_deviceResources->_d2d1RenderTarget != s_d2d1RenderTarget || this->_deviceResources->_displayWidth != s_displayWidth || this->_deviceResources->_displayHeight != s_displayHeight)
+	{
+		s_d2d1RenderTarget = this->_deviceResources->_d2d1RenderTarget;
 		s_displayWidth = this->_deviceResources->_displayWidth;
 		s_displayHeight = this->_deviceResources->_displayHeight;
 
@@ -1320,6 +1364,7 @@ void PrimarySurface::RenderRadar()
 
 void PrimarySurface::RenderBracket()
 {
+	static ID2D1RenderTarget* s_d2d1RenderTarget = nullptr;
 	static DWORD s_displayWidth = 0;
 	static DWORD s_displayHeight = 0;
 	static ComPtr<ID2D1SolidColorBrush> s_brush;
@@ -1328,8 +1373,19 @@ void PrimarySurface::RenderBracket()
 	static float s_scaleX;
 	static float s_scaleY;
 
-	if (this->_deviceResources->_displayWidth != s_displayWidth || this->_deviceResources->_displayHeight != s_displayHeight)
+	if (!g_PrimarySurfaceInitialized)
 	{
+		s_d2d1RenderTarget = nullptr;
+		s_displayWidth = 0;
+		s_displayHeight = 0;
+
+		s_brush.Release();
+		return;
+	}
+
+	if (this->_deviceResources->_d2d1RenderTarget != s_d2d1RenderTarget || this->_deviceResources->_displayWidth != s_displayWidth || this->_deviceResources->_displayHeight != s_displayHeight)
+	{
+		s_d2d1RenderTarget = this->_deviceResources->_d2d1RenderTarget;
 		s_displayWidth = this->_deviceResources->_displayWidth;
 		s_displayHeight = this->_deviceResources->_displayHeight;
 
