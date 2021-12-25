@@ -3,7 +3,7 @@
 
 #pragma once
 
-#if LOGGER
+#if LOGGER || LOGGER_DUMP
 
 void DumpExecuteBuffer(Direct3DExecuteBuffer* executeBuffer);
 

@@ -4,10 +4,12 @@
 #include "common.h"
 #include "DeviceResources.h"
 #include "Direct3DDevice.h"
+#include "Direct3DTexture.h"
 #include "Direct3DExecuteBuffer.h"
 #include "ExecuteBufferDumper.h"
+#include <iomanip>
 
-#if LOGGER
+#if LOGGER || LOGGER_DUMP
 
 bool DumpExecuteBufferHasTriangling(Direct3DExecuteBuffer* executeBuffer);
 
@@ -31,6 +33,7 @@ void DumpInstructionSetStatus(std::ostringstream& str, LPD3DINSTRUCTION instruct
 void DumpExecuteBuffer(Direct3DExecuteBuffer* executeBuffer)
 {
 	std::ostringstream str;
+	str << std::setprecision(30);
 
 	str << "\tExecute Buffer: ";
 
@@ -46,13 +49,14 @@ void DumpExecuteBuffer(Direct3DExecuteBuffer* executeBuffer)
 		D3DTLVERTEX v = *pVertex;
 		pVertex++;
 
-		v.sx = v.sx;
-		v.sy = v.sy;
-		v.sz = 1.0f - v.sz;
-		v.rhw = 1.0f;
+		// TODO
+		//v.sx = v.sx;
+		//v.sy = v.sy;
+		//v.sz = 1.0f - v.sz;
+		//v.rhw = 1.0f;
 
 		str << std::endl;
-		str << "\t" << index << ":";
+		str << "\tV" << index << ":";
 		str << "\t( " << v.sx << "\t; " << v.sy << "\t; " << v.sz << " )";
 		str << "\t" << v.rhw;
 		str << "\t " << (void*)v.color;
@@ -247,8 +251,18 @@ void DumpInstructionStateRender(std::ostringstream& str, LPD3DINSTRUCTION instru
 		switch (state->drstRenderStateType)
 		{
 		case D3DRENDERSTATE_TEXTUREHANDLE:
-			str << "TEXTUREHANDLE " << state->dwArg[0];
+		{
+			Direct3DTexture* texture = (Direct3DTexture*)state->dwArg[0];
+
+			str << "TEXTUREHANDLE " << texture;
+
+			if (texture != nullptr)
+			{
+				str << " Name: " << texture->_name;
+			}
+
 			break;
+		}
 
 		case D3DRENDERSTATE_ANTIALIAS:
 			str << "ANTIALIAS ";

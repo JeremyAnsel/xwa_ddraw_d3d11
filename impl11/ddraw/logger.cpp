@@ -3,7 +3,7 @@
 
 #include "logger.h"
 
-#if LOGGER
+#if LOGGER || LOGGER_DUMP
 
 #include <fstream>
 #include <ctime>
@@ -29,7 +29,9 @@ void InitLogFile()
 		file.close();
 	}
 
-	g_file.open(filename, std::ios::app);
+	// TODO
+	//g_file.open(filename, std::ios::app);
+	g_file.open(filename);
 }
 
 void LogText(std::string text)

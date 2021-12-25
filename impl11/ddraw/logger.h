@@ -9,7 +9,9 @@
 #define LOGGER 0
 #endif
 
-#if LOGGER
+#define LOGGER_DUMP 0
+
+#if LOGGER || LOGGER_DUMP
 
 #include <string>
 
