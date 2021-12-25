@@ -67,6 +67,7 @@ Direct3DTexture::Direct3DTexture(DeviceResources* deviceResources, TextureSurfac
 	this->_deviceResources = deviceResources;
 
 	this->_surface = surface;
+	this->_name = surface->_name;
 }
 
 Direct3DTexture::~Direct3DTexture()
@@ -220,6 +221,8 @@ HRESULT Direct3DTexture::Load(
 	Direct3DTexture* d3dTexture = (Direct3DTexture*)lpD3DTexture;
 	TextureSurface* surface = d3dTexture->_surface;
 
+	this->_name = d3dTexture->_name;
+
 	if (d3dTexture->_textureView)
 	{
 #if LOGGER
@@ -365,7 +368,7 @@ HRESULT Direct3DTexture::Load(
 #endif
 
 		return D3DERR_TEXTURE_LOAD_FAILED;
-	}
+}
 
 	d3dTexture->_textureView->AddRef();
 	*&this->_textureView = d3dTexture->_textureView.Get();
