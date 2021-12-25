@@ -4,7 +4,11 @@
 
 cbuffer ConstantBuffer : register(b0)
 {
-	float3 vpScale;
+	float4 vpScale;
+	float s_V0x08B94CC;
+	float s_V0x05B46B4;
+	float unused1;
+	float unused2;
 };
 
 struct VertexShaderInput
@@ -26,11 +30,24 @@ PixelShaderInput main(VertexShaderInput input)
 {
 	PixelShaderInput output;
 
+	//output.pos.x = (input.pos.x * vpScale.x - 1.0f) * vpScale.z;
+	//output.pos.y = (input.pos.y * vpScale.y + 1.0f) * vpScale.z;
+	//output.pos.z = input.pos.z;
+	//output.pos.w = 1.0f;
+	//output.pos *= 1.0f / input.pos.w;
+
+	float st0 = input.pos.w;
+
+	if (input.pos.z == input.pos.w)
+	{
+		float z = s_V0x05B46B4 / input.pos.w - s_V0x05B46B4;
+		st0 = s_V0x08B94CC / z;
+	}
+
+	output.pos.z = (st0 * s_V0x05B46B4 / 32) / (abs(st0) * s_V0x05B46B4 / 32 + s_V0x08B94CC / 3) * 0.5f;
+	output.pos.w = 1.0f;
 	output.pos.x = (input.pos.x * vpScale.x - 1.0f) * vpScale.z;
 	output.pos.y = (input.pos.y * vpScale.y + 1.0f) * vpScale.z;
-	output.pos.z = input.pos.z;
-	output.pos.w = 1.0f;
-
 	output.pos *= 1.0f / input.pos.w;
 
 	output.color = input.color.zyxw;
