@@ -3,6 +3,7 @@
 
 #include "config.h"
 #include "common.h"
+#include "hook_config.h"
 
 #include <string>
 #include <fstream>
@@ -12,6 +13,20 @@
 using namespace std;
 
 Config g_config;
+
+bool HookD3D_IsHookD3DEnabled()
+{
+	auto lines = GetFileLines("hook_d3d.cfg");
+
+	if (lines.empty())
+	{
+		lines = GetFileLines("hooks.ini", "hook_d3d");
+	}
+
+	bool IsHookD3DEnabled = GetFileKeyValueInt(lines, "IsHookD3DEnabled", 1) != 0;
+
+	return IsHookD3DEnabled;
+}
 
 Config::Config()
 {
@@ -33,7 +48,9 @@ Config::Config()
 	this->Text2DRendererEnabled = true;
 	this->Radar2DRendererEnabled = true;
 
-	if (ifstream("Hook_D3d.dll"))
+	this->D3dRendererHookEnabled = true;
+
+	if (ifstream("Hook_D3d.dll") && HookD3D_IsHookD3DEnabled())
 	{
 		this->D3dHookExists = true;
 	}
@@ -114,7 +131,18 @@ Config::Config()
 			{
 				this->Radar2DRendererEnabled = stoi(value) != 0;
 			}
+			else if (name == "D3dRendererHookEnabled")
+			{
+				this->D3dRendererHookEnabled = stoi(value) != 0;
+			}
 		}
+	}
+
+	if (this->D3dRendererHookEnabled && this->D3dHookExists)
+	{
+		this->D3dRendererHookEnabled = false;
+
+		MessageBox(nullptr, "You must set [hook_d3d] IsHookD3DEnabled = 0 in Hooks.ini to use the D3d renderer hook.\nThe D3d renderer hook will be disabled.", "X-Wing Alliance DDraw", MB_ICONWARNING);
 	}
 
 	if (this->ProcessAffinityCore > 0)

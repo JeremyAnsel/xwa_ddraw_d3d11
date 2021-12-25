@@ -27,6 +27,8 @@ public:
 
 	bool Text2DRendererEnabled;
 	bool Radar2DRendererEnabled;
+
+	bool D3dRendererHookEnabled;
 };
 
 extern Config g_config;
