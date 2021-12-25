@@ -8,6 +8,7 @@
 #include "Direct3DTexture.h"
 #include "BackbufferSurface.h"
 #include "ExecuteBufferDumper.h"
+#include "XwaD3dRendererHook.h"
 
 int g_ExecuteCount;
 int g_ExecuteVertexCount;
@@ -21,6 +22,8 @@ public:
 	RenderStates(DeviceResources* deviceResources)
 	{
 		this->_deviceResources = deviceResources;
+
+		this->MonoRendering = FALSE;
 
 		this->TextureAddress = D3DTADDRESS_WRAP;
 
@@ -160,6 +163,16 @@ public:
 		return desc;
 	}
 
+	BOOL GetMonoRendering()
+	{
+		return this->MonoRendering;
+	}
+
+	inline void SetMonoRendering(BOOL monoRendering)
+	{
+		this->MonoRendering = monoRendering;
+	}
+
 	inline void SetTextureAddress(D3DTEXTUREADDRESS textureAddress)
 	{
 		this->TextureAddress = textureAddress;
@@ -202,6 +215,8 @@ public:
 
 private:
 	DeviceResources* _deviceResources;
+
+	BOOL MonoRendering;
 
 	D3DTEXTUREADDRESS TextureAddress;
 
@@ -477,7 +492,7 @@ HRESULT Direct3DDevice::Execute(
 
 	Direct3DExecuteBuffer* executeBuffer = (Direct3DExecuteBuffer*)lpDirect3DExecuteBuffer;
 
-#if LOGGER
+#if LOGGER_DUMP
 	DumpExecuteBuffer(executeBuffer);
 #endif
 
@@ -551,7 +566,18 @@ HRESULT Direct3DDevice::Execute(
 		viewport.MaxDepth = D3D11_MAX_DEPTH;
 		this->_deviceResources->InitViewport(&viewport);
 
-		const float viewportScale[4] = { 2.0f / (float)this->_deviceResources->_displayWidth, -2.0f / (float)this->_deviceResources->_displayHeight, scale, 0 };
+		const float viewportScale[8] =
+		{
+			2.0f / (float)this->_deviceResources->_displayWidth,
+			-2.0f / (float)this->_deviceResources->_displayHeight,
+			scale,
+			0,
+			*(float*)0x08B94CC,
+			*(float*)0x05B46B4,
+			0,
+			0
+		};
+
 		this->_deviceResources->InitConstantBuffer(this->_deviceResources->_constantBuffer.GetAddressOf(), viewportScale);
 	}
 
@@ -663,6 +689,12 @@ HRESULT Direct3DDevice::Execute(
 				{
 					switch (state->drstRenderStateType)
 					{
+					case D3DRENDERSTATE_MONOENABLE:
+					{
+						this->_renderStates->SetMonoRendering((BOOL)state->dwArg[0]);
+						break;
+					}
+
 					case D3DRENDERSTATE_TEXTUREHANDLE:
 					{
 						Direct3DTexture* texture = g_config.WireframeFillMode ? nullptr : (Direct3DTexture*)state->dwArg[0];
@@ -722,6 +754,13 @@ HRESULT Direct3DDevice::Execute(
 
 			case D3DOP_TRIANGLE:
 			{
+				// TODO
+				//if (this->_renderStates->GetMonoRendering())
+				//{
+				//	currentIndexLocation += 3 * instruction->wCount;
+				//	break;
+				//}
+
 				g_ExecuteTriangleCount++;
 				g_ExecuteIndexCount += instruction->wCount * 3;
 
@@ -763,6 +802,8 @@ HRESULT Direct3DDevice::Execute(
 			strcpy_s(text, step);
 			strcat_s(text, "\n");
 			strcat_s(text, _com_error(hr).ErrorMessage());
+			strcat_s(text, "\n");
+			strcat_s(text, _com_error(this->_deviceResources->_d3dDevice->GetDeviceRemovedReason()).ErrorMessage());
 
 			MessageBox(nullptr, text, __FUNCTION__, MB_ICONERROR);
 		}
@@ -783,7 +824,7 @@ HRESULT Direct3DDevice::Execute(
 #endif
 
 	return D3D_OK;
-}
+	}
 
 HRESULT Direct3DDevice::AddViewport(
 	LPDIRECT3DVIEWPORT lpDirect3DViewport
@@ -1103,6 +1144,8 @@ HRESULT Direct3DDevice::BeginScene()
 		}
 	}
 
+	D3dRendererSceneBegin(this->_deviceResources);
+
 	return D3D_OK;
 }
 
@@ -1113,6 +1156,8 @@ HRESULT Direct3DDevice::EndScene()
 	str << this << " " << __FUNCTION__;
 	LogText(str.str());
 #endif
+
+	D3dRendererSceneEnd();
 
 	this->_deviceResources->sceneRendered = true;
 

@@ -12,6 +12,7 @@
 #include "XwaDrawTextHook.h"
 #include "XwaDrawRadarHook.h"
 #include "XwaDrawBracketHook.h"
+#include "XwaD3dRendererHook.h"
 
 bool IsXwaExe()
 {
@@ -67,6 +68,35 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 				// DrawBracketMapHook
 				*(unsigned char*)(0x00503CFE + 0x00) = 0xE8;
 				*(int*)(0x00503CFE + 0x01) = (int)DrawBracketMapHook - (0x00503CFE + 0x05);
+			}
+
+			if (g_config.D3dRendererHookEnabled)
+			{
+				// D3dRenderLasersHook - call 0042BBA0
+				*(unsigned char*)(0x004F0B7E + 0x00) = 0xE8;
+				*(int*)(0x004F0B7E + 0x01) = (int)D3dRenderLasersHook - (0x004F0B7E + 0x05);
+
+				// D3dRenderMiniatureHook - call 00478490
+				*(unsigned char*)(0x00478412 + 0x00) = 0xE8;
+				*(int*)(0x00478412 + 0x01) = (int)D3dRenderMiniatureHook - (0x00478412 + 0x05);
+				*(unsigned char*)(0x00478483 + 0x00) = 0xE8;
+				*(int*)(0x00478483 + 0x01) = (int)D3dRenderMiniatureHook - (0x00478483 + 0x05);
+
+				// D3dRenderHyperspaceLinesHook - call 00480A80
+				*(unsigned char*)(0x0047DCB6 + 0x00) = 0xE8;
+				*(int*)(0x0047DCB6 + 0x01) = (int)D3dRenderHyperspaceLinesHook - (0x0047DCB6 + 0x05);
+
+				// D3dRendererHook - call 00480370
+				*(unsigned char*)(0x004829C5 + 0x00) = 0xE8;
+				*(int*)(0x004829C5 + 0x01) = (int)D3dRendererMainHook - (0x004829C5 + 0x05);
+				*(unsigned char*)(0x004829DF + 0x00) = 0xE8;
+				*(int*)(0x004829DF + 0x01) = (int)D3dRendererMainHook - (0x004829DF + 0x05);
+
+				// D3dRendererShadowHook - call 0044FD10
+				*(unsigned char*)(0x004847DE + 0x00) = 0xE8;
+				*(int*)(0x004847DE + 0x01) = (int)D3dRendererShadowHook - (0x004847DE + 0x05);
+				*(unsigned char*)(0x004847F3 + 0x00) = 0xE8;
+				*(int*)(0x004847F3 + 0x01) = (int)D3dRendererShadowHook - (0x004847F3 + 0x05);
 			}
 		}
 
