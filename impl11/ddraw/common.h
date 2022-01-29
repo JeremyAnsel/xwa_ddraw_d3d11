@@ -5,6 +5,8 @@
 
 #include "targetver.h"
 
+extern bool _IsXwaExe;
+
 #define WIN32_LEAN_AND_MEAN
 #define STRICT
 #include <ddraw.h>
@@ -17,6 +19,10 @@
 #include <dwrite.h>
 
 #include <comdef.h>
+
+#include <intrin.h>
+#include <xmmintrin.h>
+#include <emmintrin.h>
 
 #include <string>
 #include <sstream>

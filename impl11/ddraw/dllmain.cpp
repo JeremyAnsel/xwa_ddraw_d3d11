@@ -33,6 +33,8 @@ bool IsXwaExe()
 	return _stricmp(filename + length - 17, "xwingalliance.exe") == 0;
 }
 
+bool _IsXwaExe = IsXwaExe();
+
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
 	switch (ul_reason_for_call)
