@@ -465,7 +465,7 @@ HRESULT create_texture()
 	} \
 }
 
-void main()
+int main()
 {
 	setlocale(LC_ALL, "");
 
@@ -475,7 +475,7 @@ void main()
 	DDCOLORKEY colorkey;
 	DDBLTFX ddBltFx;
 
-#define CALL(fct) cout << #fct << endl; if(FAILED(hr = (fct))) { cout << (void*)hr << ": " << _com_error(hr).ErrorMessage() << endl; return; }
+#define CALL(fct) cout << #fct << endl; if(FAILED(hr = (fct))) { cout << (void*)hr << ": " << _com_error(hr).ErrorMessage() << endl; return -1; }
 
 	ComPtr<IDirectDraw> ddraw;
 	CALL(DirectDrawCreate(nullptr, &ddraw, nullptr));
@@ -568,4 +568,6 @@ void main()
 	RUN_TEST(create_viewport());
 	RUN_TEST(execute_buffer_exit());
 	RUN_TEST(create_texture());
+
+	return 0;
 }

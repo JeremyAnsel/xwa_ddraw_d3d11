@@ -37,7 +37,11 @@ std::wstring string_towstring(const char* text)
 std::string tostr_IID(REFIID iid)
 {
 	LPOLESTR lpsz;
-	StringFromIID(iid, &lpsz);
+
+	if (FAILED(StringFromIID(iid, &lpsz)))
+	{
+		return std::string();
+	}
 
 	std::wstring wstr(lpsz);
 	std::string str(wstr.begin(), wstr.end());

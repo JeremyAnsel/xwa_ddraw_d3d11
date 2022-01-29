@@ -248,7 +248,7 @@ Direct3DDevice::~Direct3DDevice()
 HRESULT Direct3DDevice::QueryInterface(
 	REFIID riid,
 	LPVOID* obp
-	)
+)
 {
 #if LOGGER
 	std::ostringstream str;
@@ -312,7 +312,7 @@ HRESULT Direct3DDevice::Initialize(
 	LPDIRECT3D lpd3d,
 	LPGUID lpGUID,
 	LPD3DDEVICEDESC lpd3ddvdesc
-	)
+)
 {
 #if LOGGER
 	std::ostringstream str;
@@ -331,7 +331,7 @@ HRESULT Direct3DDevice::Initialize(
 HRESULT Direct3DDevice::GetCaps(
 	LPD3DDEVICEDESC lpD3DHWDevDesc,
 	LPD3DDEVICEDESC lpD3DHELDevDesc
-	)
+)
 {
 #if LOGGER
 	std::ostringstream str;
@@ -350,7 +350,7 @@ HRESULT Direct3DDevice::GetCaps(
 HRESULT Direct3DDevice::SwapTextureHandles(
 	LPDIRECT3DTEXTURE lpD3DTex1,
 	LPDIRECT3DTEXTURE lpD3DTex2
-	)
+)
 {
 #if LOGGER
 	std::ostringstream str;
@@ -368,9 +368,9 @@ HRESULT Direct3DDevice::SwapTextureHandles(
 
 HRESULT Direct3DDevice::CreateExecuteBuffer(
 	LPD3DEXECUTEBUFFERDESC lpDesc,
-	LPDIRECT3DEXECUTEBUFFER *lplpDirect3DExecuteBuffer,
-	IUnknown *pUnkOuter
-	)
+	LPDIRECT3DEXECUTEBUFFER* lplpDirect3DExecuteBuffer,
+	IUnknown* pUnkOuter
+)
 {
 #if LOGGER
 	std::ostringstream str;
@@ -450,7 +450,7 @@ HRESULT Direct3DDevice::CreateExecuteBuffer(
 
 HRESULT Direct3DDevice::GetStats(
 	LPD3DSTATS lpD3DStats
-	)
+)
 {
 #if LOGGER
 	std::ostringstream str;
@@ -470,7 +470,7 @@ HRESULT Direct3DDevice::Execute(
 	LPDIRECT3DEXECUTEBUFFER lpDirect3DExecuteBuffer,
 	LPDIRECT3DVIEWPORT lpDirect3DViewport,
 	DWORD dwFlags
-	)
+)
 {
 #if LOGGER
 	std::ostringstream str;
@@ -500,7 +500,7 @@ HRESULT Direct3DDevice::Execute(
 	auto& context = this->_deviceResources->_d3dDeviceContext;
 
 	HRESULT hr = S_OK;
-	char* step = "";
+	const char* step = "";
 
 	this->_deviceResources->InitInputLayout(this->_deviceResources->_inputLayout);
 	this->_deviceResources->InitVertexShader(this->_deviceResources->_vertexShader);
@@ -572,8 +572,8 @@ HRESULT Direct3DDevice::Execute(
 			-2.0f / (float)this->_deviceResources->_displayHeight,
 			scale,
 			0,
-			*(float*)0x08B94CC,
-			*(float*)0x05B46B4,
+			_IsXwaExe ? *(float*)0x08B94CC : 0,
+			_IsXwaExe ? *(float*)0x05B46B4 : 0,
 			0,
 			0
 		};
@@ -824,11 +824,11 @@ HRESULT Direct3DDevice::Execute(
 #endif
 
 	return D3D_OK;
-	}
+}
 
 HRESULT Direct3DDevice::AddViewport(
 	LPDIRECT3DVIEWPORT lpDirect3DViewport
-	)
+)
 {
 #if LOGGER
 	std::ostringstream str;
@@ -846,7 +846,7 @@ HRESULT Direct3DDevice::AddViewport(
 
 HRESULT Direct3DDevice::DeleteViewport(
 	LPDIRECT3DVIEWPORT lpDirect3DViewport
-	)
+)
 {
 #if LOGGER
 	std::ostringstream str;
@@ -864,9 +864,9 @@ HRESULT Direct3DDevice::DeleteViewport(
 
 HRESULT Direct3DDevice::NextViewport(
 	LPDIRECT3DVIEWPORT lpDirect3DViewport,
-	LPDIRECT3DVIEWPORT *lplpDirect3DViewport,
+	LPDIRECT3DVIEWPORT* lplpDirect3DViewport,
 	DWORD dwFlags
-	)
+)
 {
 #if LOGGER
 	std::ostringstream str;
@@ -887,7 +887,7 @@ HRESULT Direct3DDevice::Pick(
 	LPDIRECT3DVIEWPORT lpDirect3DViewport,
 	DWORD dwFlags,
 	LPD3DRECT lpRect
-	)
+)
 {
 #if LOGGER
 	std::ostringstream str;
@@ -906,7 +906,7 @@ HRESULT Direct3DDevice::Pick(
 HRESULT Direct3DDevice::GetPickRecords(
 	LPDWORD lpCount,
 	LPD3DPICKRECORD lpD3DPickRec
-	)
+)
 {
 #if LOGGER
 	std::ostringstream str;
@@ -925,7 +925,7 @@ HRESULT Direct3DDevice::GetPickRecords(
 HRESULT Direct3DDevice::EnumTextureFormats(
 	LPD3DENUMTEXTUREFORMATSCALLBACK lpd3dEnumTextureProc,
 	LPVOID lpArg
-	)
+)
 {
 #if LOGGER
 	std::ostringstream str;
@@ -1015,7 +1015,7 @@ HRESULT Direct3DDevice::EnumTextureFormats(
 
 HRESULT Direct3DDevice::CreateMatrix(
 	LPD3DMATRIXHANDLE lpD3DMatHandle
-	)
+)
 {
 #if LOGGER
 	std::ostringstream str;
@@ -1034,7 +1034,7 @@ HRESULT Direct3DDevice::CreateMatrix(
 HRESULT Direct3DDevice::SetMatrix(
 	D3DMATRIXHANDLE d3dMatHandle,
 	LPD3DMATRIX lpD3DMatrix
-	)
+)
 {
 #if LOGGER
 	std::ostringstream str;
@@ -1053,7 +1053,7 @@ HRESULT Direct3DDevice::SetMatrix(
 HRESULT Direct3DDevice::GetMatrix(
 	D3DMATRIXHANDLE d3dMatHandle,
 	LPD3DMATRIX lpD3DMatrix
-	)
+)
 {
 #if LOGGER
 	std::ostringstream str;
@@ -1071,7 +1071,7 @@ HRESULT Direct3DDevice::GetMatrix(
 
 HRESULT Direct3DDevice::DeleteMatrix(
 	D3DMATRIXHANDLE d3dMatHandle
-	)
+)
 {
 #if LOGGER
 	std::ostringstream str;
@@ -1178,8 +1178,8 @@ HRESULT Direct3DDevice::EndScene()
 }
 
 HRESULT Direct3DDevice::GetDirect3D(
-	LPDIRECT3D *lplpD3D
-	)
+	LPDIRECT3D* lplpD3D
+)
 {
 #if LOGGER
 	std::ostringstream str;
