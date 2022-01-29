@@ -16,6 +16,8 @@ struct PixelShaderInput
 
 float4 main(PixelShaderInput input) : SV_TARGET
 {
+    input.normal = normalize(input.normal);
+
 	//if (input.color.w == 1.0f)
 	//{
 	//	return input.color;

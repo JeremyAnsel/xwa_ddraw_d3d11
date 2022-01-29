@@ -32,7 +32,7 @@ PixelShaderInput main(VertexShaderInput input)
 	output.pos = TransformProjection(output.pos.xyz);
 
 	output.position = float4(v, 1.0f);
-	output.normal = mul(float4(n, 1.0f), transformWorldView);
+	output.normal = float4(mul(n, (float3x3)transformWorldView), 1.0f);
 	output.tex = t;
 
 	output.color = float4(1.0f, 1.0f, 1.0f, 0.0f);
