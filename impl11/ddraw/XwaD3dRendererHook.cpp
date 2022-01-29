@@ -11,11 +11,13 @@
 #ifdef _DEBUG
 #include "../Debug/XwaD3dVertexShader.h"
 #include "../Debug/XwaD3dPixelShader.h"
+#include "../Debug/XwaD3dNormalsPixelShader.h"
 #include "../Debug/XwaD3dShadowVertexShader.h"
 #include "../Debug/XwaD3dShadowPixelShader.h"
 #else
 #include "../Release/XwaD3dVertexShader.h"
 #include "../Release/XwaD3dPixelShader.h"
+#include "../Release/XwaD3dNormalsPixelShader.h"
 #include "../Release/XwaD3dShadowVertexShader.h"
 #include "../Release/XwaD3dShadowPixelShader.h"
 #endif
@@ -242,6 +244,7 @@ private:
 	ComPtr<ID3D11InputLayout> _inputLayout;
 	ComPtr<ID3D11VertexShader> _vertexShader;
 	ComPtr<ID3D11PixelShader> _pixelShader;
+	ComPtr<ID3D11PixelShader> _normalsPixelShader;
 	ComPtr<ID3D11VertexShader> _shadowVertexShader;
 	ComPtr<ID3D11PixelShader> _shadowPixelShader;
 	D3D11_VIEWPORT _viewport;
@@ -250,6 +253,12 @@ private:
 D3dRenderer::D3dRenderer()
 {
 	_isInitialized = false;
+	_deviceResources = nullptr;
+	_totalVerticesCount = 0;
+	_totalTrianglesCount = 0;
+	_currentFaceIndex = 0;
+	_verticesCount = 0;
+	_trianglesCount = 0;
 	_meshBufferInitialCount = 65536;
 	_lastMeshVertices = nullptr;
 	_lastMeshVerticesView = nullptr;
@@ -335,7 +344,7 @@ void D3dRenderer::MainSceneHook(const SceneCompData* scene)
 	_deviceResources->InitTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	_deviceResources->InitInputLayout(_inputLayout);
 	_deviceResources->InitVertexShader(_vertexShader);
-	_deviceResources->InitPixelShader(_pixelShader);
+	_deviceResources->InitPixelShader(g_config.D3dRendererHookShowNormals ? _normalsPixelShader : _pixelShader);
 
 	UpdateTextures(scene);
 	UpdateMeshBuffers(scene);
@@ -479,10 +488,12 @@ void D3dRenderer::UpdateMeshBuffers(const SceneCompData* scene)
 			initialData.SysMemSlicePitch = 0;
 
 			ComPtr<ID3D11Buffer> meshVerticesBuffer;
-			device->CreateBuffer(&CD3D11_BUFFER_DESC(verticesCount * sizeof(XwaVector3), D3D11_BIND_SHADER_RESOURCE, D3D11_USAGE_IMMUTABLE), &initialData, &meshVerticesBuffer);
+			CD3D11_BUFFER_DESC meshVerticesBufferDesc(verticesCount * sizeof(XwaVector3), D3D11_BIND_SHADER_RESOURCE, D3D11_USAGE_IMMUTABLE);
+			device->CreateBuffer(&meshVerticesBufferDesc, &initialData, &meshVerticesBuffer);
 
 			ID3D11ShaderResourceView* meshVerticesView;
-			device->CreateShaderResourceView(meshVerticesBuffer, &CD3D11_SHADER_RESOURCE_VIEW_DESC(meshVerticesBuffer, DXGI_FORMAT_R32G32B32_FLOAT, 0, verticesCount), &meshVerticesView);
+			CD3D11_SHADER_RESOURCE_VIEW_DESC meshVerticesViewDesc(meshVerticesBuffer, DXGI_FORMAT_R32G32B32_FLOAT, 0, verticesCount);
+			device->CreateShaderResourceView(meshVerticesBuffer, &meshVerticesViewDesc, &meshVerticesView);
 
 			_meshVerticesViews.insert(std::make_pair((int)vertices, meshVerticesView));
 			_lastMeshVerticesView = meshVerticesView;
@@ -509,10 +520,12 @@ void D3dRenderer::UpdateMeshBuffers(const SceneCompData* scene)
 			initialData.SysMemSlicePitch = 0;
 
 			ComPtr<ID3D11Buffer> meshNormalsBuffer;
-			device->CreateBuffer(&CD3D11_BUFFER_DESC(normalsCount * sizeof(XwaVector3), D3D11_BIND_SHADER_RESOURCE, D3D11_USAGE_IMMUTABLE), &initialData, &meshNormalsBuffer);
+			CD3D11_BUFFER_DESC meshNormalsBufferDesc(normalsCount * sizeof(XwaVector3), D3D11_BIND_SHADER_RESOURCE, D3D11_USAGE_IMMUTABLE);
+			device->CreateBuffer(&meshNormalsBufferDesc, &initialData, &meshNormalsBuffer);
 
 			ID3D11ShaderResourceView* meshNormalsView;
-			device->CreateShaderResourceView(meshNormalsBuffer, &CD3D11_SHADER_RESOURCE_VIEW_DESC(meshNormalsBuffer, DXGI_FORMAT_R32G32B32_FLOAT, 0, normalsCount), &meshNormalsView);
+			CD3D11_SHADER_RESOURCE_VIEW_DESC meshNormalsViewDesc(meshNormalsBuffer, DXGI_FORMAT_R32G32B32_FLOAT, 0, normalsCount);
+			device->CreateShaderResourceView(meshNormalsBuffer, &meshNormalsViewDesc, &meshNormalsView);
 
 			_meshNormalsViews.insert(std::make_pair((int)normals, meshNormalsView));
 			_lastMeshVertexNormalsView = meshNormalsView;
@@ -539,10 +552,12 @@ void D3dRenderer::UpdateMeshBuffers(const SceneCompData* scene)
 			initialData.SysMemSlicePitch = 0;
 
 			ComPtr<ID3D11Buffer> meshTextureCoordsBuffer;
-			device->CreateBuffer(&CD3D11_BUFFER_DESC(textureCoordsCount * sizeof(XwaTextureVertex), D3D11_BIND_SHADER_RESOURCE, D3D11_USAGE_IMMUTABLE), &initialData, &meshTextureCoordsBuffer);
+			CD3D11_BUFFER_DESC meshTextureCoordsBufferDesc(textureCoordsCount * sizeof(XwaTextureVertex), D3D11_BIND_SHADER_RESOURCE, D3D11_USAGE_IMMUTABLE);
+			device->CreateBuffer(&meshTextureCoordsBufferDesc, &initialData, &meshTextureCoordsBuffer);
 
 			ID3D11ShaderResourceView* meshTextureCoordsView;
-			device->CreateShaderResourceView(meshTextureCoordsBuffer, &CD3D11_SHADER_RESOURCE_VIEW_DESC(meshTextureCoordsBuffer, DXGI_FORMAT_R32G32_FLOAT, 0, textureCoordsCount), &meshTextureCoordsView);
+			CD3D11_SHADER_RESOURCE_VIEW_DESC meshTextureCoordsViewDesc(meshTextureCoordsBuffer, DXGI_FORMAT_R32G32_FLOAT, 0, textureCoordsCount);
+			device->CreateShaderResourceView(meshTextureCoordsBuffer, &meshTextureCoordsViewDesc, &meshTextureCoordsView);
 
 			_meshTextureCoordsViews.insert(std::make_pair((int)textureCoords, meshTextureCoordsView));
 			_lastMeshTextureVerticesView = meshTextureCoordsView;
@@ -646,10 +661,12 @@ void D3dRenderer::UpdateVertexAndIndexBuffers(const SceneCompData* scene)
 		initialData.SysMemSlicePitch = 0;
 
 		initialData.pSysMem = _vertices.data();
-		device->CreateBuffer(&CD3D11_BUFFER_DESC(_verticesCount * sizeof(D3dVertex), D3D11_BIND_VERTEX_BUFFER, D3D11_USAGE_IMMUTABLE), &initialData, &vertexBuffer);
+		CD3D11_BUFFER_DESC vertexBufferDesc(_verticesCount * sizeof(D3dVertex), D3D11_BIND_VERTEX_BUFFER, D3D11_USAGE_IMMUTABLE);
+		device->CreateBuffer(&vertexBufferDesc, &initialData, &vertexBuffer);
 
 		initialData.pSysMem = _triangles.data();
-		device->CreateBuffer(&CD3D11_BUFFER_DESC(_trianglesCount * sizeof(D3dTriangle), D3D11_BIND_INDEX_BUFFER, D3D11_USAGE_IMMUTABLE), &initialData, &indexBuffer);
+		CD3D11_BUFFER_DESC indexBufferDesc(_trianglesCount * sizeof(D3dTriangle), D3D11_BIND_INDEX_BUFFER, D3D11_USAGE_IMMUTABLE);
+		device->CreateBuffer(&indexBufferDesc, &initialData, &indexBuffer);
 
 		verticesCount = _verticesCount;
 		trianglesCount = _trianglesCount;
@@ -922,12 +939,6 @@ void D3dRenderer::RenderGlowMarks()
 
 void D3dRenderer::Initialize()
 {
-	if (_deviceResources->_d3dFeatureLevel < D3D_FEATURE_LEVEL_10_0)
-	{
-		MessageBox(nullptr, "The D3d renderer hook requires a graphic card that supports D3D_FEATURE_LEVEL_10_0.", "X-Wing Alliance DDraw", MB_ICONWARNING);
-		return;
-	}
-
 	CreateConstantBuffer();
 	CreateStates();
 	CreateShaders();
@@ -938,7 +949,8 @@ void D3dRenderer::CreateConstantBuffer()
 	ID3D11Device* device = _deviceResources->_d3dDevice;
 
 	// constant buffer
-	device->CreateBuffer(&CD3D11_BUFFER_DESC(sizeof(D3dConstants), D3D11_BIND_CONSTANT_BUFFER), nullptr, &_constantBuffer);
+	CD3D11_BUFFER_DESC _constantBufferDesc(sizeof(D3dConstants), D3D11_BIND_CONSTANT_BUFFER);
+	device->CreateBuffer(&_constantBufferDesc, nullptr, &_constantBuffer);
 }
 
 void D3dRenderer::CreateStates()
@@ -1032,6 +1044,7 @@ void D3dRenderer::CreateShaders()
 	device->CreateInputLayout(vertexLayoutDesc, ARRAYSIZE(vertexLayoutDesc), g_XwaD3dVertexShader, sizeof(g_XwaD3dVertexShader), &_inputLayout);
 
 	device->CreatePixelShader(g_XwaD3dPixelShader, sizeof(g_XwaD3dPixelShader), nullptr, &_pixelShader);
+	device->CreatePixelShader(g_XwaD3dNormalsPixelShader, sizeof(g_XwaD3dNormalsPixelShader), nullptr, &_normalsPixelShader);
 
 	device->CreateVertexShader(g_XwaD3dShadowVertexShader, sizeof(g_XwaD3dShadowVertexShader), nullptr, &_shadowVertexShader);
 	device->CreatePixelShader(g_XwaD3dShadowPixelShader, sizeof(g_XwaD3dShadowPixelShader), nullptr, &_shadowPixelShader);
@@ -1179,7 +1192,7 @@ void D3dRendererMainHook(SceneCompData* scene)
 		*(int*)0x06628E0 = 0;
 	}
 
-	const auto L00480370 = (void(*)(const SceneCompData* scene))0x00480370;
+	const auto L00480370 = (void(*)(const SceneCompData * scene))0x00480370;
 
 	if (g_isInRenderHyperspaceLines)
 	{

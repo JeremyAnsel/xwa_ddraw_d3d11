@@ -29,6 +29,7 @@ public:
 	bool Radar2DRendererEnabled;
 
 	bool D3dRendererHookEnabled;
+	bool D3dRendererHookShowNormals;
 };
 
 extern Config g_config;

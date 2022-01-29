@@ -49,6 +49,7 @@ Config::Config()
 	this->Radar2DRendererEnabled = true;
 
 	this->D3dRendererHookEnabled = true;
+	this->D3dRendererHookShowNormals = false;
 
 	if (ifstream("Hook_D3d.dll") && HookD3D_IsHookD3DEnabled())
 	{
@@ -134,6 +135,10 @@ Config::Config()
 			else if (name == "D3dRendererHookEnabled")
 			{
 				this->D3dRendererHookEnabled = stoi(value) != 0;
+			}
+			else if (name == "D3dRendererHookShowNormals")
+			{
+				this->D3dRendererHookShowNormals = stoi(value) != 0;
 			}
 		}
 	}
