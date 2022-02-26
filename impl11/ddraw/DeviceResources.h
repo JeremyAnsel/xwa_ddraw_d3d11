@@ -42,6 +42,7 @@ public:
 	void InitVertexBuffer(ID3D11Buffer** buffer, UINT* stride, UINT* offset);
 	void InitIndexBuffer(ID3D11Buffer* buffer, bool isFormat32);
 	void InitViewport(D3D11_VIEWPORT* viewport);
+	void InitScissorRect(D3D11_RECT* rect);
 	void InitConstantBuffer(ID3D11Buffer** buffer, const float* viewportScale);
 
 	HRESULT RenderMain(char* buffer, DWORD width, DWORD height, DWORD bpp, RenderMainColorKeyType useColorKey = RENDERMAIN_COLORKEY_20);

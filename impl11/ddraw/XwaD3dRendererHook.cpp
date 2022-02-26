@@ -804,7 +804,25 @@ void D3dRenderer::UpdateConstantBuffer(const SceneCompData* scene)
 
 void D3dRenderer::RenderScene()
 {
+	if (_deviceResources->_displayWidth == 0 || _deviceResources->_displayHeight == 0)
+	{
+		return;
+	}
+
 	ID3D11DeviceContext* context = _deviceResources->_d3dDeviceContext;
+
+	unsigned short scissorLeft = *(unsigned short*)0x07D5244;
+	unsigned short scissorTop = *(unsigned short*)0x07CA354;
+	unsigned short scissorWidth = *(unsigned short*)0x08052B8;
+	unsigned short scissorHeight = *(unsigned short*)0x07B33BC;
+	float scaleX = _viewport.Width / _deviceResources->_displayWidth;
+	float scaleY = _viewport.Height / _deviceResources->_displayHeight;
+	D3D11_RECT scissor{};
+	scissor.left = (LONG)(_viewport.TopLeftX + scissorLeft * scaleX + 0.5f);
+	scissor.top = (LONG)(_viewport.TopLeftY + scissorTop * scaleY + 0.5f);
+	scissor.right = scissor.left + (LONG)(scissorWidth * scaleX + 0.5f);
+	scissor.bottom = scissor.top + (LONG)(scissorHeight * scaleY + 0.5f);
+	_deviceResources->InitScissorRect(&scissor);
 
 	context->DrawIndexed(_trianglesCount * 3, 0, 0);
 }
@@ -965,7 +983,7 @@ void D3dRenderer::CreateStates()
 	rsDesc.DepthBiasClamp = 0.0f;
 	rsDesc.SlopeScaledDepthBias = 0.0f;
 	rsDesc.DepthClipEnable = TRUE;
-	rsDesc.ScissorEnable = FALSE;
+	rsDesc.ScissorEnable = TRUE;
 	rsDesc.MultisampleEnable = FALSE;
 	rsDesc.AntialiasedLineEnable = FALSE;
 	device->CreateRasterizerState(&rsDesc, &_rasterizerState);

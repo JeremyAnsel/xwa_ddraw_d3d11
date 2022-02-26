@@ -837,6 +837,17 @@ void DeviceResources::InitViewport(D3D11_VIEWPORT* viewport)
 	}
 }
 
+void DeviceResources::InitScissorRect(D3D11_RECT* rect)
+{
+	static D3D11_RECT currentRect{};
+
+	if (memcmp(rect, &currentRect, sizeof(D3D11_RECT)) != 0)
+	{
+		currentRect = *rect;
+		this->_d3dDeviceContext->RSSetScissorRects(1, rect);
+	}
+}
+
 void DeviceResources::InitConstantBuffer(ID3D11Buffer** buffer, const float* viewportScale)
 {
 	static ID3D11Buffer** currentBuffer = nullptr;
