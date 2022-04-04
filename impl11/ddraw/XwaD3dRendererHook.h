@@ -16,3 +16,4 @@ void D3dRenderMiniatureHook(int A4, int A8, int AC, int A10, int A14);
 void D3dRenderHyperspaceLinesHook(int A4);
 void D3dRendererMainHook(SceneCompData* scene);
 void D3dRendererShadowHook(SceneCompData* scene);
+void D3dRendererOptLoadHook(int handle);

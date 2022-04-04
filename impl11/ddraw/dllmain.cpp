@@ -99,6 +99,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 				*(int*)(0x004847DE + 0x01) = (int)D3dRendererShadowHook - (0x004847DE + 0x05);
 				*(unsigned char*)(0x004847F3 + 0x00) = 0xE8;
 				*(int*)(0x004847F3 + 0x01) = (int)D3dRendererShadowHook - (0x004847F3 + 0x05);
+
+				// D3dRendererOptLoadHook - call 0050E3B0
+				*(int*)(0x004CC965 + 0x01) = (int)D3dRendererOptLoadHook - (0x004CC965 + 0x05);
 			}
 		}
 
