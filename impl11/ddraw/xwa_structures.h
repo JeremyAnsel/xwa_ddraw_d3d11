@@ -13,6 +13,37 @@
 
 #pragma pack(push, 1)
 
+enum OptNodeEnum : unsigned int
+{
+	OptNode_NodeGroup = 0,
+	OptNode_FaceData = 1,
+	OptNode_TransformPositionRotation = 2,
+	OptNode_MeshVertices = 3,
+	OptNode_TransformPosition = 4,
+	OptNode_TransformRotation = 5,
+	OptNode_TransformScale = 6,
+	OptNode_NodeReference = 7,
+	OptNode_Unknown9 = 9,
+	OptNode_Unknown10 = 10,
+	OptNode_VertexNormals = 11,
+	OptNode_Unknown12 = 12,
+	OptNode_TextureVertices = 13,
+	OptNode_Unknown14 = 14,
+	OptNode_FaceData_0F = 15,
+	OptNode_FaceData_10 = 16,
+	OptNode_FaceData_11 = 17,
+	OptNode_Unknown19 = 19,
+	OptNode_Texture = 20,
+	OptNode_FaceGrouping = 21,
+	OptNode_Hardpoint = 22,
+	OptNode_RotationScale = 23,
+	OptNode_NodeSwitch = 24,
+	OptNode_MeshDescriptor = 25,
+	OptNode_TextureAlpha = 26,
+	OptNode_D3DTexture = 27,
+	OptNode_EngineGlow = 28,
+};
+
 struct ExeEnableEntry
 {
 	unsigned char ExeEnableEntry_m00; // flags
@@ -405,5 +436,27 @@ struct XwaLocalLight
 };
 
 static_assert(sizeof(XwaLocalLight) == 48, "size of XwaLocalLight must be 48");
+
+struct OptNode
+{
+	const char* Name;
+	OptNodeEnum NodeType;
+	int NumOfNodes;
+	OptNode** Nodes;
+	int Parameter1;
+	int Parameter2;
+};
+
+static_assert(sizeof(OptNode) == 24, "size of OptNode must be 24");
+
+struct OptHeader
+{
+	int GlobalOffset;
+	char unk04[2];
+	int NumOfNodes;
+	OptNode** Nodes;
+};
+
+static_assert(sizeof(OptHeader) == 14, "size of OptHeader must be 14");
 
 #pragma pack(pop)

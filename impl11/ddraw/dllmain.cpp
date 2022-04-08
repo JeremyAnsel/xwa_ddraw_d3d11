@@ -102,6 +102,14 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 
 				// D3dRendererOptLoadHook - call 0050E3B0
 				*(int*)(0x004CC965 + 0x01) = (int)D3dRendererOptLoadHook - (0x004CC965 + 0x05);
+
+				// D3dRendererOptNodeHook - call 00482000
+				*(unsigned char*)(0x004815BF + 0x03) = 0x10; // esp+10
+				*(int*)(0x004815CA + 0x01) = (int)D3dRendererOptNodeHook - (0x004815CA + 0x05);
+				*(unsigned char*)(0x00481F9E + 0x00) = 0x57; // push edi
+				*(int*)(0x00481FA5 + 0x01) = (int)D3dRendererOptNodeHook - (0x00481FA5 + 0x05);
+				*(unsigned char*)(0x00481FC7 + 0x00) = 0x57; // push edi
+				*(int*)(0x00481FC9 + 0x01) = (int)D3dRendererOptNodeHook - (0x00481FC9 + 0x05);
 			}
 		}
 

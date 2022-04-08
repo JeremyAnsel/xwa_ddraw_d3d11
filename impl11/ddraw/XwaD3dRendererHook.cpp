@@ -202,6 +202,9 @@ public:
 	void GetViewport(D3D11_VIEWPORT* viewport);
 	void GetViewportScale(float* viewportScale);
 
+public:
+	int _currentOptMeshIndex;
+
 private:
 	DeviceResources* _deviceResources;
 
@@ -1240,4 +1243,17 @@ void D3dRendererOptLoadHook(int handle)
 	GetSizeFromHandle(handle);
 
 	D3dRendererFlightStart();
+
+	// XwaIOFileName contains the filename of the loaded 
+	// const char* XwaIOFileName = (const char*)0x0080DA60;
+}
+
+void D3dRendererOptNodeHook(OptHeader* optHeader, int nodeIndex, SceneCompData* scene)
+{
+	const auto L00482000 = (void(*)(OptHeader*, OptNode*, SceneCompData*))0x00482000;
+
+	OptNode* node = optHeader->Nodes[nodeIndex];
+	g_xwa_d3d_renderer._currentOptMeshIndex = (node->NodeType == OptNode_Texture || node->NodeType == OptNode_D3DTexture) ? (nodeIndex - 1) : nodeIndex;
+
+	L00482000(optHeader, node, scene);
 }
