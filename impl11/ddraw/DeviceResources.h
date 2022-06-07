@@ -21,6 +21,8 @@ class DeviceResources
 public:
 	DeviceResources();
 
+	~DeviceResources();
+
 	HRESULT Initialize();
 
 	HRESULT OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight);

@@ -8,6 +8,8 @@ class DeviceResources;
 
 #pragma pack(pop)
 
+void D3dRendererInitialize();
+void D3dRendererUninitialize();
 void D3dRendererSceneBegin(DeviceResources* deviceResources);
 void D3dRendererSceneEnd();
 void D3dRendererFlightStart();

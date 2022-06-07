@@ -271,6 +271,7 @@ D3dRenderer::D3dRenderer()
 	_lastMeshTextureVerticesView = nullptr;
 	_constants = {};
 	_viewport = {};
+	_currentOptMeshIndex = -1;
 
 #if LOGGER_DUMP
 	DumpFile("ddraw_d3d.txt");
@@ -1138,7 +1139,34 @@ void D3dRenderer::GetViewportScale(float* viewportScale)
 	viewportScale[3] = 0.0f;
 }
 
-static D3dRenderer g_xwa_d3d_renderer;
+D3dRenderer* g_xwa_d3d_renderer = nullptr;
+
+void D3dRendererInitialize()
+{
+	if (!g_config.D3dRendererHookEnabled)
+	{
+		return;
+	}
+
+	if (!g_xwa_d3d_renderer)
+	{
+		g_xwa_d3d_renderer = new D3dRenderer();
+	}
+}
+
+void D3dRendererUninitialize()
+{
+	if (!g_config.D3dRendererHookEnabled)
+	{
+		return;
+	}
+
+	if (g_xwa_d3d_renderer)
+	{
+		delete g_xwa_d3d_renderer;
+		g_xwa_d3d_renderer = nullptr;
+	}
+}
 
 void D3dRendererSceneBegin(DeviceResources* deviceResources)
 {
@@ -1147,7 +1175,7 @@ void D3dRendererSceneBegin(DeviceResources* deviceResources)
 		return;
 	}
 
-	g_xwa_d3d_renderer.SceneBegin(deviceResources);
+	g_xwa_d3d_renderer->SceneBegin(deviceResources);
 }
 
 void D3dRendererSceneEnd()
@@ -1157,7 +1185,7 @@ void D3dRendererSceneEnd()
 		return;
 	}
 
-	g_xwa_d3d_renderer.SceneEnd();
+	g_xwa_d3d_renderer->SceneEnd();
 }
 
 void D3dRendererFlightStart()
@@ -1167,7 +1195,7 @@ void D3dRendererFlightStart()
 		return;
 	}
 
-	g_xwa_d3d_renderer.FlightStart();
+	g_xwa_d3d_renderer->FlightStart();
 }
 
 void D3dRenderLasersHook(int A4)
@@ -1226,15 +1254,15 @@ void D3dRendererMainHook(SceneCompData* scene)
 	}
 
 	g_rendererType = RendererType_Main;
-	g_xwa_d3d_renderer.MainSceneHook(scene);
-	g_xwa_d3d_renderer.BuildGlowMarks(scene);
-	g_xwa_d3d_renderer.RenderGlowMarks();
+	g_xwa_d3d_renderer->MainSceneHook(scene);
+	g_xwa_d3d_renderer->BuildGlowMarks(scene);
+	g_xwa_d3d_renderer->RenderGlowMarks();
 }
 
 void D3dRendererShadowHook(SceneCompData* scene)
 {
 	g_rendererType = RendererType_Shadow;
-	g_xwa_d3d_renderer.HangarShadowSceneHook(scene);
+	g_xwa_d3d_renderer->HangarShadowSceneHook(scene);
 }
 
 void D3dRendererOptLoadHook(int handle)
@@ -1253,7 +1281,7 @@ void D3dRendererOptNodeHook(OptHeader* optHeader, int nodeIndex, SceneCompData* 
 	const auto L00482000 = (void(*)(OptHeader*, OptNode*, SceneCompData*))0x00482000;
 
 	OptNode* node = optHeader->Nodes[nodeIndex];
-	g_xwa_d3d_renderer._currentOptMeshIndex = (node->NodeType == OptNode_Texture || node->NodeType == OptNode_D3DTexture) ? (nodeIndex - 1) : nodeIndex;
+	g_xwa_d3d_renderer->_currentOptMeshIndex = (node->NodeType == OptNode_Texture || node->NodeType == OptNode_D3DTexture) ? (nodeIndex - 1) : nodeIndex;
 
 	L00482000(optHeader, node, scene);
 }

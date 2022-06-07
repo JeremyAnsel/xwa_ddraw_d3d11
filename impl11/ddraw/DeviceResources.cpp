@@ -79,6 +79,11 @@ DeviceResources::DeviceResources()
 	this->inScene = false;
 }
 
+DeviceResources::~DeviceResources()
+{
+	D3dRendererUninitialize();
+}
+
 HRESULT DeviceResources::Initialize()
 {
 	HRESULT hr;
@@ -142,6 +147,11 @@ HRESULT DeviceResources::Initialize()
 	if (SUCCEEDED(hr))
 	{
 		hr = this->LoadResources();
+	}
+
+	if (SUCCEEDED(hr))
+	{
+		D3dRendererInitialize();
 	}
 
 	if (FAILED(hr))
