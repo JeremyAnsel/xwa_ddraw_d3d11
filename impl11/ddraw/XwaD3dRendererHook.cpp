@@ -282,6 +282,8 @@ void D3dRenderer::SceneBegin(DeviceResources* deviceResources)
 {
 	_deviceResources = deviceResources;
 
+	_deviceResources->_d3dAnnotation->BeginEvent(L"D3dRendererScene");
+
 	if (!_isInitialized)
 	{
 		Initialize();
@@ -304,6 +306,7 @@ void D3dRenderer::SceneBegin(DeviceResources* deviceResources)
 
 void D3dRenderer::SceneEnd()
 {
+	_deviceResources->_d3dAnnotation->EndEvent();
 }
 
 void D3dRenderer::FlightStart()
@@ -327,7 +330,6 @@ void D3dRenderer::MainSceneHook(const SceneCompData* scene)
 	ComPtr<ID3D11Buffer> oldVSConstantBuffer;
 	ComPtr<ID3D11Buffer> oldPSConstantBuffer;
 	ComPtr<ID3D11ShaderResourceView> oldVSSRV[3];
-
 	context->VSGetConstantBuffers(0, 1, oldVSConstantBuffer.GetAddressOf());
 	context->PSGetConstantBuffers(0, 1, oldPSConstantBuffer.GetAddressOf());
 	context->VSGetShaderResources(0, 3, oldVSSRV[0].GetAddressOf());
@@ -379,7 +381,6 @@ void D3dRenderer::HangarShadowSceneHook(const SceneCompData* scene)
 	ComPtr<ID3D11Buffer> oldVSConstantBuffer;
 	ComPtr<ID3D11Buffer> oldPSConstantBuffer;
 	ComPtr<ID3D11ShaderResourceView> oldVSSRV[3];
-
 	context->VSGetConstantBuffers(0, 1, oldVSConstantBuffer.GetAddressOf());
 	context->PSGetConstantBuffers(0, 1, oldPSConstantBuffer.GetAddressOf());
 	context->VSGetShaderResources(0, 3, oldVSSRV[0].GetAddressOf());
@@ -818,7 +819,6 @@ void D3dRenderer::RenderScene()
 	}
 
 	ID3D11DeviceContext* context = _deviceResources->_d3dDeviceContext;
-
 	unsigned short scissorLeft = *(unsigned short*)0x07D5244;
 	unsigned short scissorTop = *(unsigned short*)0x07CA354;
 	unsigned short scissorWidth = *(unsigned short*)0x08052B8;

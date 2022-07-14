@@ -74,6 +74,7 @@ public:
 	ComPtr<ID3D11RenderTargetView> _renderTargetView;
 	ComPtr<ID3D11Texture2D> _depthStencil;
 	ComPtr<ID3D11DepthStencilView> _depthStencilView;
+	ComPtr<ID3DUserDefinedAnnotation> _d3dAnnotation;
 
 	ComPtr<ID2D1Factory> _d2d1Factory;
 	ComPtr<IDWriteFactory> _dwriteFactory;

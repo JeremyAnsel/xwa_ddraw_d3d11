@@ -114,6 +114,8 @@ HRESULT DeviceResources::Initialize()
 		hr = D3D11CreateDevice(nullptr, this->_d3dDriverType, nullptr, createDeviceFlags, featureLevels, numFeatureLevels, D3D11_SDK_VERSION, &this->_d3dDevice, &this->_d3dFeatureLevel, &this->_d3dDeviceContext);
 	}
 
+	this->_d3dDeviceContext->QueryInterface(__uuidof(ID3DUserDefinedAnnotation), (void**)&this->_d3dAnnotation);
+
 	if (SUCCEEDED(hr))
 	{
 		hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &this->_d2d1Factory);
@@ -887,6 +889,8 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 	ID3D11Texture2D* tex = nullptr;
 	ID3D11ShaderResourceView* texView = nullptr;
 
+	this->_d3dAnnotation->BeginEvent(L"RenderMain");
+
 	if (SUCCEEDED(hr))
 	{
 		if ((width == this->_displayWidth) && (height == this->_displayHeight) && (bpp == this->_mainDisplayTextureBpp))
@@ -1241,6 +1245,8 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 
 		messageShown = true;
 	}
+
+	this->_d3dAnnotation->EndEvent();
 
 	return hr;
 }
