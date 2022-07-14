@@ -358,6 +358,8 @@ HRESULT PrimarySurface::Flip(
 	DWORD dwFlags
 	)
 {
+	_deviceResources->BeginAnnotatedEvent(L"PrimarySurfaceFlip");
+
 #if LOGGER
 	std::ostringstream str;
 	str << this << " " << __FUNCTION__;
@@ -405,6 +407,7 @@ HRESULT PrimarySurface::Flip(
 			if (FAILED(hr = this->_deviceResources->_backbufferSurface->BltFast(0, 0, this->_deviceResources->_frontbufferSurface, nullptr, 0)))
 				return hr;
 
+			this->_deviceResources->EndAnnotatedEvent();
 			return this->Flip(this->_deviceResources->_backbufferSurface, 0);
 		}
 
@@ -530,6 +533,7 @@ HRESULT PrimarySurface::Flip(
 				this->_deviceResources->_frontbufferSurface->wasBltFastCalled = false;
 			}
 
+			this->_deviceResources->EndAnnotatedEvent();
 			return hr;
 		}
 	}
@@ -572,7 +576,7 @@ HRESULT PrimarySurface::Flip(
 		{
 			hr = DD_OK;
 		}
-
+		this->_deviceResources->EndAnnotatedEvent();
 		return hr;
 	}
 
@@ -581,6 +585,7 @@ HRESULT PrimarySurface::Flip(
 	LogText(str.str());
 #endif
 
+	this->_deviceResources->EndAnnotatedEvent();
 	return DDERR_UNSUPPORTED;
 }
 
@@ -1115,6 +1120,8 @@ void PrimarySurface::RenderText()
 		return;
 	}
 
+	this->_deviceResources->BeginAnnotatedEvent(L"RenderText");
+
 	if (this->_deviceResources->_d2d1RenderTarget != s_d2d1RenderTarget || this->_deviceResources->_displayWidth != s_displayWidth || this->_deviceResources->_displayHeight != s_displayHeight)
 	{
 		s_d2d1RenderTarget = this->_deviceResources->_d2d1RenderTarget;
@@ -1238,6 +1245,8 @@ void PrimarySurface::RenderText()
 
 	g_xwa_text.clear();
 	g_xwa_text.reserve(4096);
+
+	this->_deviceResources->EndAnnotatedEvent();
 }
 
 void PrimarySurface::RenderRadar()
@@ -1260,6 +1269,8 @@ void PrimarySurface::RenderRadar()
 		s_brush.Release();
 		return;
 	}
+
+	this->_deviceResources->BeginAnnotatedEvent(L"RenderRadar");
 
 	if (this->_deviceResources->_d2d1RenderTarget != s_d2d1RenderTarget || this->_deviceResources->_displayWidth != s_displayWidth || this->_deviceResources->_displayHeight != s_displayHeight)
 	{
@@ -1360,6 +1371,8 @@ void PrimarySurface::RenderRadar()
 	g_xwa_radar.clear();
 	g_xwa_radar_selected_positionX = -1;
 	g_xwa_radar_selected_positionY = -1;
+
+	this->_deviceResources->EndAnnotatedEvent();
 }
 
 void PrimarySurface::RenderBracket()
@@ -1382,6 +1395,8 @@ void PrimarySurface::RenderBracket()
 		s_brush.Release();
 		return;
 	}
+
+	this->_deviceResources->BeginAnnotatedEvent(L"RenderBracket");
 
 	if (this->_deviceResources->_d2d1RenderTarget != s_d2d1RenderTarget || this->_deviceResources->_displayWidth != s_displayWidth || this->_deviceResources->_displayHeight != s_displayHeight)
 	{
@@ -1492,4 +1507,6 @@ void PrimarySurface::RenderBracket()
 	this->_deviceResources->_d2d1RenderTarget->RestoreDrawingState(this->_deviceResources->_d2d1DrawingStateBlock);
 
 	g_xwa_bracket.clear();
+
+	this->_deviceResources->EndAnnotatedEvent();
 }

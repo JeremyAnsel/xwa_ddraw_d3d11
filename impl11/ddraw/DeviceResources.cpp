@@ -67,6 +67,8 @@ DeviceResources::DeviceResources()
 	this->_are16BppTexturesSupported = false;
 	this->_use16BppMainDisplayTexture = false;
 
+	this->_d3dAnnotation = nullptr;
+
 	// TODO
 	//const float color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	const float color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -113,6 +115,8 @@ HRESULT DeviceResources::Initialize()
 
 		hr = D3D11CreateDevice(nullptr, this->_d3dDriverType, nullptr, createDeviceFlags, featureLevels, numFeatureLevels, D3D11_SDK_VERSION, &this->_d3dDevice, &this->_d3dFeatureLevel, &this->_d3dDeviceContext);
 	}
+
+	this->_d3dDeviceContext.As(&this->_d3dAnnotation);
 
 	if (SUCCEEDED(hr))
 	{
@@ -887,6 +891,8 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 	ID3D11Texture2D* tex = nullptr;
 	ID3D11ShaderResourceView* texView = nullptr;
 
+	BeginAnnotatedEvent(L"RenderMain");
+
 	if (SUCCEEDED(hr))
 	{
 		if ((width == this->_displayWidth) && (height == this->_displayHeight) && (bpp == this->_mainDisplayTextureBpp))
@@ -1242,6 +1248,8 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 		messageShown = true;
 	}
 
+	this->EndAnnotatedEvent();
+
 	return hr;
 }
 
@@ -1400,4 +1408,26 @@ bool DeviceResources::IsTextureFormatSupported(DXGI_FORMAT format)
 	const UINT expected = D3D11_FORMAT_SUPPORT_TEXTURE2D | D3D11_FORMAT_SUPPORT_MIP | D3D11_FORMAT_SUPPORT_SHADER_LOAD | D3D11_FORMAT_SUPPORT_CPU_LOCKABLE;
 
 	return (formatSupport & expected) == expected;
+}
+
+bool DeviceResources::BeginAnnotatedEvent(_In_ LPCWSTR Name)
+{
+	if (_d3dAnnotation != nullptr)
+	{
+		_d3dAnnotation->BeginEvent(Name);
+		return true;
+	}
+	else
+		return false;
+}
+
+bool DeviceResources::EndAnnotatedEvent()
+{
+	if (_d3dAnnotation != nullptr)
+	{
+		_d3dAnnotation->EndEvent();
+		return true;
+	}
+	else
+		return false;
 }

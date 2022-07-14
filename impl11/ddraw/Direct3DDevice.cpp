@@ -472,6 +472,8 @@ HRESULT Direct3DDevice::Execute(
 	DWORD dwFlags
 )
 {
+	_deviceResources->BeginAnnotatedEvent(L"Execute");
+
 #if LOGGER
 	std::ostringstream str;
 	str << this << " " << __FUNCTION__;
@@ -792,6 +794,8 @@ HRESULT Direct3DDevice::Execute(
 		}
 	}
 
+	_deviceResources->EndAnnotatedEvent();
+
 	if (FAILED(hr))
 	{
 		static bool messageShown = false;
@@ -1089,6 +1093,9 @@ HRESULT Direct3DDevice::DeleteMatrix(
 
 HRESULT Direct3DDevice::BeginScene()
 {
+
+	_deviceResources->BeginAnnotatedEvent(L"Direct3DDeviceScene");
+
 #if LOGGER
 	std::ostringstream str;
 	str << this << " " << __FUNCTION__;
@@ -1173,6 +1180,8 @@ HRESULT Direct3DDevice::EndScene()
 			+ " V=" + std::to_string(g_ExecuteVertexCount)
 			+ " I=" + std::to_string(g_ExecuteIndexCount)).c_str());
 	}*/
+
+	_deviceResources->EndAnnotatedEvent();
 
 	return D3D_OK;
 }
