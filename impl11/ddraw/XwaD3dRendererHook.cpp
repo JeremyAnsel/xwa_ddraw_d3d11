@@ -282,7 +282,7 @@ void D3dRenderer::SceneBegin(DeviceResources* deviceResources)
 {
 	_deviceResources = deviceResources;
 
-	_deviceResources->_d3dAnnotation->BeginEvent(L"D3dRendererScene");
+	_deviceResources->BeginAnnotatedEvent(L"D3dRendererScene");
 
 	if (!_isInitialized)
 	{
@@ -306,7 +306,7 @@ void D3dRenderer::SceneBegin(DeviceResources* deviceResources)
 
 void D3dRenderer::SceneEnd()
 {
-	_deviceResources->_d3dAnnotation->EndEvent();
+	_deviceResources->EndAnnotatedEvent();
 }
 
 void D3dRenderer::FlightStart()

@@ -358,7 +358,7 @@ HRESULT PrimarySurface::Flip(
 	DWORD dwFlags
 	)
 {
-	_deviceResources->_d3dAnnotation->BeginEvent(L"PrimarySurfaceFlip");
+	_deviceResources->BeginAnnotatedEvent(L"PrimarySurfaceFlip");
 
 #if LOGGER
 	std::ostringstream str;
@@ -407,7 +407,7 @@ HRESULT PrimarySurface::Flip(
 			if (FAILED(hr = this->_deviceResources->_backbufferSurface->BltFast(0, 0, this->_deviceResources->_frontbufferSurface, nullptr, 0)))
 				return hr;
 
-			_deviceResources->_d3dAnnotation->EndEvent();
+			this->_deviceResources->EndAnnotatedEvent();
 			return this->Flip(this->_deviceResources->_backbufferSurface, 0);
 		}
 
@@ -533,7 +533,7 @@ HRESULT PrimarySurface::Flip(
 				this->_deviceResources->_frontbufferSurface->wasBltFastCalled = false;
 			}
 
-			_deviceResources->_d3dAnnotation->EndEvent();
+			this->_deviceResources->EndAnnotatedEvent();
 			return hr;
 		}
 	}
@@ -576,7 +576,7 @@ HRESULT PrimarySurface::Flip(
 		{
 			hr = DD_OK;
 		}
-		_deviceResources->_d3dAnnotation->EndEvent();
+		this->_deviceResources->EndAnnotatedEvent();
 		return hr;
 	}
 
@@ -585,7 +585,7 @@ HRESULT PrimarySurface::Flip(
 	LogText(str.str());
 #endif
 
-	_deviceResources->_d3dAnnotation->EndEvent();
+	this->_deviceResources->EndAnnotatedEvent();
 	return DDERR_UNSUPPORTED;
 }
 
@@ -1120,7 +1120,7 @@ void PrimarySurface::RenderText()
 		return;
 	}
 
-	_deviceResources->_d3dAnnotation->BeginEvent(L"RenderText");
+	this->_deviceResources->BeginAnnotatedEvent(L"RenderText");
 
 	if (this->_deviceResources->_d2d1RenderTarget != s_d2d1RenderTarget || this->_deviceResources->_displayWidth != s_displayWidth || this->_deviceResources->_displayHeight != s_displayHeight)
 	{
@@ -1246,7 +1246,7 @@ void PrimarySurface::RenderText()
 	g_xwa_text.clear();
 	g_xwa_text.reserve(4096);
 
-	_deviceResources->_d3dAnnotation->EndEvent();
+	this->_deviceResources->EndAnnotatedEvent();
 }
 
 void PrimarySurface::RenderRadar()
@@ -1270,7 +1270,7 @@ void PrimarySurface::RenderRadar()
 		return;
 	}
 
-	_deviceResources->_d3dAnnotation->BeginEvent(L"RenderRadar");
+	this->_deviceResources->BeginAnnotatedEvent(L"RenderRadar");
 
 	if (this->_deviceResources->_d2d1RenderTarget != s_d2d1RenderTarget || this->_deviceResources->_displayWidth != s_displayWidth || this->_deviceResources->_displayHeight != s_displayHeight)
 	{
@@ -1372,7 +1372,7 @@ void PrimarySurface::RenderRadar()
 	g_xwa_radar_selected_positionX = -1;
 	g_xwa_radar_selected_positionY = -1;
 
-	_deviceResources->_d3dAnnotation->EndEvent();
+	this->_deviceResources->EndAnnotatedEvent();
 }
 
 void PrimarySurface::RenderBracket()
@@ -1396,7 +1396,7 @@ void PrimarySurface::RenderBracket()
 		return;
 	}
 
-	_deviceResources->_d3dAnnotation->BeginEvent(L"RenderBracket");
+	this->_deviceResources->BeginAnnotatedEvent(L"RenderBracket");
 
 	if (this->_deviceResources->_d2d1RenderTarget != s_d2d1RenderTarget || this->_deviceResources->_displayWidth != s_displayWidth || this->_deviceResources->_displayHeight != s_displayHeight)
 	{
@@ -1508,5 +1508,5 @@ void PrimarySurface::RenderBracket()
 
 	g_xwa_bracket.clear();
 
-	_deviceResources->_d3dAnnotation->EndEvent();
+	this->_deviceResources->EndAnnotatedEvent();
 }

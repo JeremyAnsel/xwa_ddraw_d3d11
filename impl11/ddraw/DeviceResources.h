@@ -57,6 +57,9 @@ public:
 
 	bool IsTextureFormatSupported(DXGI_FORMAT format);
 
+	bool BeginAnnotatedEvent(_In_ LPCWSTR Name);
+	bool EndAnnotatedEvent();
+
 	DWORD _displayWidth;
 	DWORD _displayHeight;
 	DWORD _displayBpp;
