@@ -13,6 +13,9 @@ This dll requires:
 How to install the latest version of DirectX
 http://support.microsoft.com/kb/179113/en
 
+To download the latest vc redist runtime:
+https://docs.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist
+
 
 *** Usage ***
 
