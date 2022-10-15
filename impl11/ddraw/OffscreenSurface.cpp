@@ -21,6 +21,8 @@ OffscreenSurface::~OffscreenSurface()
 	{
 		this->_deviceResources->_offscreenSurface = nullptr;
 	}
+
+	delete[] this->_buffer;
 }
 
 HRESULT OffscreenSurface::QueryInterface(
