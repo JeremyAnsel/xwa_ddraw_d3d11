@@ -85,11 +85,21 @@ struct D3dTriangle
 
 #if LOGGER_DUMP
 
-std::ofstream g_d3d_file;
+static int s_currentFrameIndex;
+static std::string g_currentTextureName;
 
-void DumpFile(std::string filename)
+std::ofstream& get_d3d_file()
 {
-	g_d3d_file.open(filename);
+	static std::ofstream g_d3d_file;
+	static bool initialized = false;
+
+	if (!initialized)
+	{
+		initialized = true;
+		g_d3d_file.open("ddraw_d3d.txt");
+	}
+
+	return g_d3d_file;
 }
 
 void DumpConstants(D3dConstants& constants)
@@ -109,7 +119,29 @@ void DumpConstants(D3dConstants& constants)
 	str << "\t" << constants.transformWorldView[8] << "; " << constants.transformWorldView[9] << "; " << constants.transformWorldView[10] << "; " << constants.transformWorldView[11] << std::endl;
 	str << "\t" << constants.transformWorldView[12] << "; " << constants.transformWorldView[13] << "; " << constants.transformWorldView[14] << "; " << constants.transformWorldView[15] << std::endl;
 
-	g_d3d_file << str.str() << std::endl;
+	get_d3d_file() << str.str() << std::endl;
+}
+
+void DumpFrame()
+{
+	std::ostringstream str;
+
+	str << "\tFRAME " << s_currentFrameIndex;
+	str << std::endl;
+
+	get_d3d_file() << str.str() << std::endl;
+
+	s_currentFrameIndex++;
+}
+
+void DumpSurface()
+{
+	std::ostringstream str;
+
+	str << "\tSURFACE " << g_currentTextureName;
+	str << std::endl;
+
+	get_d3d_file() << str.str() << std::endl;
 }
 
 void DumpVector3(XwaVector3* vertices, int count)
@@ -126,7 +158,7 @@ void DumpVector3(XwaVector3* vertices, int count)
 		str << std::endl;
 	}
 
-	g_d3d_file << str.str() << std::endl;
+	get_d3d_file() << str.str() << std::endl;
 }
 
 void DumpTextureVertices(XwaTextureVertex* vertices, int count)
@@ -143,7 +175,7 @@ void DumpTextureVertices(XwaTextureVertex* vertices, int count)
 		str << std::endl;
 	}
 
-	g_d3d_file << str.str() << std::endl;
+	get_d3d_file() << str.str() << std::endl;
 }
 
 void DumpD3dVertices(D3dVertex* vertices, int count)
@@ -159,7 +191,7 @@ void DumpD3dVertices(D3dVertex* vertices, int count)
 		str << std::endl;
 	}
 
-	g_d3d_file << str.str() << std::endl;
+	get_d3d_file() << str.str() << std::endl;
 }
 
 #endif
@@ -272,10 +304,6 @@ D3dRenderer::D3dRenderer()
 	_constants = {};
 	_viewport = {};
 	_currentOptMeshIndex = -1;
-
-#if LOGGER_DUMP
-	DumpFile("ddraw_d3d.txt");
-#endif
 }
 
 void D3dRenderer::SceneBegin(DeviceResources* deviceResources)
@@ -302,6 +330,10 @@ void D3dRenderer::SceneBegin(DeviceResources* deviceResources)
 
 	GetViewport(&_viewport);
 	GetViewportScale(_constants.viewportScale);
+
+#if LOGGER_DUMP
+	DumpFrame();
+#endif
 }
 
 void D3dRenderer::SceneEnd()
@@ -321,6 +353,10 @@ void D3dRenderer::FlightStart()
 	_vertexBuffers.clear();
 	_triangleBuffers.clear();
 	_vertexCounters.clear();
+
+#if LOGGER_DUMP
+	s_currentFrameIndex = 0;
+#endif
 }
 
 void D3dRenderer::MainSceneHook(const SceneCompData* scene)
@@ -368,6 +404,7 @@ void D3dRenderer::MainSceneHook(const SceneCompData* scene)
 
 #if LOGGER_DUMP
 	DumpConstants(_constants);
+	DumpSurface();
 	DumpVector3(scene->MeshVertices, *(int*)((int)scene->MeshVertices - 8));
 	DumpTextureVertices(scene->MeshTextureVertices, *(int*)((int)scene->MeshTextureVertices - 8));
 	DumpD3dVertices(_vertices.data(), _verticesCount);
@@ -465,6 +502,10 @@ void D3dRenderer::UpdateTextures(const SceneCompData* scene)
 	Direct3DTexture* texture = (Direct3DTexture*)surface->D3dTexture.D3DTextureHandle;
 	Direct3DTexture* texture2 = surface2 == nullptr ? nullptr : (Direct3DTexture*)surface2->D3dTexture.D3DTextureHandle;
 	_deviceResources->InitPSShaderResourceView(texture->_textureView, texture2 == nullptr ? nullptr : texture2->_textureView.Get());
+
+#if LOGGER_DUMP
+	g_currentTextureName = texture->_name;
+#endif
 }
 
 void D3dRenderer::UpdateMeshBuffers(const SceneCompData* scene)
