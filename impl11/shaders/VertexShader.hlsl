@@ -44,7 +44,8 @@ PixelShaderInput main(VertexShaderInput input)
 		st0 = s_V0x08B94CC / z;
 	}
 
-	output.pos.z = (st0 * s_V0x05B46B4 / 32) / (abs(st0) * s_V0x05B46B4 / 32 + s_V0x08B94CC / 3) * 0.5f;
+    output.pos.z = (st0 * s_V0x05B46B4 / 128) / (abs(st0) * s_V0x05B46B4 / 128 + s_V0x08B94CC);
+
 	output.pos.w = 1.0f;
 	output.pos.x = (input.pos.x * vpScale.x - 1.0f) * vpScale.z;
 	output.pos.y = (input.pos.y * vpScale.y + 1.0f) * vpScale.z;
