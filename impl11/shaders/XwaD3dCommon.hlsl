@@ -18,6 +18,7 @@ cbuffer ConstantBuffer : register(b0)
 	float projectionValue2;
 	float projectionDeltaX;
 	float projectionDeltaY;
+	float4 projectionParameters;
 	float floorLevel;
 	float cameraPositionX;
 	float cameraPositionY;
@@ -43,7 +44,7 @@ float4 TransformProjection(float3 input)
 	pos.x = input.x * st0 + projectionDeltaX;
 	pos.y = input.y * st0 + projectionDeltaY;
 
-    pos.z = (st0 * projectionValue2 / 128) / (abs(st0) * projectionValue2 / 128 + projectionValue1);
+	pos.z = (st0 * projectionValue2 / projectionParameters.x) / (abs(st0) * projectionValue2 / projectionParameters.y + projectionValue1 * projectionParameters.z);
 
 	//pos.w = 1.0f;
     pos.x = (pos.x * vpScale.x - 1.0f) * vpScale.z;

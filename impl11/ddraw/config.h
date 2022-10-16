@@ -30,6 +30,10 @@ public:
 
 	bool D3dRendererHookEnabled;
 	bool D3dRendererHookShowNormals;
+
+	float ProjectionParameterA;
+	float ProjectionParameterB;
+	float ProjectionParameterC;
 };
 
 extern Config g_config;

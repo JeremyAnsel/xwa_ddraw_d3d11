@@ -51,6 +51,10 @@ Config::Config()
 	this->D3dRendererHookEnabled = true;
 	this->D3dRendererHookShowNormals = false;
 
+	this->ProjectionParameterA = 32.0f;
+	this->ProjectionParameterB = 256.0f;
+	this->ProjectionParameterC = 0.33f;
+
 	if (ifstream("Hook_D3d.dll") && HookD3D_IsHookD3DEnabled())
 	{
 		this->D3dHookExists = true;
@@ -139,6 +143,18 @@ Config::Config()
 			else if (name == "D3dRendererHookShowNormals")
 			{
 				this->D3dRendererHookShowNormals = stoi(value) != 0;
+			}
+			else if (name == "ProjectionParameterA")
+			{
+				this->ProjectionParameterA = stof(value);
+			}
+			else if (name == "ProjectionParameterB")
+			{
+				this->ProjectionParameterB = stof(value);
+			}
+			else if (name == "ProjectionParameterC")
+			{
+				this->ProjectionParameterC = stof(value);
 			}
 		}
 	}

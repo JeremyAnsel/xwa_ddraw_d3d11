@@ -568,7 +568,7 @@ HRESULT Direct3DDevice::Execute(
 		viewport.MaxDepth = D3D11_MAX_DEPTH;
 		this->_deviceResources->InitViewport(&viewport);
 
-		const float viewportScale[8] =
+		const float viewportScale[12] =
 		{
 			2.0f / (float)this->_deviceResources->_displayWidth,
 			-2.0f / (float)this->_deviceResources->_displayHeight,
@@ -577,6 +577,10 @@ HRESULT Direct3DDevice::Execute(
 			_IsXwaExe ? *(float*)0x08B94CC : 0,
 			_IsXwaExe ? *(float*)0x05B46B4 : 0,
 			0,
+			0,
+			g_config.ProjectionParameterA,
+			g_config.ProjectionParameterB,
+			g_config.ProjectionParameterC,
 			0
 		};
 
