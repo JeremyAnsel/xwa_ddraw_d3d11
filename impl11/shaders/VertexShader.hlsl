@@ -7,8 +7,8 @@ cbuffer ConstantBuffer : register(b0)
 	float4 vpScale;
 	float s_V0x08B94CC;
 	float s_V0x05B46B4;
+    float s_V0x05B46B4_Offset;
 	float unused1;
-	float unused2;
 	float4 projectionParameters;
 };
 
@@ -41,10 +41,7 @@ PixelShaderInput main(VertexShaderInput input)
 
 	if (input.pos.z == input.pos.w)
 	{
-		//float z = s_V0x05B46B4 / input.pos.w - s_V0x05B46B4;
-		//st0 = s_V0x08B94CC / z;
-
-		float z = s_V0x05B46B4 / input.pos.w;
+		float z = s_V0x05B46B4 / input.pos.w - s_V0x05B46B4_Offset;
 		st0 = s_V0x08B94CC / z;
     }
 

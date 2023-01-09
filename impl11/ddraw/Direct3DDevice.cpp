@@ -10,6 +10,17 @@
 #include "ExecuteBufferDumper.h"
 #include "XwaD3dRendererHook.h"
 
+static bool IsInTechLibrary()
+{
+	int currentGameState = *(int*)(0x09F60E0 + 0x25FA9);
+	int updateCallback = *(int*)(0x09F60E0 + 0x25FB1 + currentGameState * 0x850 + 0x0844);
+
+	int XwaTechLibraryGameStateUpdate = 0x00574D70;
+	bool isInTechLibrary = updateCallback == XwaTechLibraryGameStateUpdate;
+
+	return isInTechLibrary;
+}
+
 int g_ExecuteCount;
 int g_ExecuteVertexCount;
 int g_ExecuteIndexCount;
@@ -576,7 +587,7 @@ HRESULT Direct3DDevice::Execute(
 			0,
 			_IsXwaExe ? *(float*)0x08B94CC : 0,
 			_IsXwaExe ? *(float*)0x05B46B4 : 0,
-			0,
+			_IsXwaExe && IsInTechLibrary() ? *(float*)0x05B46B4 : 0,
 			0,
 			g_config.ProjectionParameterA,
 			g_config.ProjectionParameterB,
