@@ -3,6 +3,8 @@
 
 #pragma once
 
+std::string int_to_hex(int i);
+
 std::string wchar_tostring(LPCWSTR text);
 std::wstring string_towstring(const std::string& text);
 std::wstring string_towstring(const char* text);
@@ -73,8 +75,6 @@ inline unsigned int convertColorB5G6R5toB8G8R8A8(unsigned short color16)
 	return g_colorConverterTables.B5G6R5toB8G8R8A8[color16];
 }
 
-#if LOGGER
+void saveScreenshot(std::wstring filename, char* buffer, DWORD width, DWORD height, DWORD bpp);
 
 void saveSurface(std::wstring name, char* buffer, DWORD width, DWORD height, DWORD bpp);
-
-#endif
