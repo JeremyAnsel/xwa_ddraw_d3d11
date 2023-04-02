@@ -51,6 +51,8 @@ Config::Config()
 	this->D3dRendererHookEnabled = true;
 	this->D3dRendererHookShowNormals = false;
 
+	this->HDConcourseEnabled = false;
+
 	this->ProjectionParameterA = 32.0f;
 	this->ProjectionParameterB = 256.0f;
 	this->ProjectionParameterC = 0.33f;
@@ -143,6 +145,10 @@ Config::Config()
 			else if (name == "D3dRendererHookShowNormals")
 			{
 				this->D3dRendererHookShowNormals = stoi(value) != 0;
+			}
+			else if (name == "HDConcourseEnabled")
+			{
+				this->HDConcourseEnabled = stoi(value) != 0;
 			}
 			else if (name == "ProjectionParameterA")
 			{

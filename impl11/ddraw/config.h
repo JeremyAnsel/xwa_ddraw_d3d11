@@ -31,6 +31,8 @@ public:
 	bool D3dRendererHookEnabled;
 	bool D3dRendererHookShowNormals;
 
+	bool HDConcourseEnabled;
+
 	float ProjectionParameterA;
 	float ProjectionParameterB;
 	float ProjectionParameterC;

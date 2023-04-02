@@ -7,6 +7,8 @@
 #include "Direct3DExecuteBuffer.h"
 #include "Direct3DTexture.h"
 #include "BackbufferSurface.h"
+#include "FrontbufferSurface.h"
+#include "OffscreenSurface.h"
 #include "ExecuteBufferDumper.h"
 #include "XwaD3dRendererHook.h"
 
@@ -1142,8 +1144,18 @@ HRESULT Direct3DDevice::BeginScene()
 	context->ClearRenderTargetView(this->_deviceResources->_renderTargetView, this->_deviceResources->clearColor);
 	context->ClearDepthStencilView(this->_deviceResources->_depthStencilView, D3D11_CLEAR_DEPTH, this->_deviceResources->clearDepth, 0);
 
-	if (FAILED(this->_deviceResources->RenderMain(this->_deviceResources->_backbufferSurface->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, this->_deviceResources->_displayBpp)))
-		return D3DERR_SCENE_BEGIN_FAILED;
+	if (g_config.HDConcourseEnabled)
+	{
+		if (this->_deviceResources->IsInConcourseHd())
+		{
+			this->_deviceResources->_d3dDeviceContext->CopyResource(this->_deviceResources->_offscreenBuffer, this->_deviceResources->_offscreenBufferHdBackground);
+		}
+	}
+	else
+	{
+		if (FAILED(this->_deviceResources->RenderMain(this->_deviceResources->_backbufferSurface->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, this->_deviceResources->_displayBpp)))
+			return D3DERR_SCENE_BEGIN_FAILED;
+	}
 
 	if (this->_deviceResources->_displayBpp == 2)
 	{

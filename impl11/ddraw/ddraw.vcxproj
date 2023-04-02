@@ -110,6 +110,7 @@
     <ClCompile Include="PrimarySurface.cpp" />
     <ClCompile Include="TextureSurface.cpp" />
     <ClCompile Include="utils.cpp" />
+    <ClCompile Include="XwaConcourseHook.cpp" />
     <ClCompile Include="XwaD3dRendererHook.cpp" />
     <ClCompile Include="XwaDrawBracketHook.cpp" />
     <ClCompile Include="XwaDrawRadarHook.cpp" />
@@ -137,9 +138,11 @@
     <ClInclude Include="OffscreenSurface.h" />
     <ClInclude Include="PrimarySurface.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="SurfaceDC.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="TextureSurface.h" />
     <ClInclude Include="utils.h" />
+    <ClInclude Include="XwaConcourseHook.h" />
     <ClInclude Include="XwaD3dRendererHook.h" />
     <ClInclude Include="XwaDrawBracketHook.h" />
     <ClInclude Include="XwaDrawRadarHook.h" />

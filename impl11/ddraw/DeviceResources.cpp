@@ -4,6 +4,7 @@
 #include "common.h"
 #include "DeviceResources.h"
 #include "XwaD3dRendererHook.h"
+#include "XwaConcourseHook.h"
 
 #ifdef _DEBUG
 #include "../Debug/MainVertexShader.h"
@@ -69,8 +70,6 @@ DeviceResources::DeviceResources()
 
 	this->_d3dAnnotation = nullptr;
 
-	// TODO
-	//const float color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	const float color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 	memcpy(this->clearColor, &color, sizeof(color));
 
@@ -79,6 +78,8 @@ DeviceResources::DeviceResources()
 	this->sceneRendered = false;
 	this->sceneRenderedEmpty = false;
 	this->inScene = false;
+
+	this->_surfaceDcCallback = nullptr;
 }
 
 DeviceResources::~DeviceResources()
@@ -184,6 +185,7 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 	this->_depthStencil.Release();
 	this->_renderTargetView.Release();
 	this->_offscreenBuffer.Release();
+	this->_offscreenBufferHdBackground.Release();
 	this->_backBuffer.Release();
 	this->_swapChain.Release();
 
@@ -298,6 +300,26 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			0);
 
 		hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBuffer);
+	}
+
+	if (SUCCEEDED(hr))
+	{
+		step = "OffscreenBufferBackground";
+
+		CD3D11_TEXTURE2D_DESC desc(
+			DXGI_FORMAT_B8G8R8A8_UNORM,
+			this->_backbufferWidth,
+			this->_backbufferHeight,
+			1,
+			1,
+			D3D11_BIND_RENDER_TARGET,
+			D3D11_USAGE_DEFAULT,
+			0,
+			this->_sampleDesc.Count,
+			this->_sampleDesc.Quality,
+			0);
+
+		hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBufferHdBackground);
 	}
 
 	if (SUCCEEDED(hr))
@@ -1350,6 +1372,104 @@ HRESULT DeviceResources::RetrieveBackBuffer(char* buffer, DWORD width, DWORD hei
 	return hr;
 }
 
+HRESULT DeviceResources::RetrieveTextureBuffer(ID3D11Texture2D* textureBuffer, char* buffer, DWORD width, DWORD height, DWORD bpp)
+{
+	HRESULT hr = S_OK;
+	const char* step = "";
+
+	memset(buffer, 0, width * height * bpp);
+
+	D3D11_TEXTURE2D_DESC textureDescription;
+	textureBuffer->GetDesc(&textureDescription);
+
+	textureDescription.BindFlags = 0;
+	textureDescription.SampleDesc.Count = 1;
+	textureDescription.SampleDesc.Quality = 0;
+
+	ComPtr<ID3D11Texture2D> offBuffer;
+	textureDescription.Usage = D3D11_USAGE_DEFAULT;
+	textureDescription.CPUAccessFlags = 0;
+
+	step = "Resolve OffscreenBuffer";
+
+	if (SUCCEEDED(hr = this->_d3dDevice->CreateTexture2D(&textureDescription, nullptr, &offBuffer)))
+	{
+		this->_d3dDeviceContext->ResolveSubresource(offBuffer, D3D11CalcSubresource(0, 0, 1), textureBuffer, D3D11CalcSubresource(0, 0, 1), textureDescription.Format);
+
+		step = "Staging Texture2D";
+
+		ComPtr<ID3D11Texture2D> texture;
+		textureDescription.Usage = D3D11_USAGE_STAGING;
+		textureDescription.CPUAccessFlags = D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE;
+
+		if (SUCCEEDED(hr = this->_d3dDevice->CreateTexture2D(&textureDescription, nullptr, &texture)))
+		{
+			this->_d3dDeviceContext->CopyResource(texture, offBuffer);
+
+			step = "Map";
+
+			D3D11_MAPPED_SUBRESOURCE map;
+			if (SUCCEEDED(hr = this->_d3dDeviceContext->Map(texture, 0, D3D11_MAP_READ, 0, &map)))
+			{
+				step = "copy";
+
+				if (bpp == 4 && width == this->_backbufferWidth && height == this->_backbufferHeight && this->_backbufferWidth * 4 == map.RowPitch)
+				{
+					memcpy(buffer, map.pData, width * height * 4);
+				}
+				else
+				{
+					if (this->_backbufferWidth * 4 == map.RowPitch)
+					{
+						scaleSurface(buffer, width, height, bpp, (char*)map.pData, this->_backbufferWidth, this->_backbufferHeight, 4);
+					}
+					else
+					{
+						char* buffer2 = new char[this->_backbufferWidth * this->_backbufferHeight * 4];
+
+						unsigned int* srcColors = (unsigned int*)map.pData;
+						unsigned int* colors = (unsigned int*)buffer2;
+
+						for (DWORD y = 0; y < this->_backbufferHeight; y++)
+						{
+							memcpy(colors, srcColors, this->_backbufferWidth * 4);
+
+
+							srcColors = (unsigned int*)((char*)srcColors + map.RowPitch);
+							colors += this->_backbufferWidth;
+						}
+
+						scaleSurface(buffer, width, height, bpp, buffer2, this->_backbufferWidth, this->_backbufferHeight, 4);
+
+						delete[] buffer2;
+					}
+				}
+
+				this->_d3dDeviceContext->Unmap(texture, 0);
+			}
+		}
+	}
+
+	if (FAILED(hr))
+	{
+		static bool messageShown = false;
+
+		if (!messageShown)
+		{
+			char text[512];
+			strcpy_s(text, step);
+			strcat_s(text, "\n");
+			strcat_s(text, _com_error(hr).ErrorMessage());
+
+			MessageBox(nullptr, text, __FUNCTION__, MB_ICONERROR);
+		}
+
+		messageShown = true;
+	}
+
+	return hr;
+}
+
 UINT DeviceResources::GetMaxAnisotropy()
 {
 	return this->_d3dFeatureLevel >= D3D_FEATURE_LEVEL_9_2 ? D3D11_MAX_MAXANISOTROPY : D3D_FL9_1_DEFAULT_MAX_ANISOTROPY;
@@ -1430,4 +1550,64 @@ bool DeviceResources::EndAnnotatedEvent()
 	}
 	else
 		return false;
+}
+
+bool DeviceResources::IsInConcourseHd()
+{
+	g_callDrawCursor = true;
+
+	if (!_IsXwaExe)
+	{
+		return false;
+	}
+
+	if (!g_config.HDConcourseEnabled)
+	{
+		return false;
+	}
+
+	const int currentGameState = *(int*)(0x009F60E0 + 0x25FA9);
+	const int updateCallback = *(int*)(0x009F60E0 + 0x25FB1 + 0x850 * currentGameState + 0x0844);
+	const bool isConfigMenuGameStateUpdate = updateCallback == 0x0051D100;
+	const bool isMessageBoxGameStateUpdate = updateCallback == 0x005595A0;
+
+	unsigned char XwaGlobalVariables_m00F2F = *(unsigned char*)(0x009F60E0 + 0x0F2F);
+	const bool isConcourse = this->_displayWidth == 640 && this->_displayHeight == 480 && this->_displayBpp == 2;
+	const int frameIndex = *(int*)(0x009F60E0 + 0x2B361);
+
+	if (XwaGlobalVariables_m00F2F == 0)
+	{
+		return false;
+	}
+
+	if (isConfigMenuGameStateUpdate)
+	{
+		g_callDrawCursor = false;
+		return true;
+	}
+
+	if (isMessageBoxGameStateUpdate)
+	{
+		if (isConcourse)
+		{
+			g_callDrawCursor = false;
+		}
+
+		return true;
+	}
+
+	if (!inScene)
+	{
+		g_callDrawCursor = false;
+		return true;
+	}
+
+	if (!isConcourse)
+	{
+		return false;
+	}
+
+	g_callDrawCursor = false;
+
+	return true;
 }

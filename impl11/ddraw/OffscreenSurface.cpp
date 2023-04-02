@@ -4,6 +4,7 @@
 #include "common.h"
 #include "DeviceResources.h"
 #include "OffscreenSurface.h"
+#include "SurfaceDC.h"
 
 OffscreenSurface::OffscreenSurface(DeviceResources* deviceResources)
 {
@@ -400,6 +401,25 @@ HRESULT OffscreenSurface::GetDC(
 	LogText(str.str());
 #endif
 
+	if (this->_deviceResources->IsInConcourseHd())
+	{
+		if (lphDC)
+		{
+			SurfaceDC* pDC = (SurfaceDC*)lphDC;
+
+			pDC->buffer32 = 0;
+			pDC->width = this->_deviceResources->_backbufferWidth;
+			pDC->height = this->_deviceResources->_backbufferHeight;
+			pDC->displayWidth = this->_deviceResources->_displayWidth;
+			pDC->displayHeight = this->_deviceResources->_displayHeight;
+			pDC->aspectRatioPreserved = g_config.AspectRatioPreserved;
+			pDC->callback = &this->_deviceResources->_surfaceDcCallback;
+			pDC->d2d1RenderTarget = this->_deviceResources->_d2d1RenderTarget;
+		}
+
+		return DD_OK;
+	}
+
 #if LOGGER
 	str.str("\tDDERR_UNSUPPORTED");
 	LogText(str.str());
@@ -729,6 +749,36 @@ HRESULT OffscreenSurface::Unlock(
 	str << this << " " << __FUNCTION__;
 	LogText(str.str());
 #endif
+
+	if (g_config.HDConcourseEnabled)
+	{
+		const int frameIndex = *(int*)(0x009F60E0 + 0x2B361);
+		const int currentGameState = *(int*)(0x009F60E0 + 0x25FA9);
+		const int updateCallback = *(int*)(0x009F60E0 + 0x25FB1 + 0x850 * currentGameState + 0x0844);
+		const bool isConfigMenuGameStateUpdate = updateCallback == 0x0051D100;
+		const bool isMessageBoxGameStateUpdate = updateCallback == 0x005595A0;
+		const bool isTechLibraryGameStateUpdate = updateCallback == 0x00574D70;
+
+		bool copyHdBackground = true;
+
+		if (isConfigMenuGameStateUpdate || isMessageBoxGameStateUpdate)
+		{
+			copyHdBackground = false;
+		}
+		else if (!this->_deviceResources->IsInConcourseHd())
+		{
+			copyHdBackground = false;
+		}
+		else if (isTechLibraryGameStateUpdate && frameIndex != 0)
+		{
+			copyHdBackground = false;
+		}
+
+		if (copyHdBackground)
+		{
+			this->_deviceResources->_d3dDeviceContext->CopyResource(this->_deviceResources->_offscreenBufferHdBackground, this->_deviceResources->_offscreenBuffer);
+		}
+	}
 
 	return DD_OK;
 }

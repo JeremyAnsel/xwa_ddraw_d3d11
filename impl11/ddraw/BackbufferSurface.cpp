@@ -321,6 +321,12 @@ HRESULT BackbufferSurface::BltFast(
 	{
 		if (lpDDSrcSurface == this->_deviceResources->_frontbufferSurface)
 		{
+			if (this->_deviceResources->IsInConcourseHd())
+			{
+				// XwaDrawCursor
+				((void(*)())0x0055B630)();
+			}
+
 			copySurface(this->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, this->_deviceResources->_displayBpp, this->_deviceResources->_frontbufferSurface->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, 2, dwX, dwY, lpSrcRect, (dwTrans & DDBLTFAST_SRCCOLORKEY) != 0);
 			this->_deviceResources->_frontbufferSurface->wasBltFastCalled = true;
 			return DD_OK;
@@ -539,6 +545,25 @@ HRESULT BackbufferSurface::GetDC(
 	str << this << " " << __FUNCTION__;
 	LogText(str.str());
 #endif
+
+	if (this->_deviceResources->IsInConcourseHd())
+	{
+		char* s_pXwaCurrentSurfaceData = *(char**)0x009F60D4;
+		const int frameIndex = *(int*)(0x009F60E0 + 0x2B361);
+
+		if (frameIndex != 0)
+		{
+			if (s_pXwaCurrentSurfaceData == this->_deviceResources->_frontbufferSurface->_buffer)
+			{
+				return this->_deviceResources->_frontbufferSurface->GetDC(lphDC);
+			}
+		}
+
+		if (s_pXwaCurrentSurfaceData == this->_deviceResources->_offscreenSurface->_buffer)
+		{
+			return this->_deviceResources->_offscreenSurface->GetDC(lphDC);
+		}
+	}
 
 #if LOGGER
 	str.str("\tDDERR_UNSUPPORTED");

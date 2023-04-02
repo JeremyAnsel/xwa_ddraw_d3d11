@@ -13,6 +13,7 @@
 #include "XwaDrawRadarHook.h"
 #include "XwaDrawBracketHook.h"
 #include "XwaD3dRendererHook.h"
+#include "XwaConcourseHook.h"
 
 bool IsXwaExe()
 {
@@ -110,6 +111,20 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 				*(int*)(0x00481FA5 + 0x01) = (int)D3dRendererOptNodeHook - (0x00481FA5 + 0x05);
 				*(unsigned char*)(0x00481FC7 + 0x00) = 0x57; // push edi
 				*(int*)(0x00481FC9 + 0x01) = (int)D3dRendererOptNodeHook - (0x00481FC9 + 0x05);
+			}
+
+			if (g_config.HDConcourseEnabled)
+			{
+				// ConcourseTakeScreenshot - call 0053FA70 - XwaTakeFrontScreenShot
+				*(unsigned char*)(0x0053E479 + 0x00) = 0x90;
+				*(int*)(0x0053E479 + 0x01) = 0x90909090;
+
+				// Draw Cursor
+				*(int*)(0x0053E94C + 0x01) = (int)DrawCursor - (0x0053E94C + 0x05);
+				*(int*)(0x0053FF75 + 0x01) = (int)DrawCursor - (0x0053FF75 + 0x05);
+
+				// Play Video Clear
+				*(int*)(0x0055BE94 + 0x01) = (int)PlayVideoClear - (0x0055BE94 + 0x05);
 			}
 		}
 

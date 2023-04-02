@@ -9,6 +9,7 @@
 #include "XwaDrawTextHook.h"
 #include "XwaDrawRadarHook.h"
 #include "XwaDrawBracketHook.h"
+#include "XwaConcourseHook.h"
 
 static bool g_PrimarySurfaceInitialized = false;
 
@@ -394,7 +395,11 @@ HRESULT PrimarySurface::Flip(
 
 	if (this->_deviceResources->sceneRenderedEmpty && this->_deviceResources->_frontbufferSurface != nullptr && this->_deviceResources->_frontbufferSurface->wasBltFastCalled)
 	{
-		this->_deviceResources->_d3dDeviceContext->ClearRenderTargetView(this->_deviceResources->_renderTargetView, this->_deviceResources->clearColor);
+		if (!this->_deviceResources->IsInConcourseHd())
+		{
+			this->_deviceResources->_d3dDeviceContext->ClearRenderTargetView(this->_deviceResources->_renderTargetView, this->_deviceResources->clearColor);
+		}
+
 		this->_deviceResources->_d3dDeviceContext->ClearDepthStencilView(this->_deviceResources->_depthStencilView, D3D11_CLEAR_DEPTH, this->_deviceResources->clearDepth, 0);
 	}
 
@@ -413,12 +418,14 @@ HRESULT PrimarySurface::Flip(
 
 		if (lpDDSurfaceTargetOverride == this->_deviceResources->_backbufferSurface)
 		{
-			if (this->_deviceResources->_frontbufferSurface == nullptr)
+			bool isInConcourseHd = this->_deviceResources->IsInConcourseHd();
+
+			if (!isInConcourseHd && this->_deviceResources->_frontbufferSurface == nullptr)
 			{
 				if (FAILED(this->_deviceResources->RenderMain(this->_deviceResources->_backbufferSurface->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, this->_deviceResources->_displayBpp)))
 					return DDERR_GENERIC;
 			}
-			else
+			else if (!isInConcourseHd)
 			{
 				const unsigned short colorKey = 0x8080;
 
@@ -530,7 +537,24 @@ HRESULT PrimarySurface::Flip(
 					memcpy(this->_deviceResources->_frontbufferSurface->_buffer2, this->_deviceResources->_frontbufferSurface->_buffer, this->_deviceResources->_frontbufferSurface->_bufferSize);
 				}
 
+				if (g_config.HDConcourseEnabled)
+				{
+					ConcourseTakeScreenshot();
+				}
+
 				this->_deviceResources->_frontbufferSurface->wasBltFastCalled = false;
+			}
+
+			if (g_config.HDConcourseEnabled)
+			{
+				const int currentGameState = *(int*)(0x009F60E0 + 0x25FA9);
+				const int updateCallback = *(int*)(0x009F60E0 + 0x25FB1 + 0x850 * currentGameState + 0x0844);
+				const bool isConfigMenuGameStateUpdate = updateCallback == 0x0051D100;
+
+				if (!isConfigMenuGameStateUpdate && this->_deviceResources->IsInConcourseHd())
+				{
+					this->_deviceResources->_d3dDeviceContext->CopyResource(this->_deviceResources->_offscreenBuffer, this->_deviceResources->_offscreenBufferHdBackground);
+				}
 			}
 
 			this->_deviceResources->EndAnnotatedEvent();
