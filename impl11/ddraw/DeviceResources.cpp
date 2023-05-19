@@ -1569,7 +1569,7 @@ bool DeviceResources::IsInConcourseHd()
 	const int currentGameState = *(int*)(0x009F60E0 + 0x25FA9);
 	const int updateCallback = *(int*)(0x009F60E0 + 0x25FB1 + 0x850 * currentGameState + 0x0844);
 	const bool isConfigMenuGameStateUpdate = updateCallback == 0x0051D100;
-	const bool isMessageBoxGameStateUpdate = updateCallback == 0x005595A0;
+	const bool isMessageBoxGameStateUpdate = updateCallback == 0x005595A0 || updateCallback == 0x00541260;
 
 	unsigned char XwaGlobalVariables_m00F2F = *(unsigned char*)(0x009F60E0 + 0x0F2F);
 	const bool isConcourse = this->_displayWidth == 640 && this->_displayHeight == 480 && this->_displayBpp == 2;
