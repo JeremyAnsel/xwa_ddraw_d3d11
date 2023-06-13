@@ -1,9 +1,38 @@
 #include "common.h"
 #include "XwaConcourseHook.h"
 #include "DeviceResources.h"
+#include "PrimarySurface.h"
 #include "FrontbufferSurface.h"
 #include "DirectDraw.h"
 #include <fstream>
+
+void FlightTakeScreenshot()
+{
+	wchar_t filename[64];
+
+	for (int index = 0; true; index++)
+	{
+		swprintf_s(filename, L"flightscreen%d.jpg", index);
+
+		if (!std::ifstream(filename))
+		{
+			break;
+		}
+	}
+
+	PrimarySurface* primarySurface = *(PrimarySurface**)0x00773344;
+	DeviceResources* deviceResources = primarySurface->_deviceResources;
+
+	UINT width = deviceResources->_backbufferWidth;
+	UINT height = deviceResources->_backbufferHeight;
+	char* buffer = new char[width * height * 4];
+
+	deviceResources->RetrieveBackBuffer(buffer, width, height, 4);
+
+	saveScreenshot(filename, buffer, width, height, 4);
+
+	delete[] buffer;
+}
 
 int g_callDrawCursor = true;
 

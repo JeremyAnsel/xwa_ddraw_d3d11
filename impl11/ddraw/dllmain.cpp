@@ -113,6 +113,11 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 				*(int*)(0x00481FC9 + 0x01) = (int)D3dRendererOptNodeHook - (0x00481FC9 + 0x05);
 			}
 
+			// FlightTakeScreenshot
+			*(unsigned char*)(0x004D4650 + 0x00) = 0xE8;
+			*(int*)(0x004D4650 + 0x01) = (int)FlightTakeScreenshot - (0x004D4650 + 0x05);
+			*(unsigned char*)(0x004D4650 + 0x05) = 0xC3;
+
 			if (g_config.HDConcourseEnabled)
 			{
 				// ConcourseTakeScreenshot - call 0053FA70 - XwaTakeFrontScreenShot
