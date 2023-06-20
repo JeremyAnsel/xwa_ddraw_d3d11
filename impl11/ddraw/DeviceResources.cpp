@@ -15,6 +15,7 @@
 #include "../Debug/VertexShader.h"
 #include "../Debug/PixelShaderTexture.h"
 #include "../Debug/PixelShaderSolid.h"
+#include "../Debug/PixelShaderResize.h"
 #else
 #include "../Release/MainVertexShader.h"
 #include "../Release/MainPixelShader.h"
@@ -24,29 +25,8 @@
 #include "../Release/VertexShader.h"
 #include "../Release/PixelShaderTexture.h"
 #include "../Release/PixelShaderSolid.h"
+#include "../Release/PixelShaderResize.h"
 #endif
-
-struct MainVertex
-{
-	float pos[2];
-	float tex[2];
-
-	MainVertex()
-	{
-		this->pos[0] = 0;
-		this->pos[1] = 0;
-		this->tex[0] = 0;
-		this->tex[1] = 0;
-	}
-
-	MainVertex(float x, float y, float u, float v)
-	{
-		this->pos[0] = x;
-		this->pos[1] = y;
-		this->tex[0] = u;
-		this->tex[1] = v;
-	}
-};
 
 DeviceResources::DeviceResources()
 {
@@ -185,7 +165,10 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 	this->_depthStencil.Release();
 	this->_renderTargetView.Release();
 	this->_offscreenBuffer.Release();
+	this->_offscreenBufferResolved.Release();
+	this->_offscreenBufferResolvedView.Release();
 	this->_offscreenBufferHdBackground.Release();
+	this->_backBufferRenderTargetView.Release();
 	this->_backBuffer.Release();
 	this->_swapChain.Release();
 
@@ -193,6 +176,15 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 
 	if (hWnd != nullptr)
 	{
+		RECT rect;
+		UINT windowWidth = 0;
+		UINT windowHeight = 0;
+		if (GetWindowRect(hWnd, &rect))
+		{
+			windowWidth = rect.right - rect.left;
+			windowHeight = rect.bottom - rect.top;
+		}
+
 		step = "RenderTarget SwapChain";
 		ComPtr<IDXGIDevice> dxgiDevice;
 		ComPtr<IDXGIAdapter> dxgiAdapter;
@@ -230,8 +222,8 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			DXGI_SWAP_CHAIN_DESC sd{};
 			sd.BufferCount = 2;
 			sd.SwapEffect = DXGI_SWAP_EFFECT_SEQUENTIAL;
-			sd.BufferDesc.Width = 0;
-			sd.BufferDesc.Height = 0;
+			sd.BufferDesc.Width = windowWidth;
+			sd.BufferDesc.Height = windowHeight;
 			sd.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
 			sd.BufferDesc.RefreshRate = md.RefreshRate;
 			sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -294,8 +286,8 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 
 		CD3D11_TEXTURE2D_DESC desc(
 			DXGI_FORMAT_B8G8R8A8_UNORM,
-			this->_backbufferWidth,
-			this->_backbufferHeight,
+			this->_displayWidth,
+			this->_displayHeight,
 			1,
 			1,
 			D3D11_BIND_RENDER_TARGET,
@@ -310,12 +302,32 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 
 	if (SUCCEEDED(hr))
 	{
+		step = "OffscreenBufferResolved";
+
+		CD3D11_TEXTURE2D_DESC desc(
+			DXGI_FORMAT_B8G8R8A8_UNORM,
+			this->_displayWidth,
+			this->_displayHeight,
+			1,
+			1,
+			D3D11_BIND_SHADER_RESOURCE,
+			D3D11_USAGE_DEFAULT,
+			0,
+			1,
+			this->_sampleDesc.Quality,
+			0);
+
+		hr = this->_d3dDevice->CreateTexture2D(&desc, nullptr, &this->_offscreenBufferResolved);
+	}
+
+	if (SUCCEEDED(hr))
+	{
 		step = "OffscreenBufferBackground";
 
 		CD3D11_TEXTURE2D_DESC desc(
 			DXGI_FORMAT_B8G8R8A8_UNORM,
-			this->_backbufferWidth,
-			this->_backbufferHeight,
+			this->_displayWidth,
+			this->_displayHeight,
 			1,
 			1,
 			D3D11_BIND_RENDER_TARGET,
@@ -330,6 +342,19 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 
 	if (SUCCEEDED(hr))
 	{
+		step = "OffscreenBufferResolvedView";
+
+		D3D11_SHADER_RESOURCE_VIEW_DESC textureViewDesc{};
+		textureViewDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+		textureViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		textureViewDesc.Texture2D.MipLevels = 1;
+		textureViewDesc.Texture2D.MostDetailedMip = 0;
+
+		hr = this->_d3dDevice->CreateShaderResourceView(this->_offscreenBufferResolved, &textureViewDesc, &this->_offscreenBufferResolvedView);
+	}
+
+	if (SUCCEEDED(hr))
+	{
 		step = "RenderTargetView";
 		CD3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc(this->_useMultisampling ? D3D11_RTV_DIMENSION_TEXTURE2DMS : D3D11_RTV_DIMENSION_TEXTURE2D);
 		hr = this->_d3dDevice->CreateRenderTargetView(this->_offscreenBuffer, &renderTargetViewDesc, &this->_renderTargetView);
@@ -337,10 +362,17 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 
 	if (SUCCEEDED(hr))
 	{
+		step = "BackBufferRenderTargetView";
+		CD3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc(D3D11_RTV_DIMENSION_TEXTURE2D);
+		hr = this->_d3dDevice->CreateRenderTargetView(this->_backBuffer, &renderTargetViewDesc, &this->_backBufferRenderTargetView);
+	}
+
+	if (SUCCEEDED(hr))
+	{
 		step = "DepthStencil";
 		D3D11_TEXTURE2D_DESC depthStencilDesc;
-		depthStencilDesc.Width = this->_backbufferWidth;
-		depthStencilDesc.Height = this->_backbufferHeight;
+		depthStencilDesc.Width = this->_displayWidth;
+		depthStencilDesc.Height = this->_displayHeight;
 		depthStencilDesc.MipLevels = 1;
 		depthStencilDesc.ArraySize = 1;
 		depthStencilDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
@@ -369,8 +401,8 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 		D3D11_VIEWPORT viewport;
 		viewport.TopLeftX = 0;
 		viewport.TopLeftY = 0;
-		viewport.Width = (float)this->_backbufferWidth;
-		viewport.Height = (float)this->_backbufferHeight;
+		viewport.Width = (float)this->_displayWidth;
+		viewport.Height = (float)this->_displayWidth;
 		viewport.MinDepth = D3D11_MIN_DEPTH;
 		viewport.MaxDepth = D3D11_MAX_DEPTH;
 
@@ -495,6 +527,9 @@ HRESULT DeviceResources::LoadMainResources()
 		if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_MainPixelShaderBpp4ColorKey20, sizeof(g_MainPixelShaderBpp4ColorKey20), nullptr, &_mainPixelShaderBpp4ColorKey20)))
 			return hr;
 	}
+
+	if (FAILED(hr = this->_d3dDevice->CreatePixelShader(g_PixelShaderResize, sizeof(g_PixelShaderResize), nullptr, &_pixelShaderResize)))
+		return hr;
 
 	D3D11_RASTERIZER_DESC rsDesc;
 	rsDesc.FillMode = D3D11_FILL_SOLID;
@@ -1201,25 +1236,25 @@ HRESULT DeviceResources::RenderMain(char* src, DWORD width, DWORD height, DWORD 
 
 	if (g_config.AspectRatioPreserved)
 	{
-		if (this->_backbufferHeight * width <= this->_backbufferWidth * height)
+		if (this->_displayHeight * width <= this->_displayWidth * height)
 		{
-			w = this->_backbufferHeight * width / height;
-			h = this->_backbufferHeight;
+			w = this->_displayHeight * width / height;
+			h = this->_displayHeight;
 		}
 		else
 		{
-			w = this->_backbufferWidth;
-			h = this->_backbufferWidth * height / width;
+			w = this->_displayWidth;
+			h = this->_displayWidth * height / width;
 		}
 	}
 	else
 	{
-		w = this->_backbufferWidth;
-		h = this->_backbufferHeight;
+		w = this->_displayWidth;
+		h = this->_displayHeight;
 	}
 
-	UINT left = (this->_backbufferWidth - w) / 2;
-	UINT top = (this->_backbufferHeight - h) / 2;
+	UINT left = (this->_displayWidth - w) / 2;
+	UINT top = (this->_displayHeight - h) / 2;
 
 	D3D11_VIEWPORT viewport;
 	viewport.TopLeftX = (float)left;
