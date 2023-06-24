@@ -185,6 +185,13 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 			windowHeight = rect.bottom - rect.top;
 		}
 
+		if (g_config.HDConcourseEnabled && _IsXwaExe && 
+			this->_displayWidth == 640 && this->_displayHeight == 480 && this->_displayBpp == 2)
+		{			
+			this->_displayWidth = windowWidth;
+			this->_displayHeight = windowHeight;
+		}
+
 		step = "RenderTarget SwapChain";
 		ComPtr<IDXGIDevice> dxgiDevice;
 		ComPtr<IDXGIAdapter> dxgiAdapter;

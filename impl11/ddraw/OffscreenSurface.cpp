@@ -408,8 +408,8 @@ HRESULT OffscreenSurface::GetDC(
 			SurfaceDC* pDC = (SurfaceDC*)lphDC;
 
 			pDC->buffer32 = 0;
-			pDC->width = this->_deviceResources->_backbufferWidth;
-			pDC->height = this->_deviceResources->_backbufferHeight;
+			pDC->width = this->_deviceResources->_displayWidth;
+			pDC->height = this->_deviceResources->_displayHeight;
 			pDC->displayWidth = this->_deviceResources->_displayWidth;
 			pDC->displayHeight = this->_deviceResources->_displayHeight;
 			pDC->aspectRatioPreserved = g_config.AspectRatioPreserved;
