@@ -214,7 +214,13 @@ HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 
 		if (SUCCEEDED(hr))
 		{
+			DWM_TIMING_INFO timingInfo{};
+			timingInfo.cbSize = sizeof(DWM_TIMING_INFO);
+			DwmGetCompositionTimingInfo(nullptr, &timingInfo);
+
 			md.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+			md.RefreshRate.Numerator = timingInfo.rateCompose.uiNumerator;
+			md.RefreshRate.Denominator = timingInfo.rateCompose.uiDenominator;
 
 			hr = dxgiOutput->FindClosestMatchingMode(&md, &md, nullptr);
 		}

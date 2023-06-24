@@ -19,6 +19,7 @@ extern bool _IsXwaExe;
 #include <d2d1helper.h>
 #include <dwrite.h>
 #include <Shlwapi.h>
+#include <dwmapi.h>
 
 #include <comdef.h>
 

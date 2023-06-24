@@ -11,6 +11,7 @@
 #pragma comment(lib, "d2d1")
 #pragma comment(lib, "dwrite")
 #pragma comment(lib, "Shlwapi")
+#pragma comment(lib, "Dwmapi")
 
 class LibraryWrapper
 {
