@@ -6,19 +6,32 @@
 #include "DirectDraw.h"
 #include <fstream>
 
+std::wstring BuildScreenshotFilename(const std::wstring& prefix)
+{
+	SYSTEMTIME time;
+	GetLocalTime(&time);
+
+	wchar_t filename[MAX_PATH];
+
+	wsprintfW(
+		filename,
+		L"%s\\%s_%4d%02d%02d_%02d%02d%02d%03d.jpg",
+		string_towstring(g_config.ScreenshotsDirectory).c_str(),
+		prefix.c_str(),
+		time.wYear,
+		time.wMonth,
+		time.wDay,
+		time.wHour,
+		time.wMinute,
+		time.wSecond,
+		time.wMilliseconds);
+
+	return filename;
+}
+
 void FlightTakeScreenshot()
 {
-	wchar_t filename[64];
-
-	for (int index = 0; true; index++)
-	{
-		swprintf_s(filename, L"flightscreen%d.jpg", index);
-
-		if (!std::ifstream(filename))
-		{
-			break;
-		}
-	}
+	std::wstring filename = BuildScreenshotFilename(L"flightscreen");
 
 	PrimarySurface* primarySurface = *(PrimarySurface**)0x00773344;
 	DeviceResources* deviceResources = primarySurface->_deviceResources;
@@ -55,17 +68,7 @@ void ConcourseTakeScreenshot()
 		return;
 	}
 
-	wchar_t filename[64];
-
-	for (int index = 0; true; index++)
-	{
-		swprintf_s(filename, L"frontscreen%d.jpg", index);
-
-		if (!std::ifstream(filename))
-		{
-			break;
-		}
-	}
+	std::wstring filename = BuildScreenshotFilename(L"frontscreen");
 
 	FrontbufferSurface* frontSurface = *(FrontbufferSurface**)(0x09F60E0 + 0x0F56);
 	DeviceResources* deviceResources = frontSurface->_deviceResources;

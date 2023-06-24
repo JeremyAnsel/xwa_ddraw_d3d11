@@ -686,7 +686,7 @@ ColorConverterTables::ColorConverterTables()
 
 ColorConverterTables g_colorConverterTables;
 
-void saveScreenshot(std::wstring filename, char* buffer, DWORD width, DWORD height, DWORD bpp)
+void saveScreenshot(const std::wstring& filename, char* buffer, DWORD width, DWORD height, DWORD bpp)
 {
 	if (g_gdiInitializer.hasError())
 		return;
@@ -721,7 +721,7 @@ void saveScreenshot(std::wstring filename, char* buffer, DWORD width, DWORD heig
 	}
 }
 
-void saveSurface(std::wstring name, char* buffer, DWORD width, DWORD height, DWORD bpp)
+void saveSurface(const std::wstring& name, char* buffer, DWORD width, DWORD height, DWORD bpp)
 {
 	if (g_gdiInitializer.hasError())
 		return;

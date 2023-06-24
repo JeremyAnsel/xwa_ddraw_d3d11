@@ -57,6 +57,9 @@ Config::Config()
 	this->ProjectionParameterB = 256.0f;
 	this->ProjectionParameterC = 0.33f;
 
+	CreateDirectory("Screenshots", nullptr);
+	this->ScreenshotsDirectory = "Screenshots";
+
 	if (ifstream("Hook_D3d.dll") && HookD3D_IsHookD3DEnabled())
 	{
 		this->D3dHookExists = true;
@@ -161,6 +164,13 @@ Config::Config()
 			else if (name == "ProjectionParameterC")
 			{
 				this->ProjectionParameterC = stof(value);
+			}
+			else if (name == "ScreenshotsDirectory")
+			{
+				if (PathIsDirectory(value.c_str()))
+				{
+					this->ScreenshotsDirectory = value;
+				}
 			}
 		}
 	}

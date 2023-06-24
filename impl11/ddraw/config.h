@@ -36,6 +36,8 @@ public:
 	float ProjectionParameterA;
 	float ProjectionParameterB;
 	float ProjectionParameterC;
+
+	std::string ScreenshotsDirectory;
 };
 
 extern Config g_config;
