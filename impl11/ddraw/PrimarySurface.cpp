@@ -429,6 +429,14 @@ HRESULT PrimarySurface::Flip(
 			{
 				const unsigned short colorKey = 0x8080;
 
+				const int currentGameState = *(int*)(0x009F60E0 + 0x25FA9);
+				const int updateCallback = *(int*)(0x009F60E0 + 0x25FB1 + 0x850 * currentGameState + 0x0844);
+				const bool isConfigMenuGameStateUpdate = updateCallback == 0x0051D100;
+				const bool isMessageBoxGameStateUpdate = updateCallback == 0x005595A0 || updateCallback == 0x00541260;
+
+				unsigned char XwaGlobalVariables_m00F2F = *(unsigned char*)(0x009F60E0 + 0x0F2F);
+				const bool isConcourse = this->_deviceResources->_displayWidth == 640 && this->_deviceResources->_displayHeight == 480 && this->_deviceResources->_displayBpp == 2;
+
 				int width = 640;
 				int height = 480;
 
@@ -436,9 +444,10 @@ HRESULT PrimarySurface::Flip(
 
 				if (this->_deviceResources->_displayBpp == 2)
 				{
-					int w = this->_deviceResources->_displayWidth;
-					int x = (this->_deviceResources->_displayWidth - width) / 2;
-					int y = (this->_deviceResources->_displayHeight - height) / 2;
+					int w = this->_deviceResources->_backbufferWidth;
+					int x = (this->_deviceResources->_backbufferWidth - width) / 2;
+					int y = (this->_deviceResources->_backbufferHeight - height) / 2;
+
 					unsigned short* buffer = (unsigned short*)this->_deviceResources->_backbufferSurface->_buffer + y * w + x;
 
 					for (int i = 0; i < height / 2; i++)
@@ -475,6 +484,11 @@ HRESULT PrimarySurface::Flip(
 				RECT rc;
 				rc.left = (this->_deviceResources->_displayWidth - width) / 2;
 				rc.top = (this->_deviceResources->_displayHeight - height) / 2;
+				if ( !isConfigMenuGameStateUpdate || (topBlack != 0))
+				{
+					rc.left = 0;
+					rc.top = 0;
+				}
 				rc.right = rc.left + width;
 				rc.bottom = rc.top + height;
 
