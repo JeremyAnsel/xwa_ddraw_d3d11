@@ -556,6 +556,10 @@ HRESULT PrimarySurface::Flip(
 					this->_deviceResources->_d3dDeviceContext->CopyResource(this->_deviceResources->_offscreenBuffer, this->_deviceResources->_offscreenBufferHdBackground);
 				}
 			}
+			else
+			{
+				this->_deviceResources->_d3dDeviceContext->ClearRenderTargetView(this->_deviceResources->_renderTargetView, this->_deviceResources->clearColor);
+			}
 
 			this->_deviceResources->EndAnnotatedEvent();
 			return hr;
