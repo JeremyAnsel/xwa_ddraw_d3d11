@@ -89,6 +89,8 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="BackbufferSurface.cpp" />
+    <ClCompile Include="bc7decomp.cpp" />
+    <ClCompile Include="bc7_main.cpp" />
     <ClCompile Include="config.cpp" />
     <ClCompile Include="ddraw.cpp" />
     <ClCompile Include="DepthSurface.cpp" />
@@ -118,6 +120,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BackbufferSurface.h" />
+    <ClInclude Include="bc7decomp.h" />
+    <ClInclude Include="bc7_main.h" />
     <ClInclude Include="common.h" />
     <ClInclude Include="ComPtr.h" />
     <ClInclude Include="config.h" />

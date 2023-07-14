@@ -6,6 +6,7 @@
 #include "Direct3DTexture.h"
 #include "TextureSurface.h"
 #include "MipmapSurface.h"
+#include "bc7_main.h"
 #include <comdef.h>
 
 char* convertFormat(char* src, DWORD width, DWORD height, DXGI_FORMAT format)
@@ -251,6 +252,85 @@ HRESULT Direct3DTexture::Load(
 	str << " " << (void*)surface->_pixelFormat.dwRGBAlphaBitMask;
 	LogText(str.str());
 #endif
+
+	if (surface->_pixelFormat.dwRGBBitCount == 32 && surface->_width != 0 && surface->_height != 0 && surface->_pixelFormat.dwSize != 32 && surface->_pixelFormat.dwSize != 0 && surface->_pixelFormat.dwSize < surface->_width * surface->_height * 4)
+	{
+		int size = surface->_pixelFormat.dwSize;
+		int width = surface->_width;
+		int height = surface->_height;
+
+		D3D11_TEXTURE2D_DESC textureDesc{};
+		textureDesc.Width = width;
+		textureDesc.Height = height;
+		textureDesc.Format = DXGI_FORMAT_BC7_UNORM;
+		textureDesc.Usage = D3D11_USAGE_IMMUTABLE;
+		textureDesc.CPUAccessFlags = 0;
+		textureDesc.MiscFlags = 0;
+		textureDesc.MipLevels = 1;
+		textureDesc.ArraySize = 1;
+		textureDesc.SampleDesc.Count = 1;
+		textureDesc.SampleDesc.Quality = 0;
+		textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+		int blocksWidth = (width + 3) / 4;
+		int blocksHeight = (height + 3) / 4;
+
+		D3D11_SUBRESOURCE_DATA textureData{};
+		textureData.pSysMem = surface->_buffer;
+		textureData.SysMemPitch = blocksWidth * 16;
+		textureData.SysMemSlicePitch = 0;
+
+		ComPtr<ID3D11Texture2D> texture;
+
+		char* data = nullptr;
+
+		if (width % 4 != 0 || height % 4 != 0)
+		{
+			data = new char[width * height * 4];
+			BC7_Decode(surface->_buffer, data, width, height);
+
+			textureDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+			textureData.pSysMem = data;
+			textureData.SysMemPitch = width * 4;
+		}
+
+		HRESULT hr = this->_deviceResources->_d3dDevice->CreateTexture2D(&textureDesc, &textureData, &texture);
+
+		if (data)
+		{
+			delete[] data;
+		}
+
+		if (FAILED(hr))
+		{
+			static bool messageShown = false;
+
+			if (!messageShown)
+			{
+				MessageBox(nullptr, _com_error(hr).ErrorMessage(), __FUNCTION__, MB_ICONERROR);
+			}
+
+			messageShown = true;
+
+			return D3DERR_TEXTURE_LOAD_FAILED;
+		}
+
+		D3D11_SHADER_RESOURCE_VIEW_DESC textureViewDesc{};
+		textureViewDesc.Format = textureDesc.Format;
+		textureViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		textureViewDesc.Texture2D.MipLevels = textureDesc.MipLevels;
+		textureViewDesc.Texture2D.MostDetailedMip = 0;
+
+		if (FAILED(this->_deviceResources->_d3dDevice->CreateShaderResourceView(texture, &textureViewDesc, &d3dTexture->_textureView)))
+		{
+			return D3DERR_TEXTURE_LOAD_FAILED;
+		}
+
+		d3dTexture->_textureView->AddRef();
+		this->_textureView = d3dTexture->_textureView.Get();
+
+		return D3D_OK;
+	}
 
 	DWORD bpp = surface->_pixelFormat.dwRGBBitCount == 32 ? 4 : 2;
 
