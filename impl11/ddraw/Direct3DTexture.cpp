@@ -364,7 +364,7 @@ HRESULT Direct3DTexture::Load(
 #endif
 
 		return D3DERR_TEXTURE_LOAD_FAILED;
-}
+	}
 
 	d3dTexture->_textureView->AddRef();
 	this->_textureView = d3dTexture->_textureView.Get();
