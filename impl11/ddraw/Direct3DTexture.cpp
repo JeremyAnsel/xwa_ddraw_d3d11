@@ -73,6 +73,7 @@ Direct3DTexture::Direct3DTexture(DeviceResources* deviceResources, TextureSurfac
 
 Direct3DTexture::~Direct3DTexture()
 {
+	*this->_textureView.GetAddressOf() = nullptr;
 }
 
 HRESULT Direct3DTexture::QueryInterface(
