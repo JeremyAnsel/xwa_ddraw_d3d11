@@ -527,31 +527,6 @@ HRESULT Direct3DDevice::Execute(
 	{
 		step = "ConstantBuffer";
 
-		UINT w;
-		UINT h;
-
-		if (g_config.AspectRatioPreserved)
-		{
-			if (this->_deviceResources->_backbufferHeight * this->_deviceResources->_displayWidth <= this->_deviceResources->_backbufferWidth * this->_deviceResources->_displayHeight)
-			{
-				w = this->_deviceResources->_backbufferHeight * this->_deviceResources->_displayWidth / this->_deviceResources->_displayHeight;
-				h = this->_deviceResources->_backbufferHeight;
-			}
-			else
-			{
-				w = this->_deviceResources->_backbufferWidth;
-				h = this->_deviceResources->_backbufferWidth * this->_deviceResources->_displayHeight / this->_deviceResources->_displayWidth;
-			}
-		}
-		else
-		{
-			w = this->_deviceResources->_backbufferWidth;
-			h = this->_deviceResources->_backbufferHeight;
-		}
-
-		UINT left = (this->_deviceResources->_backbufferWidth - w) / 2;
-		UINT top = (this->_deviceResources->_backbufferHeight - h) / 2;
-
 		float scale;
 
 		if (this->_deviceResources->_frontbufferSurface == nullptr)
@@ -573,10 +548,10 @@ HRESULT Direct3DDevice::Execute(
 		}
 
 		D3D11_VIEWPORT viewport;
-		viewport.TopLeftX = (float)left;
-		viewport.TopLeftY = (float)top;
-		viewport.Width = (float)w;
-		viewport.Height = (float)h;
+		viewport.TopLeftX = 0.0f;
+		viewport.TopLeftY = 0.0f;
+		viewport.Width = (float)this->_deviceResources->_displayWidth;
+		viewport.Height = (float)this->_deviceResources->_displayHeight;
 		viewport.MinDepth = D3D11_MIN_DEPTH;
 		viewport.MaxDepth = D3D11_MAX_DEPTH;
 		this->_deviceResources->InitViewport(&viewport);
