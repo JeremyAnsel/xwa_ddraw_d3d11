@@ -208,7 +208,7 @@
     <None Include="ddraw.def">
       <Filter>Fichiers sources</Filter>
     </None>
-    <None Include="ddraw.cfg" />
+    <None Include="DDraw.cfg" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="ddraw.rc">

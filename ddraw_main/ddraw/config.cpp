@@ -20,7 +20,7 @@ Config::Config()
 {
 	this->DDrawType = "Golden";
 
-	ifstream file("ddraw.cfg");
+	ifstream file("DDrawType.cfg");
 
 	if (file.is_open())
 	{

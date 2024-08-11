@@ -156,7 +156,7 @@
     <ClInclude Include="xwa_structures.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="ddraw.cfg">
+    <None Include="DDraw.cfg">
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
       </DeploymentContent>
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
