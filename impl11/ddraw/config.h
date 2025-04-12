@@ -30,6 +30,7 @@ public:
 
 	bool D3dRendererHookEnabled;
 	bool D3dRendererHookShowNormals;
+	bool D3dRendererTexturesHookEnabled;
 
 	bool HDConcourseEnabled;
 

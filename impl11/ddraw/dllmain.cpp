@@ -113,6 +113,14 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 				*(int*)(0x00481FC9 + 0x01) = (int)D3dRendererOptNodeHook - (0x00481FC9 + 0x05);
 			}
 
+			if (g_config.D3dRendererTexturesHookEnabled)
+			{
+				*(int*)(0x004CCA9F + 0x01) = (int)D3dRleaseD3DINFO - (0x004CCA9F + 0x05);
+				*(int*)(0x004CD35C + 0x01) = (int)D3dRleaseD3DINFO - (0x004CD35C + 0x05);
+				*(int*)(0x004CD147 + 0x01) = (int)D3dOptCreateD3DfromTexture - (0x004CD147 + 0x05);
+				*(unsigned char*)(0x004CD146 + 0x00) = 0x56; // push esi
+			}
+
 			// FlightTakeScreenshot
 			*(unsigned char*)(0x004D4650 + 0x00) = 0xE8;
 			*(int*)(0x004D4650 + 0x01) = (int)FlightTakeScreenshot - (0x004D4650 + 0x05);

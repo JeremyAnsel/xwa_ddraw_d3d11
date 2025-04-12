@@ -213,6 +213,8 @@ enum RendererType
 
 static RendererType g_rendererType = RendererType_Unknown;
 
+static DeviceResources* g_deviceResources = nullptr;
+
 class D3dRenderer
 {
 public:
@@ -313,6 +315,8 @@ D3dRenderer::D3dRenderer()
 
 void D3dRenderer::SceneBegin(DeviceResources* deviceResources)
 {
+	g_deviceResources = deviceResources;
+
 	_deviceResources = deviceResources;
 
 	_deviceResources->BeginAnnotatedEvent(L"D3dRendererScene");
@@ -497,20 +501,30 @@ void D3dRenderer::UpdateTextures(const SceneCompData* scene)
 		surface = (XwaTextureSurface*)esi->pData;
 	}
 
-	XwaD3dTextureCacheUpdateOrAdd(surface);
-
-	if (surface2 != nullptr)
+	if (scene->D3DInfo != nullptr && scene->D3DInfo->MipMapsCount < 0)
 	{
-		XwaD3dTextureCacheUpdateOrAdd(surface2);
-	}
+		ID3D11ShaderResourceView* colorMap = (ID3D11ShaderResourceView*)scene->D3DInfo->ColorMap[0];
+		ID3D11ShaderResourceView* lightMap = (ID3D11ShaderResourceView*)scene->D3DInfo->LightMap[0];
 
-	Direct3DTexture* texture = (Direct3DTexture*)surface->D3dTexture.D3DTextureHandle;
-	Direct3DTexture* texture2 = surface2 == nullptr ? nullptr : (Direct3DTexture*)surface2->D3dTexture.D3DTextureHandle;
-	_deviceResources->InitPSShaderResourceView(texture->_textureView, texture2 == nullptr ? nullptr : texture2->_textureView.Get());
+		_deviceResources->InitPSShaderResourceView(colorMap, lightMap);
+	}
+	else
+	{
+		XwaD3dTextureCacheUpdateOrAdd(surface);
+
+		if (surface2 != nullptr)
+		{
+			XwaD3dTextureCacheUpdateOrAdd(surface2);
+		}
+
+		Direct3DTexture* texture = (Direct3DTexture*)surface->D3dTexture.D3DTextureHandle;
+		Direct3DTexture* texture2 = surface2 == nullptr ? nullptr : (Direct3DTexture*)surface2->D3dTexture.D3DTextureHandle;
+		_deviceResources->InitPSShaderResourceView(texture->_textureView, texture2 == nullptr ? nullptr : texture2->_textureView.Get());
 
 #if LOGGER_DUMP
-	g_currentTextureName = texture->_name;
+		g_currentTextureName = texture->_name;
 #endif
+	}
 }
 
 void D3dRenderer::UpdateMeshBuffers(const SceneCompData* scene)
@@ -1348,4 +1362,376 @@ void D3dRendererOptNodeHook(OptHeader* optHeader, int nodeIndex, SceneCompData* 
 	g_xwa_d3d_renderer->_currentOptMeshIndex = (node->NodeType == OptNode_Texture || node->NodeType == OptNode_D3DTexture) ? (nodeIndex - 1) : nodeIndex;
 
 	L00482000(optHeader, node, scene);
+}
+
+std::vector<XwaD3DInfo>& GetD3dInfosArray()
+{
+	static bool _initialized = false;
+	static std::vector<XwaD3DInfo> d3dInfos;
+
+	if (!_initialized)
+	{
+		d3dInfos.reserve(1000000);
+		memset(d3dInfos.data(), 0, d3dInfos.capacity() * sizeof(XwaD3DInfo));
+		_initialized = true;
+	}
+
+	return d3dInfos;
+}
+
+bool D3dInfosArrayContains(XwaD3DInfo* d3dInfo)
+{
+	auto& d3dInfosArray = GetD3dInfosArray();
+
+	bool contains = (d3dInfo >= d3dInfosArray.data()) && (d3dInfo < d3dInfosArray.data() + d3dInfosArray.capacity());
+	return contains;
+}
+
+XwaD3DInfo* GetD3dInfosArrayFirstEmpty()
+{
+	auto& d3dInfosArray = GetD3dInfosArray();
+
+	for (int i = 0; i < d3dInfosArray.capacity(); i++)
+	{
+		if (d3dInfosArray.data()[i].MipMapsCount == 0)
+		{
+			return d3dInfosArray.data() + i;
+		}
+	}
+
+	return nullptr;
+}
+
+void D3dInfosArrayRelease(XwaD3DInfo* d3dInfo)
+{
+	if (d3dInfo->TextureDescription.Palettes)
+	{
+		delete[] d3dInfo->TextureDescription.Palettes;
+		d3dInfo->TextureDescription.Palettes = nullptr;
+	}
+
+	ID3D11ShaderResourceView* colorMap = (ID3D11ShaderResourceView*)d3dInfo->ColorMap[0];
+
+	if (colorMap)
+	{
+		colorMap->Release();
+	}
+
+	ID3D11ShaderResourceView* lightMap = (ID3D11ShaderResourceView*)d3dInfo->LightMap[0];
+
+	if (lightMap)
+	{
+		lightMap->Release();
+	}
+
+	memset(d3dInfo, 0, sizeof(XwaD3DInfo));
+}
+
+void D3dRleaseD3DINFO(XwaD3DInfo* d3dInfo)
+{
+	const auto XwaRleaseD3DINFO = (void(*)(XwaD3DInfo*))0x004417B0;
+
+	if (D3dInfosArrayContains(d3dInfo))
+	{
+		D3dInfosArrayRelease(d3dInfo);
+	}
+	else
+	{
+		XwaRleaseD3DINFO(d3dInfo);
+	}
+}
+
+void D3dOptSetSceneTextureTag(XwaD3DInfo* d3dInfo, OptNode* textureNode)
+{
+	const char* XwaIOFileName = (const char*)0x0080DA60;
+	std::string textureTag = std::string(XwaIOFileName) + "," + textureNode->Name;
+	d3dInfo->TextureDescription.Palettes = (unsigned short*)new char[textureTag.size() + 1];
+	strcpy_s((char*)d3dInfo->TextureDescription.Palettes, textureTag.size() + 1, textureTag.c_str());
+}
+
+class ColorConvert
+{
+public:
+	ColorConvert()
+	{
+		for (unsigned int color = 0; color < 0x10000; color++)
+		{
+			unsigned int r = (color >> 11) & 0x1f;
+			unsigned int g = (color >> 5) & 0x3f;
+			unsigned int b = color & 0x1f;
+
+			r = (r * 539086 + 32768) >> 16;
+			g = (g * 265264 + 32768) >> 16;
+			b = (b * 539086 + 32768) >> 16;
+
+			this->color16to32[color] = (r << 16) | (g << 8) | b;
+		}
+	}
+
+	unsigned int color16to32[0x10000];
+};
+
+ColorConvert g_colorConvert;
+
+std::string g_optName;
+std::vector<unsigned char> g_lightMapBuffer;
+std::vector<unsigned char> g_colorMapBuffer;
+std::vector<unsigned char> g_illumMapBuffer;
+
+HRESULT D3dOptCreateTextureColorLight(XwaD3DInfo* d3dInfo, OptNode* textureNode, int textureId, XwaTextureDescription* textureDescription, unsigned char* optTextureData, unsigned char* optTextureAlphaData, unsigned short* optPalette8, unsigned short* optPalette0)
+{
+	// code from the 32bpp hook
+	const int XwaFlightBrightness = *(int*)0x006002C8;
+	const int brightnessLevel = (XwaFlightBrightness - 0x100) / 0x40;
+
+	int size = textureDescription->Width * textureDescription->Height;
+
+	int bytesSize;
+
+	if (size == textureDescription->TextureSize)
+	{
+		bytesSize = textureDescription->DataSize;
+	}
+	else
+	{
+		bytesSize = size;
+	}
+
+	int bpp = 0;
+
+	if (bytesSize >= size && bytesSize < size * 2)
+	{
+		bpp = 8;
+	}
+	else if (bytesSize >= size * 4 && bytesSize < size * 8)
+	{
+		bpp = 32;
+	}
+
+	bool optHasIllum = false;
+
+	if (bpp == 8)
+	{
+		if ((int)g_colorMapBuffer.capacity() < size * 8)
+		{
+			g_colorMapBuffer.reserve(size * 8);
+		}
+
+		if ((int)g_illumMapBuffer.capacity() < size * 8)
+		{
+			g_illumMapBuffer.reserve(size * 2);
+		}
+
+		bool hasAlpha = optTextureAlphaData != 0;
+		bool hasIllum = false;
+
+		unsigned char* illumBuffer = g_illumMapBuffer.data();
+		unsigned char* colorBuffer = g_colorMapBuffer.data();
+
+		for (int i = 0; i < bytesSize; i++)
+		{
+			int colorIndex = *(unsigned char*)(optTextureData + i);
+			unsigned short color = optPalette0[4 * 256 + colorIndex];
+			unsigned short color8 = optPalette0[8 * 256 + colorIndex];
+
+			unsigned char r = (unsigned char)((color & 0xF800U) >> 11);
+			unsigned char g = (unsigned char)((color & 0x7E0U) >> 5);
+			unsigned char b = (unsigned char)(color & 0x1FU);
+
+			if (r <= 8 && g <= 16 && b <= 8)
+			{
+				illumBuffer[i] = 0;
+			}
+			//else if (hasAlpha && *(unsigned char*)(optTextureAlphaData + i) != 255)
+			//{
+			//	illumBuffer[i] = 0;
+			//}
+			else if (color == color8)
+			{
+				hasIllum = true;
+				illumBuffer[i] = 0x7f;
+				//illumBuffer[i] = 0x3f;
+			}
+			else
+			{
+				illumBuffer[i] = 0;
+			}
+		}
+
+		for (int i = 0; i < bytesSize; i++)
+		{
+			int paletteIndex = 4 + brightnessLevel;
+
+			int colorIndex = *(unsigned char*)(optTextureData + i);
+			//unsigned short color = optPalette8[colorIndex];
+			unsigned short color = optPalette0[256 * paletteIndex + colorIndex];
+			unsigned char illum = illumBuffer[i];
+
+			//unsigned int a = (optTextureAlphaData == 0 || illum != 0) ? (unsigned char)255 : *(unsigned char*)(optTextureAlphaData + i);
+			unsigned int a = optTextureAlphaData == 0 ? (unsigned char)255 : *(unsigned char*)(optTextureAlphaData + i);
+			unsigned int color32 = g_colorConvert.color16to32[color];
+
+			*(unsigned int*)(colorBuffer + i * 4) = (a << 24) | color32;
+		}
+
+		optHasIllum = hasIllum;
+	}
+	else if (bpp == 32)
+	{
+		if ((int)g_colorMapBuffer.capacity() < size * 8)
+		{
+			g_colorMapBuffer.reserve(size * 8);
+		}
+
+		if ((int)g_illumMapBuffer.capacity() < size * 2)
+		{
+			g_illumMapBuffer.reserve(size * 2);
+		}
+
+		unsigned char* illumBuffer = g_illumMapBuffer.data();
+		unsigned char* colorBuffer = g_colorMapBuffer.data();
+
+		bool hasIllum = ((char*)textureDescription->Palettes)[4] != 0;
+
+		if (!hasIllum)
+		{
+			optTextureAlphaData = 0;
+		}
+
+		bytesSize /= 4;
+
+		for (int i = 0; i < bytesSize; i++)
+		{
+			int paletteIndex = 4 + brightnessLevel;
+			unsigned char illum = optTextureAlphaData == 0 ? (unsigned char)0 : *(unsigned char*)(optTextureAlphaData + i);
+
+			//illum = min(illum, 0x3f);
+
+			//if (*(unsigned char*)(optTextureData + i * 4 + 3) != 255)
+			//{
+			//	illum = 0;
+			//}
+
+			illumBuffer[i] = illum;
+
+			unsigned int b = *(unsigned char*)(optTextureData + i * 4 + 0);
+			unsigned int g = *(unsigned char*)(optTextureData + i * 4 + 1);
+			unsigned int r = *(unsigned char*)(optTextureData + i * 4 + 2);
+			//unsigned int a = illum != 0 ? (unsigned char)255 : *(unsigned char*)(optTextureData + i * 4 + 3);
+			unsigned int a = *(unsigned char*)(optTextureData + i * 4 + 3);
+
+			if (illum == 0)
+			{
+				b = (b * 128 * paletteIndex / 8 + b * 128) / 256;
+				g = (g * 128 * paletteIndex / 8 + g * 128) / 256;
+				r = (r * 128 * paletteIndex / 8 + r * 128) / 256;
+			}
+
+			*(unsigned char*)(colorBuffer + i * 4 + 0) = b;
+			*(unsigned char*)(colorBuffer + i * 4 + 1) = g;
+			*(unsigned char*)(colorBuffer + i * 4 + 2) = r;
+			*(unsigned char*)(colorBuffer + i * 4 + 3) = a;
+		}
+
+		optHasIllum = hasIllum;
+	}
+	else
+	{
+		return E_FAIL;
+	}
+
+	HRESULT hr = S_OK;
+
+	D3D11_TEXTURE2D_DESC textureDesc{};
+	textureDesc.Width = textureDescription->Width;
+	textureDesc.Height = textureDescription->Height;
+	textureDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+	textureDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	textureDesc.CPUAccessFlags = 0;
+	textureDesc.MiscFlags = 0;
+	textureDesc.MipLevels = 1;
+	textureDesc.ArraySize = 1;
+	textureDesc.SampleDesc.Count = 1;
+	textureDesc.SampleDesc.Quality = 0;
+	textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+	D3D11_SUBRESOURCE_DATA textureData{};
+	textureData.pSysMem = g_colorMapBuffer.data();
+	textureData.SysMemPitch = textureDesc.Width * 4;
+	textureData.SysMemSlicePitch = 0;
+
+	D3D11_SHADER_RESOURCE_VIEW_DESC textureViewDesc{};
+	textureViewDesc.Format = textureDesc.Format;
+	textureViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	textureViewDesc.Texture2D.MipLevels = textureDesc.MipLevels;
+	textureViewDesc.Texture2D.MostDetailedMip = 0;
+
+	ComPtr<ID3D11Texture2D> texture;
+
+	if (SUCCEEDED(hr))
+	{
+		hr = g_deviceResources->_d3dDevice->CreateTexture2D(&textureDesc, &textureData, &texture);
+	}
+
+	if (SUCCEEDED(hr))
+	{
+		hr = g_deviceResources->_d3dDevice->CreateShaderResourceView(texture, &textureViewDesc, (ID3D11ShaderResourceView**)d3dInfo->ColorMap);
+	}
+
+	if (optHasIllum)
+	{
+		unsigned char* illumBuffer = g_illumMapBuffer.data();
+		unsigned char* colorBuffer = g_colorMapBuffer.data();
+
+		for (int i = 0; i < bytesSize; i++)
+		{
+			unsigned char illum = illumBuffer[i];
+
+			*(unsigned char*)(colorBuffer + i * 4 + 3) = illum;
+		}
+
+		if (SUCCEEDED(hr))
+		{
+			hr = g_deviceResources->_d3dDevice->CreateTexture2D(&textureDesc, &textureData, &texture);
+		}
+
+		if (SUCCEEDED(hr))
+		{
+			hr = g_deviceResources->_d3dDevice->CreateShaderResourceView(texture, &textureViewDesc, (ID3D11ShaderResourceView**)d3dInfo->LightMap);
+		}
+	}
+
+	return hr;
+}
+
+XwaD3DInfo* D3dOptCreateTexture(OptNode* textureNode, int textureId, XwaTextureDescription* textureDescription, unsigned char* optTextureData, unsigned char* optTextureAlphaData, unsigned short* optPalette8, unsigned short* optPalette0)
+{
+	XwaD3DInfo* d3dInfo = GetD3dInfosArrayFirstEmpty();
+
+	if (d3dInfo == nullptr)
+	{
+		return nullptr;
+	}
+
+	d3dInfo->MipMapsCount = -1;
+
+	HRESULT hr;
+
+	D3dOptSetSceneTextureTag(d3dInfo, textureNode);
+
+	hr = D3dOptCreateTextureColorLight(d3dInfo, textureNode, textureId, textureDescription, optTextureData, optTextureAlphaData, optPalette8, optPalette0);
+
+	return d3dInfo;
+}
+
+XwaD3DInfo* D3dOptCreateD3DfromTexture(OptNode* textureNode, int A8, XwaTextureDescription* AC, unsigned char* A10, unsigned char* A14, unsigned short* A18, unsigned short* A1C)
+{
+	const auto XwaCreateD3DfromTexture = (XwaD3DInfo * (*)(const char*, int, XwaTextureDescription*, unsigned char*, unsigned char*, unsigned short*, unsigned short*))0x004418A0;
+
+	XwaD3DInfo* d3dInfo;
+
+	d3dInfo = D3dOptCreateTexture(textureNode, A8, AC, A10, A14, A18, A1C);
+	//d3dInfo = XwaCreateD3DfromTexture(textureNode->Name, A8, AC, A10, A14, A18, A1C);
+
+	return d3dInfo;
 }

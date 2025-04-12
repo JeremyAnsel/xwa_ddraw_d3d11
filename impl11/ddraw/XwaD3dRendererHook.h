@@ -20,3 +20,6 @@ void D3dRendererMainHook(SceneCompData* scene);
 void D3dRendererShadowHook(SceneCompData* scene);
 void D3dRendererOptLoadHook(int handle);
 void D3dRendererOptNodeHook(OptHeader* optHeader, int nodeIndex, SceneCompData* scene);
+
+void D3dRleaseD3DINFO(XwaD3DInfo* d3dInfo);
+XwaD3DInfo* D3dOptCreateD3DfromTexture(OptNode* A4, int A8, XwaTextureDescription* AC, unsigned char* A10, unsigned char* A14, unsigned short* A18, unsigned short* A1C);
