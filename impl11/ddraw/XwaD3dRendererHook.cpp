@@ -1508,6 +1508,7 @@ HRESULT D3dOptCreateTextureColorLight(XwaD3DInfo* d3dInfo, OptNode* textureNode,
 		bpp = 32;
 	}
 
+	bool optHasAlpha = false;
 	bool optHasIllum = false;
 
 	if (bpp == 8)
@@ -1574,6 +1575,7 @@ HRESULT D3dOptCreateTextureColorLight(XwaD3DInfo* d3dInfo, OptNode* textureNode,
 			*(unsigned int*)(colorBuffer + i * 4) = (a << 24) | color32;
 		}
 
+		optHasAlpha = hasAlpha;
 		optHasIllum = hasIllum;
 	}
 	else if (bpp == 32)
@@ -1591,6 +1593,7 @@ HRESULT D3dOptCreateTextureColorLight(XwaD3DInfo* d3dInfo, OptNode* textureNode,
 		unsigned char* illumBuffer = g_illumMapBuffer.data();
 		unsigned char* colorBuffer = g_colorMapBuffer.data();
 
+		bool hasAlpha = ((char*)textureDescription->Palettes)[2] != 0;
 		bool hasIllum = ((char*)textureDescription->Palettes)[4] != 0;
 
 		if (!hasIllum)
@@ -1633,6 +1636,7 @@ HRESULT D3dOptCreateTextureColorLight(XwaD3DInfo* d3dInfo, OptNode* textureNode,
 			*(unsigned char*)(colorBuffer + i * 4 + 3) = a;
 		}
 
+		optHasAlpha = hasAlpha;
 		optHasIllum = hasIllum;
 	}
 	else
@@ -1700,6 +1704,8 @@ HRESULT D3dOptCreateTextureColorLight(XwaD3DInfo* d3dInfo, OptNode* textureNode,
 			hr = g_deviceResources->_d3dDevice->CreateShaderResourceView(texture, &textureViewDesc, (ID3D11ShaderResourceView**)d3dInfo->LightMap);
 		}
 	}
+
+	d3dInfo->AlphaMask = optHasAlpha;
 
 	return hr;
 }
