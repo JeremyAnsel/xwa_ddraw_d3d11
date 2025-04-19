@@ -223,19 +223,29 @@ HRESULT Direct3DTexture::Load(
 	Direct3DTexture* d3dTexture = (Direct3DTexture*)lpD3DTexture;
 	TextureSurface* surface = d3dTexture->_surface;
 
-	this->_name = d3dTexture->_name;
-
-	if (d3dTexture->_textureView)
+	if (lpD3DTexture != this)
 	{
+		this->_name = d3dTexture->_name;
+
+		if (d3dTexture->_textureView.Get())
+		{
 #if LOGGER
-		str.str("\tretrieve existing texture");
-		LogText(str.str());
+			str.str("\tretrieve existing texture");
+			LogText(str.str());
 #endif
 
-		d3dTexture->_textureView->AddRef();
-		this->_textureView = d3dTexture->_textureView.Get();
+			d3dTexture->_textureView->AddRef();
+			this->_textureView = d3dTexture->_textureView.Get();
 
-		return D3D_OK;
+			return D3D_OK;
+		}
+	}
+	else
+	{
+		if (this->_textureView.Get())
+		{
+			return D3D_OK;
+		}
 	}
 
 #if LOGGER
@@ -327,8 +337,11 @@ HRESULT Direct3DTexture::Load(
 			return D3DERR_TEXTURE_LOAD_FAILED;
 		}
 
-		d3dTexture->_textureView->AddRef();
-		this->_textureView = d3dTexture->_textureView.Get();
+		if (lpD3DTexture != this)
+		{
+			d3dTexture->_textureView->AddRef();
+			this->_textureView = d3dTexture->_textureView.Get();
+		}
 
 		return D3D_OK;
 	}
@@ -447,8 +460,11 @@ HRESULT Direct3DTexture::Load(
 		return D3DERR_TEXTURE_LOAD_FAILED;
 	}
 
-	d3dTexture->_textureView->AddRef();
-	this->_textureView = d3dTexture->_textureView.Get();
+	if (lpD3DTexture != this)
+	{
+		d3dTexture->_textureView->AddRef();
+		this->_textureView = d3dTexture->_textureView.Get();
+	}
 
 	return D3D_OK;
 }
