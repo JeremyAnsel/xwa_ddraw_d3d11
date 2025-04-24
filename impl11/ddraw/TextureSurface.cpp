@@ -6,6 +6,9 @@
 #include "TextureSurface.h"
 #include "MipmapSurface.h"
 #include "Direct3DTexture.h"
+#include <vector>
+
+static std::vector<char> g_textureSurfaceBuffer;
 
 TextureSurface::TextureSurface(DeviceResources* deviceResources, bool allocOnLoad, DWORD width, DWORD height, DDPIXELFORMAT& pixelFormat, DWORD mipmapCount, const char* name)
 {
@@ -24,7 +27,7 @@ TextureSurface::TextureSurface(DeviceResources* deviceResources, bool allocOnLoa
 		this->_name = name;
 	}
 
-	if (this->_allocOnLoad)
+	if (this->_allocOnLoad || (this->_pixelFormat.dwRGBBitCount == 32 && this->_mipmapCount == 1))
 	{
 		this->_bufferSize = 0;
 		this->_buffer = nullptr;
@@ -632,7 +635,7 @@ HRESULT TextureSurface::Lock(
 	LogText(str.str());
 #endif
 
-	if (!this->_allocOnLoad)
+	if (!this->_allocOnLoad || (this->_pixelFormat.dwRGBBitCount == 32 && this->_mipmapCount == 1))
 	{
 		if (lpDDSurfaceDesc == nullptr)
 		{
@@ -646,6 +649,19 @@ HRESULT TextureSurface::Lock(
 
 		if (lpDestRect == nullptr)
 		{
+			if (this->_buffer == nullptr)
+			{
+				this->_bufferSize = this->_width * this->_height * this->_pixelFormat.dwRGBBitCount / 8 * 2;
+				//this->_buffer = new char[this->_bufferSize];
+
+				if (g_textureSurfaceBuffer.capacity() < this->_bufferSize)
+				{
+					g_textureSurfaceBuffer.reserve(this->_bufferSize);
+				}
+
+				this->_buffer = g_textureSurfaceBuffer.data();
+			}
+
 			*lpDDSurfaceDesc = {};
 			lpDDSurfaceDesc->dwSize = sizeof(DDSURFACEDESC);
 			lpDDSurfaceDesc->dwFlags = DDSD_CAPS | DDSD_PIXELFORMAT | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PITCH | DDSD_LPSURFACE;
@@ -793,7 +809,7 @@ HRESULT TextureSurface::Unlock(
 
 		if (this->_buffer != nullptr)
 		{
-			delete[] this->_buffer;
+			//delete[] this->_buffer;
 			this->_buffer = nullptr;
 			this->_bufferSize = 0;
 			this->_width = 0;

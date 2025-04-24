@@ -8,6 +8,7 @@
 #include "MipmapSurface.h"
 #include "bc7_main.h"
 #include <comdef.h>
+#include <vector>
 
 char* convertFormat(char* src, DWORD width, DWORD height, DXGI_FORMAT format)
 {
@@ -200,6 +201,8 @@ HRESULT Direct3DTexture::PaletteChanged(
 	return DDERR_UNSUPPORTED;
 }
 
+static std::vector<char> g_d3dTextureBuffer;
+
 HRESULT Direct3DTexture::Load(
 	LPDIRECT3DTEXTURE lpD3DTexture)
 {
@@ -293,11 +296,18 @@ HRESULT Direct3DTexture::Load(
 
 		ComPtr<ID3D11Texture2D> texture;
 
-		char* data = nullptr;
+		//char* data = nullptr;
 
 		if (width % 4 != 0 || height % 4 != 0)
 		{
-			data = new char[width * height * 4];
+			size_t size = width * height * 4;
+			if (g_d3dTextureBuffer.capacity() < size)
+			{
+				g_d3dTextureBuffer.reserve(size);
+			}
+			char* data = g_d3dTextureBuffer.data();
+
+			//data = new char[width * height * 4];
 			BC7_Decode(surface->_buffer, data, width, height);
 
 			textureDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
@@ -307,10 +317,10 @@ HRESULT Direct3DTexture::Load(
 
 		HRESULT hr = this->_deviceResources->_d3dDevice->CreateTexture2D(&textureDesc, &textureData, &texture);
 
-		if (data)
-		{
-			delete[] data;
-		}
+		//if (data)
+		//{
+		//	delete[] data;
+		//}
 
 		if (FAILED(hr))
 		{
