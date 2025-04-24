@@ -23,3 +23,6 @@ void D3dRendererOptNodeHook(OptHeader* optHeader, int nodeIndex, SceneCompData* 
 
 void D3dRleaseD3DINFO(XwaD3DInfo* d3dInfo);
 XwaD3DInfo* D3dOptCreateD3DfromTexture(OptNode* A4, int A8, XwaTextureDescription* AC, unsigned char* A10, unsigned char* A14, unsigned short* A18, unsigned short* A1C);
+
+HGLOBAL WINAPI DatGlobalAllocHook(UINT uFlags, SIZE_T dwBytes);
+HGLOBAL WINAPI DatGlobalReAllocHook(HGLOBAL hMem, SIZE_T dwBytes, UINT uFlags);
