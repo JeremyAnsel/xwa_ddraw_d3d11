@@ -10,6 +10,28 @@ enum RenderMainColorKeyType
 	RENDERMAIN_COLORKEY_00,
 };
 
+struct MainVertex
+{
+	float pos[2];
+	float tex[2];
+
+	MainVertex()
+	{
+		this->pos[0] = 0;
+		this->pos[1] = 0;
+		this->tex[0] = 0;
+		this->tex[1] = 0;
+	}
+
+	MainVertex(float x, float y, float u, float v)
+	{
+		this->pos[0] = x;
+		this->pos[1] = y;
+		this->tex[0] = u;
+		this->tex[1] = v;
+	}
+};
+
 class PrimarySurface;
 class DepthSurface;
 class BackbufferSurface;
@@ -78,7 +100,10 @@ public:
 	ComPtr<ID3D11Texture2D> _backBuffer;
 	ComPtr<ID3D11Texture2D> _offscreenBuffer;
 	ComPtr<ID3D11Texture2D> _offscreenBufferHdBackground;
+	ComPtr<ID3D11Texture2D> _offscreenBufferResolved;
+	ComPtr<ID3D11ShaderResourceView> _offscreenBufferResolvedView;
 	ComPtr<ID3D11RenderTargetView> _renderTargetView;
+	ComPtr<ID3D11RenderTargetView> _backBufferRenderTargetView;
 	ComPtr<ID3D11Texture2D> _depthStencil;
 	ComPtr<ID3D11DepthStencilView> _depthStencilView;
 	ComPtr<ID3DUserDefinedAnnotation> _d3dAnnotation;
@@ -94,6 +119,7 @@ public:
 	ComPtr<ID3D11PixelShader> _mainPixelShaderBpp2ColorKey20;
 	ComPtr<ID3D11PixelShader> _mainPixelShaderBpp2ColorKey00;
 	ComPtr<ID3D11PixelShader> _mainPixelShaderBpp4ColorKey20;
+	ComPtr<ID3D11PixelShader> _pixelShaderResize;
 	ComPtr<ID3D11RasterizerState> _mainRasterizerState;
 	ComPtr<ID3D11SamplerState> _mainSamplerState;
 	ComPtr<ID3D11BlendState> _mainBlendState;

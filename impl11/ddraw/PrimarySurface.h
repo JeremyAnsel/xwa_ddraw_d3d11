@@ -94,6 +94,8 @@ public:
 
 	void RenderBracket();
 
+	void ResizeForPresent();
+
 	ULONG _refCount;
 
 	DeviceResources* _deviceResources;

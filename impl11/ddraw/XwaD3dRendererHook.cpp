@@ -1156,35 +1156,38 @@ void D3dRenderer::CreateShaders()
 
 void D3dRenderer::GetViewport(D3D11_VIEWPORT* viewport)
 {
-	UINT w;
-	UINT h;
+	//UINT w;
+	//UINT h;
 
-	if (g_config.AspectRatioPreserved)
-	{
-		if (_deviceResources->_backbufferHeight * _deviceResources->_displayWidth <= _deviceResources->_backbufferWidth * _deviceResources->_displayHeight)
-		{
-			w = _deviceResources->_backbufferHeight * _deviceResources->_displayWidth / _deviceResources->_displayHeight;
-			h = _deviceResources->_backbufferHeight;
-		}
-		else
-		{
-			w = _deviceResources->_backbufferWidth;
-			h = _deviceResources->_backbufferWidth * _deviceResources->_displayHeight / _deviceResources->_displayWidth;
-		}
-	}
-	else
-	{
-		w = _deviceResources->_backbufferWidth;
-		h = _deviceResources->_backbufferHeight;
-	}
+	//if (g_config.AspectRatioPreserved)
+	//{
+	//	if (_deviceResources->_backbufferHeight * _deviceResources->_displayWidth <= _deviceResources->_backbufferWidth * _deviceResources->_displayHeight)
+	//	{
+	//		w = _deviceResources->_backbufferHeight * _deviceResources->_displayWidth / _deviceResources->_displayHeight;
+	//		h = _deviceResources->_backbufferHeight;
+	//	}
+	//	else
+	//	{
+	//		w = _deviceResources->_backbufferWidth;
+	//		h = _deviceResources->_backbufferWidth * _deviceResources->_displayHeight / _deviceResources->_displayWidth;
+	//	}
+	//}
+	//else
+	//{
+	//	w = _deviceResources->_backbufferWidth;
+	//	h = _deviceResources->_backbufferHeight;
+	//}
 
-	UINT left = (_deviceResources->_backbufferWidth - w) / 2;
-	UINT top = (_deviceResources->_backbufferHeight - h) / 2;
+	//UINT left = (_deviceResources->_backbufferWidth - w) / 2;
+	//UINT top = (_deviceResources->_backbufferHeight - h) / 2;
+
+	UINT left = 0;
+	UINT top = 0;
 
 	viewport->TopLeftX = (float)left;
 	viewport->TopLeftY = (float)top;
-	viewport->Width = (float)w;
-	viewport->Height = (float)h;
+	viewport->Width = (float)_deviceResources->_displayWidth;
+	viewport->Height = (float)_deviceResources->_displayHeight;
 	viewport->MinDepth = D3D11_MIN_DEPTH;
 	viewport->MaxDepth = D3D11_MAX_DEPTH;
 }
