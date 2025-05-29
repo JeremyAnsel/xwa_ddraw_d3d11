@@ -761,10 +761,11 @@ HRESULT OffscreenSurface::Unlock(
 		const bool isConfigMenuGameStateUpdate = updateCallback == 0x0051D100;
 		const bool isMessageBoxGameStateUpdate = updateCallback == 0x005595A0 || updateCallback == 0x00541260;
 		const bool isTechLibraryGameStateUpdate = updateCallback == 0x00574D70;
+		const bool isL00559E10GameStateUpdate = updateCallback == 0x00559E10;
 
 		bool copyHdBackground = true;
 
-		if (isConfigMenuGameStateUpdate || isMessageBoxGameStateUpdate)
+		if (isConfigMenuGameStateUpdate || isMessageBoxGameStateUpdate || isL00559E10GameStateUpdate)
 		{
 			copyHdBackground = false;
 		}

@@ -323,8 +323,17 @@ HRESULT BackbufferSurface::BltFast(
 		{
 			if (this->_deviceResources->IsInConcourseHd())
 			{
-				// XwaDrawCursor
-				((void(*)())0x0055B630)();
+				const int currentGameState = *(int*)(0x009F60E0 + 0x25FA9);
+				const int updateCallback = *(int*)(0x009F60E0 + 0x25FB1 + 0x850 * currentGameState + 0x0844);
+				const bool isL00559E10GameStateUpdate = updateCallback == 0x00559E10;
+
+				bool drawCursor = !isL00559E10GameStateUpdate;
+
+				if (drawCursor)
+				{
+					// XwaDrawCursor
+					((void(*)())0x0055B630)();
+				}
 			}
 
 			copySurface(this->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, this->_deviceResources->_displayBpp, this->_deviceResources->_frontbufferSurface->_buffer, this->_deviceResources->_displayWidth, this->_deviceResources->_displayHeight, 2, dwX, dwY, lpSrcRect, (dwTrans & DDBLTFAST_SRCCOLORKEY) != 0);

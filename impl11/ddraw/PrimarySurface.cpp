@@ -550,8 +550,9 @@ HRESULT PrimarySurface::Flip(
 				const int currentGameState = *(int*)(0x009F60E0 + 0x25FA9);
 				const int updateCallback = *(int*)(0x009F60E0 + 0x25FB1 + 0x850 * currentGameState + 0x0844);
 				const bool isConfigMenuGameStateUpdate = updateCallback == 0x0051D100;
+				const bool isL00559E10GameStateUpdate = updateCallback == 0x00559E10;
 
-				if (!isConfigMenuGameStateUpdate && this->_deviceResources->IsInConcourseHd())
+				if (!isConfigMenuGameStateUpdate && !isL00559E10GameStateUpdate && this->_deviceResources->IsInConcourseHd())
 				{
 					this->_deviceResources->_d3dDeviceContext->CopyResource(this->_deviceResources->_offscreenBuffer, this->_deviceResources->_offscreenBufferHdBackground);
 				}
