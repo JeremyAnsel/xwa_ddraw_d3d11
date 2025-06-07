@@ -429,6 +429,14 @@ HRESULT PrimarySurface::Flip(
 			{
 				const unsigned short colorKey = 0x8080;
 
+				const int currentGameState = *(int*)(0x009F60E0 + 0x25FA9);
+				const int updateCallback = *(int*)(0x009F60E0 + 0x25FB1 + 0x850 * currentGameState + 0x0844);
+				const bool isConfigMenuGameStateUpdate = updateCallback == 0x0051D100;
+				const bool isMessageBoxGameStateUpdate = updateCallback == 0x005595A0 || updateCallback == 0x00541260;
+
+				unsigned char XwaGlobalVariables_m00F2F = *(unsigned char*)(0x009F60E0 + 0x0F2F);
+				const bool isConcourse = this->_deviceResources->_displayWidth == 640 && this->_deviceResources->_displayHeight == 480 && this->_deviceResources->_displayBpp == 2;
+
 				int width = 640;
 				int height = 480;
 
@@ -436,9 +444,10 @@ HRESULT PrimarySurface::Flip(
 
 				if (this->_deviceResources->_displayBpp == 2)
 				{
-					int w = this->_deviceResources->_displayWidth;
-					int x = (this->_deviceResources->_displayWidth - width) / 2;
-					int y = (this->_deviceResources->_displayHeight - height) / 2;
+					int w = this->_deviceResources->_backbufferWidth;
+					int x = (this->_deviceResources->_backbufferWidth - width) / 2;
+					int y = (this->_deviceResources->_backbufferHeight - height) / 2;
+
 					unsigned short* buffer = (unsigned short*)this->_deviceResources->_backbufferSurface->_buffer + y * w + x;
 
 					for (int i = 0; i < height / 2; i++)
@@ -475,6 +484,11 @@ HRESULT PrimarySurface::Flip(
 				RECT rc;
 				rc.left = (this->_deviceResources->_displayWidth - width) / 2;
 				rc.top = (this->_deviceResources->_displayHeight - height) / 2;
+				if ( !isConfigMenuGameStateUpdate || (topBlack != 0))
+				{
+					rc.left = 0;
+					rc.top = 0;
+				}
 				rc.right = rc.left + width;
 				rc.bottom = rc.top + height;
 
@@ -507,7 +521,8 @@ HRESULT PrimarySurface::Flip(
 
 				for (UINT i = 0; i < interval; i++)
 				{
-					this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0, this->_deviceResources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+					this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_offscreenBufferResolved, 0, this->_deviceResources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+					ResizeForPresent();
 
 					if (FAILED(hr = this->_deviceResources->_swapChain->Present(1, 0)))
 					{
@@ -585,7 +600,8 @@ HRESULT PrimarySurface::Flip(
 				this->RenderText();
 			}
 
-			this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0, this->_deviceResources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+			this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_offscreenBufferResolved, 0, this->_deviceResources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+			ResizeForPresent();
 
 			if (FAILED(hr = this->_deviceResources->_swapChain->Present(g_config.VSyncEnabled ? 1 : 0, 0)))
 			{
@@ -1157,33 +1173,42 @@ void PrimarySurface::RenderText()
 		s_displayWidth = this->_deviceResources->_displayWidth;
 		s_displayHeight = this->_deviceResources->_displayHeight;
 
-		UINT w;
-		UINT h;
+		//UINT w;
+		//UINT h;
 
-		if (g_config.AspectRatioPreserved)
-		{
-			if (this->_deviceResources->_backbufferHeight * this->_deviceResources->_displayWidth <= this->_deviceResources->_backbufferWidth * this->_deviceResources->_displayHeight)
-			{
-				w = this->_deviceResources->_backbufferHeight * this->_deviceResources->_displayWidth / this->_deviceResources->_displayHeight;
-				h = this->_deviceResources->_backbufferHeight;
-			}
-			else
-			{
-				w = this->_deviceResources->_backbufferWidth;
-				h = this->_deviceResources->_backbufferWidth * this->_deviceResources->_displayHeight / this->_deviceResources->_displayWidth;
-			}
-		}
-		else
-		{
-			w = this->_deviceResources->_backbufferWidth;
-			h = this->_deviceResources->_backbufferHeight;
-		}
+		//if (g_config.AspectRatioPreserved)
+		//{
+		//	if (this->_deviceResources->_backbufferHeight * this->_deviceResources->_displayWidth <= this->_deviceResources->_backbufferWidth * this->_deviceResources->_displayHeight)
+		//	{
+		//		w = this->_deviceResources->_backbufferHeight * this->_deviceResources->_displayWidth / this->_deviceResources->_displayHeight;
+		//		h = this->_deviceResources->_backbufferHeight;
+		//	}
+		//	else
+		//	{
+		//		w = this->_deviceResources->_backbufferWidth;
+		//		h = this->_deviceResources->_backbufferWidth * this->_deviceResources->_displayHeight / this->_deviceResources->_displayWidth;
+		//	}
+		//}
+		//else
+		//{
+		//	w = this->_deviceResources->_backbufferWidth;
+		//	h = this->_deviceResources->_backbufferHeight;
+		//}
 
-		s_left = (this->_deviceResources->_backbufferWidth - w) / 2;
-		s_top = (this->_deviceResources->_backbufferHeight - h) / 2;
+		//s_left = (this->_deviceResources->_backbufferWidth - w) / 2;
+		//s_top = (this->_deviceResources->_backbufferHeight - h) / 2;
 
-		s_scaleX = (float)w / (float)this->_deviceResources->_displayWidth;
-		s_scaleY = (float)h / (float)this->_deviceResources->_displayHeight;
+		//s_scaleX = (float)w / (float)this->_deviceResources->_displayWidth;
+		//s_scaleY = (float)h / (float)this->_deviceResources->_displayHeight;
+
+		//w = this->_deviceResources->_displayWidth;
+		//h = this->_deviceResources->_displayHeight;
+
+		s_left = 0;
+		s_top = 0;
+
+		s_scaleX = 1.0f;
+		s_scaleY = 1.0f;
 
 		for (int index = 0; index < 3; index++)
 		{
@@ -1307,33 +1332,42 @@ void PrimarySurface::RenderRadar()
 		s_displayWidth = this->_deviceResources->_displayWidth;
 		s_displayHeight = this->_deviceResources->_displayHeight;
 
-		UINT w;
-		UINT h;
+		//UINT w;
+		//UINT h;
 
-		if (g_config.AspectRatioPreserved)
-		{
-			if (this->_deviceResources->_backbufferHeight * this->_deviceResources->_displayWidth <= this->_deviceResources->_backbufferWidth * this->_deviceResources->_displayHeight)
-			{
-				w = this->_deviceResources->_backbufferHeight * this->_deviceResources->_displayWidth / this->_deviceResources->_displayHeight;
-				h = this->_deviceResources->_backbufferHeight;
-			}
-			else
-			{
-				w = this->_deviceResources->_backbufferWidth;
-				h = this->_deviceResources->_backbufferWidth * this->_deviceResources->_displayHeight / this->_deviceResources->_displayWidth;
-			}
-		}
-		else
-		{
-			w = this->_deviceResources->_backbufferWidth;
-			h = this->_deviceResources->_backbufferHeight;
-		}
+		//if (g_config.AspectRatioPreserved)
+		//{
+		//	if (this->_deviceResources->_backbufferHeight * this->_deviceResources->_displayWidth <= this->_deviceResources->_backbufferWidth * this->_deviceResources->_displayHeight)
+		//	{
+		//		w = this->_deviceResources->_backbufferHeight * this->_deviceResources->_displayWidth / this->_deviceResources->_displayHeight;
+		//		h = this->_deviceResources->_backbufferHeight;
+		//	}
+		//	else
+		//	{
+		//		w = this->_deviceResources->_backbufferWidth;
+		//		h = this->_deviceResources->_backbufferWidth * this->_deviceResources->_displayHeight / this->_deviceResources->_displayWidth;
+		//	}
+		//}
+		//else
+		//{
+		//	w = this->_deviceResources->_backbufferWidth;
+		//	h = this->_deviceResources->_backbufferHeight;
+		//}
 
-		s_left = (this->_deviceResources->_backbufferWidth - w) / 2;
-		s_top = (this->_deviceResources->_backbufferHeight - h) / 2;
+		//s_left = (this->_deviceResources->_backbufferWidth - w) / 2;
+		//s_top = (this->_deviceResources->_backbufferHeight - h) / 2;
 
-		s_scaleX = (float)w / (float)this->_deviceResources->_displayWidth;
-		s_scaleY = (float)h / (float)this->_deviceResources->_displayHeight;
+		//s_scaleX = (float)w / (float)this->_deviceResources->_displayWidth;
+		//s_scaleY = (float)h / (float)this->_deviceResources->_displayHeight;
+
+		//w = this->_deviceResources->_displayWidth;
+		//h = this->_deviceResources->_displayHeight;
+
+		s_left = 0;
+		s_top = 0;
+
+		s_scaleX = 1.0f;
+		s_scaleY = 1.0f;
 
 		this->_deviceResources->_d2d1RenderTarget->CreateSolidColorBrush(D2D1::ColorF(0), &s_brush);
 	}
@@ -1433,33 +1467,42 @@ void PrimarySurface::RenderBracket()
 		s_displayWidth = this->_deviceResources->_displayWidth;
 		s_displayHeight = this->_deviceResources->_displayHeight;
 
-		UINT w;
-		UINT h;
+		//UINT w;
+		//UINT h;
 
-		if (g_config.AspectRatioPreserved)
-		{
-			if (this->_deviceResources->_backbufferHeight * this->_deviceResources->_displayWidth <= this->_deviceResources->_backbufferWidth * this->_deviceResources->_displayHeight)
-			{
-				w = this->_deviceResources->_backbufferHeight * this->_deviceResources->_displayWidth / this->_deviceResources->_displayHeight;
-				h = this->_deviceResources->_backbufferHeight;
-			}
-			else
-			{
-				w = this->_deviceResources->_backbufferWidth;
-				h = this->_deviceResources->_backbufferWidth * this->_deviceResources->_displayHeight / this->_deviceResources->_displayWidth;
-			}
-		}
-		else
-		{
-			w = this->_deviceResources->_backbufferWidth;
-			h = this->_deviceResources->_backbufferHeight;
-		}
+		//if (g_config.AspectRatioPreserved)
+		//{
+		//	if (this->_deviceResources->_backbufferHeight * this->_deviceResources->_displayWidth <= this->_deviceResources->_backbufferWidth * this->_deviceResources->_displayHeight)
+		//	{
+		//		w = this->_deviceResources->_backbufferHeight * this->_deviceResources->_displayWidth / this->_deviceResources->_displayHeight;
+		//		h = this->_deviceResources->_backbufferHeight;
+		//	}
+		//	else
+		//	{
+		//		w = this->_deviceResources->_backbufferWidth;
+		//		h = this->_deviceResources->_backbufferWidth * this->_deviceResources->_displayHeight / this->_deviceResources->_displayWidth;
+		//	}
+		//}
+		//else
+		//{
+		//	w = this->_deviceResources->_backbufferWidth;
+		//	h = this->_deviceResources->_backbufferHeight;
+		//}
 
-		s_left = (this->_deviceResources->_backbufferWidth - w) / 2;
-		s_top = (this->_deviceResources->_backbufferHeight - h) / 2;
+		//s_left = (this->_deviceResources->_backbufferWidth - w) / 2;
+		//s_top = (this->_deviceResources->_backbufferHeight - h) / 2;
 
-		s_scaleX = (float)w / (float)this->_deviceResources->_displayWidth;
-		s_scaleY = (float)h / (float)this->_deviceResources->_displayHeight;
+		//s_scaleX = (float)w / (float)this->_deviceResources->_displayWidth;
+		//s_scaleY = (float)h / (float)this->_deviceResources->_displayHeight;
+
+		//w = this->_deviceResources->_displayWidth;
+		//h = this->_deviceResources->_displayHeight;
+
+		s_left = 0;
+		s_top = 0;
+
+		s_scaleX = 1.0f;
+		s_scaleY = 1.0f;
 
 		this->_deviceResources->_d2d1RenderTarget->CreateSolidColorBrush(D2D1::ColorF(0), &s_brush);
 	}
@@ -1538,4 +1581,102 @@ void PrimarySurface::RenderBracket()
 	g_xwa_bracket.clear();
 
 	this->_deviceResources->EndAnnotatedEvent();
+}
+
+void PrimarySurface::ResizeForPresent()
+{
+	HRESULT hr = S_OK;
+	const char* step = "";
+	auto& resources = this->_deviceResources;
+	
+	resources->InitInputLayout(resources->_mainInputLayout);
+	resources->InitTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	resources->InitVertexShader(resources->_mainVertexShader);
+	resources->InitPixelShader(resources->_pixelShaderResize);
+
+	UINT w;
+	UINT h;
+
+	if (g_config.AspectRatioPreserved)
+	{
+		if (resources->_backbufferHeight * resources->_displayWidth <= resources->_backbufferWidth * resources->_displayHeight)
+		{
+			w = resources->_backbufferHeight * resources->_displayWidth / resources->_displayHeight;
+			h = resources->_backbufferHeight;
+		}
+		else
+		{
+			w = resources->_backbufferWidth;
+			h = resources->_backbufferWidth * resources->_displayHeight / resources->_displayWidth;
+		}
+	}
+	else
+	{
+		w = resources->_backbufferWidth;
+		h = resources->_backbufferHeight;
+	}
+
+	UINT left = (resources->_backbufferWidth - w) / 2;
+	UINT top = (resources->_backbufferHeight - h) / 2;
+
+	D3D11_VIEWPORT viewport;
+	viewport.TopLeftX = (float)left;
+	viewport.TopLeftY = (float)top;
+	viewport.Width = (float)w;
+	viewport.Height = (float)h;
+	viewport.MinDepth = D3D11_MIN_DEPTH;
+	viewport.MaxDepth = D3D11_MAX_DEPTH;
+
+	resources->InitViewport(&viewport);
+
+	if (SUCCEEDED(hr))
+	{
+		step = "States";
+		resources->InitRasterizerState(resources->_mainRasterizerState);
+		resources->InitSamplerState(resources->_mainSamplerState.GetAddressOf(), nullptr);
+		resources->InitBlendState(resources->_mainBlendState, nullptr);
+		resources->InitDepthStencilState(resources->_mainDepthState, nullptr);
+	}
+
+	if (SUCCEEDED(hr))
+	{
+		step = "offscreenBufferResolved ShaderResourceView";
+
+		resources->InitPSShaderResourceView(resources->_offscreenBufferResolvedView);
+	}
+
+	resources->_d3dDeviceContext->OMSetRenderTargets(1, resources->_backBufferRenderTargetView.GetAddressOf(), NULL);
+
+	if (SUCCEEDED(hr))
+	{
+		step = "Draw";
+
+		UINT stride = sizeof(MainVertex);
+		UINT offset = 0;
+
+		resources->InitVertexBuffer(resources->_mainVertexBuffer.GetAddressOf(), &stride, &offset);
+		resources->InitIndexBuffer(resources->_mainIndexBuffer, false);
+		resources->_d3dDeviceContext->DrawIndexed(6, 0, 0);
+	}
+
+	//Restore required render state
+
+	resources->_d3dDeviceContext->OMSetRenderTargets(1, resources->_renderTargetView.GetAddressOf(), resources->_depthStencilView.Get());
+
+	if (FAILED(hr))
+	{
+		static bool messageShown = false;
+
+		if (!messageShown)
+		{
+			char text[512];
+			strcpy_s(text, step);
+			strcat_s(text, "\n");
+			strcat_s(text, _com_error(hr).ErrorMessage());
+
+			MessageBox(nullptr, text, __FUNCTION__, MB_ICONERROR);
+		}
+
+		messageShown = true;
+	}
 }
