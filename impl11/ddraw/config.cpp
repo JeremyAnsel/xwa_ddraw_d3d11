@@ -61,6 +61,9 @@ Config::Config()
 	CreateDirectory("Screenshots", nullptr);
 	this->ScreenshotsDirectory = "Screenshots";
 
+	this->EnableSideProcess = true;
+	this->EnableCubeMaps = true;
+
 	if (ifstream("Hook_D3d.dll") && HookD3D_IsHookD3DEnabled())
 	{
 		this->D3dHookExists = true;
@@ -177,6 +180,14 @@ Config::Config()
 					this->ScreenshotsDirectory = value;
 				}
 			}
+			else if (name == "EnableSideProcess")
+			{
+				this->EnableSideProcess = stoi(value) != 0;
+			}
+			else if (name == "EnableCubeMaps")
+			{
+				this->EnableCubeMaps = stoi(value) != 0;
+			}
 		}
 	}
 
@@ -190,6 +201,11 @@ Config::Config()
 	if (!this->D3dRendererHookEnabled)
 	{
 		this->D3dRendererTexturesHookEnabled = false;
+	}
+
+	if (!this->EnableSideProcess)
+	{
+		this->EnableCubeMaps = false;
 	}
 
 	if (this->ProcessAffinityCore > 0)

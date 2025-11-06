@@ -70,7 +70,7 @@ std::vector<std::string> GetFileLines(const std::string& path, const std::string
 	return values;
 }
 
-std::string GetFileKeyValue(const std::vector<std::string>& lines, const std::string& key)
+std::string GetFileKeyValue(const std::vector<std::string>& lines, const std::string& key, const std::string& defaultValue)
 {
 	for (const auto& line : lines)
 	{
@@ -95,7 +95,7 @@ std::string GetFileKeyValue(const std::vector<std::string>& lines, const std::st
 		}
 	}
 
-	return std::string();
+	return defaultValue;
 }
 
 int GetFileKeyValueInt(const std::vector<std::string>& lines, const std::string& key, int defaultValue)
@@ -108,6 +108,21 @@ int GetFileKeyValueInt(const std::vector<std::string>& lines, const std::string&
 	}
 
 	return std::stoi(value, 0, 0);
+}
+
+float GetFileKeyValueFloat(const std::vector<std::string>& lines, const std::string& key, float defaultValue)
+{
+	std::string value = GetFileKeyValue(lines, key);
+
+	if (value.empty())
+	{
+		return defaultValue;
+	}
+
+	float res = defaultValue;
+	try { res = std::stof(value); }
+	catch (...) {}
+	return res;
 }
 
 std::vector<std::string> Tokennize(const std::string& str)

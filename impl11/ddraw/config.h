@@ -39,6 +39,9 @@ public:
 	float ProjectionParameterC;
 
 	std::string ScreenshotsDirectory;
+
+	bool EnableSideProcess;
+	bool EnableCubeMaps;
 };
 
 extern Config g_config;

@@ -7,6 +7,8 @@
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include "hookexe.h"
+#include "CubeMaps.h"
 
 #ifdef _DEBUG
 #include "../Debug/XwaD3dVertexShader.h"
@@ -339,6 +341,17 @@ void D3dRenderer::SceneBegin(DeviceResources* deviceResources)
 
 	GetViewport(&_viewport);
 	GetViewportScale(_constants.viewportScale);
+
+	if (g_config.EnableCubeMaps)
+	{
+		const bool s_XwaIsInConcourse = *(int*)0x005FFD9C != 0;
+
+		if (!s_XwaIsInConcourse)
+		{
+			g_bDefaultStarfieldRendered = false;
+			RenderDefaultBackground(deviceResources);
+		}
+	}
 
 #if LOGGER_DUMP
 	DumpFrame();
@@ -1234,6 +1247,8 @@ void D3dRendererInitialize()
 
 void D3dRendererUninitialize()
 {
+	ReleaseCubeMaps();
+
 	if (!g_config.D3dRendererHookEnabled)
 	{
 		return;
@@ -1480,6 +1495,10 @@ std::vector<unsigned char> g_illumMapBuffer;
 
 HRESULT D3dOptCreateTextureColorLight(XwaD3DInfo* d3dInfo, OptNode* textureNode, int textureId, XwaTextureDescription* textureDescription, unsigned char* optTextureData, unsigned char* optTextureAlphaData, unsigned short* optPalette8, unsigned short* optPalette0)
 {
+	// We can piggy-back on this hook to load the cubemaps while the mission is loading.
+	// This isn't a very elegant solution, but it should get the job done
+	LoadMissionCubeMaps(g_deviceResources);
+
 	// code from the 32bpp hook
 	const int XwaFlightBrightness = *(int*)0x006002C8;
 	const int brightnessLevel = (XwaFlightBrightness - 0x100) / 0x40;

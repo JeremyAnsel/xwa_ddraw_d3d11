@@ -11,6 +11,7 @@
 #include "OffscreenSurface.h"
 #include "ExecuteBufferDumper.h"
 #include "XwaD3dRendererHook.h"
+#include "CubeMaps.h"
 
 static bool IsInTechLibrary()
 {
@@ -690,6 +691,7 @@ HRESULT Direct3DDevice::Execute(
 		char* pDataEnd = pData + executeBuffer->_executeData.dwInstructionLength;
 
 		UINT currentIndexLocation = 0;
+		Direct3DTexture* lastTexture = nullptr;
 
 		while (pData < pDataEnd)
 		{
@@ -717,6 +719,7 @@ HRESULT Direct3DDevice::Execute(
 					case D3DRENDERSTATE_TEXTUREHANDLE:
 					{
 						Direct3DTexture* texture = g_config.WireframeFillMode ? nullptr : (Direct3DTexture*)state->dwArg[0];
+						lastTexture = texture;
 						ID3D11PixelShader* pixelShader;
 
 						if (texture == nullptr)
@@ -780,6 +783,13 @@ HRESULT Direct3DDevice::Execute(
 				//	break;
 				//}
 
+				bool skip = false;
+
+				if (lastTexture)
+				{
+					skip = skip || CubeMapsSkipBackdrop(lastTexture->_name);
+				}
+
 				g_ExecuteTriangleCount++;
 				g_ExecuteIndexCount += instruction->wCount * 3;
 
@@ -799,9 +809,14 @@ HRESULT Direct3DDevice::Execute(
 					break;
 
 				step = "Draw";
-				context->DrawIndexed(3 * instruction->wCount, currentIndexLocation, 0);
+
+				if (!skip)
+				{
+					context->DrawIndexed(3 * instruction->wCount, currentIndexLocation, 0);
+				}
 
 				currentIndexLocation += 3 * instruction->wCount;
+				//lastTexture = nullptr;
 				break;
 			}
 			}

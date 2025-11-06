@@ -28,6 +28,8 @@
     <FxCompile Include="XwaD3dShadowVertexShader.hlsl" />
     <FxCompile Include="XwaD3dVertexShader.hlsl" />
     <FxCompile Include="XwaD3dNormalsPixelShader.hlsl" />
+    <FxCompile Include="CubeMapsVertexShader.hlsl" />
+    <FxCompile Include="CubeMapsPixelShader.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="XwaD3dCommon.hlsl" />

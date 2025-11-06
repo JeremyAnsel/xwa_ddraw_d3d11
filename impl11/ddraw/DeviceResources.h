@@ -136,4 +136,6 @@ public:
 	OffscreenSurface* _offscreenSurface;
 
 	void (*_surfaceDcCallback)();
+
+	int _frameCounter;
 };

@@ -359,6 +359,7 @@ HRESULT PrimarySurface::Flip(
 	DWORD dwFlags
 	)
 {
+	_deviceResources->_frameCounter++;
 	_deviceResources->BeginAnnotatedEvent(L"PrimarySurfaceFlip");
 
 #if LOGGER

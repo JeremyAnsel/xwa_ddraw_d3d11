@@ -176,6 +176,8 @@ HRESULT DeviceResources::Initialize()
 
 HRESULT DeviceResources::OnSizeChanged(HWND hWnd, DWORD dwWidth, DWORD dwHeight)
 {
+	_frameCounter = 0;
+
 	HRESULT hr;
 	const char* step = "";
 
