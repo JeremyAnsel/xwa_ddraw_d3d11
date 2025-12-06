@@ -114,21 +114,14 @@ void RenderDefaultBackground(DeviceResources* deviceResources, bool* drawCubeMap
 		ovrAngZ = g_CubeMaps.regionOvrAngZ[region];
 	}
 
-	const Matrix4 Rx = Matrix4().rotateX(angX);
-	const Matrix4 Ry = Matrix4().rotateY(angY);
-	const Matrix4 Rz = Matrix4().rotateZ(angZ);
-	const Matrix4 ovrRx = Matrix4().rotateX(ovrAngX);
-	const Matrix4 ovrRy = Matrix4().rotateY(ovrAngY);
-	const Matrix4 ovrRz = Matrix4().rotateZ(ovrAngZ);
+	const Matrix4 Rx = Matrix4().rotateX(-angX);
+	const Matrix4 Ry = Matrix4().rotateY(-angZ);
+	const Matrix4 Rz = Matrix4().rotateZ(-angY);
+	const Matrix4 ovrRx = Matrix4().rotateX(-ovrAngX);
+	const Matrix4 ovrRy = Matrix4().rotateY(-ovrAngZ);
+	const Matrix4 ovrRz = Matrix4().rotateZ(-ovrAngY);
 	Matrix4 mapRot = Rz * Ry * Rx;
 	Matrix4 ovrMapRot = ovrRx * ovrRy * ovrRz;
-
-	if (*g_playerInHangar)
-	{
-		Matrix4 heading = Matrix4().rotateX(-90);
-		mapRot *= heading;
-		ovrMapRot *= heading;
-	}
 
 	*drawCubeMap = renderCubeMap;
 	*cubeMapRot = mapRot;
