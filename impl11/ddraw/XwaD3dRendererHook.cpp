@@ -1644,9 +1644,9 @@ HRESULT D3dOptCreateTextureColorLight(XwaD3DInfo* d3dInfo, OptNode* textureNode,
 
 			if (illum == 0)
 			{
-				b = (b * 128 * paletteIndex / 8 + b * 128) / 256;
-				g = (g * 128 * paletteIndex / 8 + g * 128) / 256;
-				r = (r * 128 * paletteIndex / 8 + r * 128) / 256;
+				b = (b * 128 * brightnessLevel / 8 + b * 128) / 256;
+				g = (g * 128 * brightnessLevel / 8 + g * 128) / 256;
+				r = (r * 128 * brightnessLevel / 8 + r * 128) / 256;
 			}
 
 			*(unsigned char*)(colorBuffer + i * 4 + 0) = b;
