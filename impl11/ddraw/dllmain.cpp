@@ -82,6 +82,18 @@ DWORD WINAPI ThreadFunction(LPVOID lpParameter)
 	return 1;
 }
 
+void VirtualProtectMemoryReadWrite()
+{
+	DWORD oldProtection;
+	VirtualProtect((void*)0x401000, 0x1A7B40, PAGE_READWRITE, &oldProtection);
+}
+
+void VirtualProtectMemoryExecuteReadWrite()
+{
+	DWORD oldProtection;
+	VirtualProtect((void*)0x401000, 0x1A7B40, PAGE_EXECUTE_READWRITE, &oldProtection);
+}
+
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
 	switch (ul_reason_for_call)
@@ -99,6 +111,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 
 		if (IsXwaExe())
 		{
+			VirtualProtectMemoryReadWrite();
+
 			if (g_config.Text2DRendererEnabled)
 			{
 				// RenderCharHook
@@ -203,6 +217,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 				// Play Video Clear
 				*(int*)(0x0055BE94 + 0x01) = (int)PlayVideoClear - (0x0055BE94 + 0x05);
 			}
+
+			VirtualProtectMemoryExecuteReadWrite();
 		}
 
 		break;
