@@ -1028,9 +1028,11 @@ bool CubeMapsSkipBackdrop(const std::string& name)
 	int GroupId = std::stoi(values[1]);
 	int ImageId = std::stoi(values[2]);
 	const int key = MakeKeyFromGroupIdImageId(GroupId, ImageId);
+	int region = *g_playerInHangar ? 0 : PlayerDataTable[*g_playerIndex].Region;
 
 	// If this GroupId-ImageId is disabled...
 	if (!IsInMap(g_EnabledOvrGroupIdImageIdMap, -1) && // "EnabledBackdrops = ALL" enables all backdrops
+		(g_CubeMaps.bRenderAllRegions || g_CubeMaps.bRenderInThisRegion[region]) &&
 		(IsInMap(g_DisabledGroupIdImageIdMap, -1) || // Are all backdrops disabled?
 			IsInMap(g_StarfieldGroupIdImageIdMap, key) || // Is it a known (default) backdrop in XWAU?
 			IsInMap(g_DisabledGroupIdImageIdMap, key)) && // Is it explicitly disabled?
