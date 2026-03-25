@@ -1742,6 +1742,7 @@ XwaD3DInfo* D3dOptCreateTexture(OptNode* textureNode, int textureId, XwaTextureD
 
 	HRESULT hr;
 
+	memcpy(&d3dInfo->TextureDescription, textureDescription, sizeof(XwaTextureDescription));
 	D3dOptSetSceneTextureTag(d3dInfo, textureNode);
 
 	hr = D3dOptCreateTextureColorLight(d3dInfo, textureNode, textureId, textureDescription, optTextureData, optTextureAlphaData, optPalette8, optPalette0);
