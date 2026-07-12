@@ -10,6 +10,7 @@
 #include "XwaDrawRadarHook.h"
 #include "XwaDrawBracketHook.h"
 #include "XwaConcourseHook.h"
+#include "PrimaryDC.h"
 
 static bool g_PrimarySurfaceInitialized = false;
 
@@ -750,12 +751,26 @@ HRESULT PrimarySurface::GetDC(
 	LogText(str.str());
 #endif
 
-#if LOGGER
-	str.str("\tDDERR_UNSUPPORTED");
-	LogText(str.str());
-#endif
+	if (lphDC)
+	{
+		PrimaryDC* pDC = (PrimaryDC*)lphDC;
 
-	return DDERR_UNSUPPORTED;
+		pDC->width = this->_deviceResources->_backbufferWidth;
+		pDC->height = this->_deviceResources->_backbufferHeight;
+		pDC->displayWidth = this->_deviceResources->_displayWidth;
+		pDC->displayHeight = this->_deviceResources->_displayHeight;
+		pDC->aspectRatioPreserved = g_config.AspectRatioPreserved;
+		pDC->d2d1Factory = this->_deviceResources->_d2d1Factory;
+		pDC->d2d1RenderTarget = this->_deviceResources->_d2d1RenderTarget;
+		pDC->d2d1DrawingStateBlock = this->_deviceResources->_d2d1DrawingStateBlock;
+		pDC->dwriteFactory = this->_deviceResources->_dwriteFactory;
+		pDC->d3d11RenderTargetView = this->_deviceResources->_renderTargetView;
+		pDC->d3d11Device = this->_deviceResources->_d3dDevice;
+		pDC->d3d11DeviceContext = this->_deviceResources->_d3dDeviceContext;
+		pDC->dxgiSwapChain = this->_deviceResources->_swapChain;
+	}
+
+	return DD_OK;
 }
 
 HRESULT PrimarySurface::GetFlipStatus(
@@ -1107,12 +1122,10 @@ HRESULT PrimarySurface::UpdateOverlayZOrder(
 	LogText(str.str());
 #endif
 
-#if LOGGER
-	str.str("\tDDERR_UNSUPPORTED");
-	LogText(str.str());
-#endif
+	this->_deviceResources->_d3dDeviceContext->ResolveSubresource(this->_deviceResources->_backBuffer, 0, this->_deviceResources->_offscreenBuffer, 0, DXGI_FORMAT_B8G8R8A8_UNORM);
+	this->_deviceResources->_swapChain->Present(1, 0);
 
-	return DDERR_UNSUPPORTED;
+	return DD_OK;
 }
 
 void PrimarySurface::RenderText()

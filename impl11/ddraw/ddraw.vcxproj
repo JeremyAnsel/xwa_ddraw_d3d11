@@ -150,6 +150,7 @@
     <ClInclude Include="Matrices.h" />
     <ClInclude Include="MipmapSurface.h" />
     <ClInclude Include="OffscreenSurface.h" />
+    <ClInclude Include="PrimaryDC.h" />
     <ClInclude Include="PrimarySurface.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="SurfaceDC.h" />
