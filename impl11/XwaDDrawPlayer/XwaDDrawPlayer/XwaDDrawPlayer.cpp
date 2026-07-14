@@ -33,6 +33,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_XWADDRAWPLAYER));
 
 	MSG msg;
+	CoInitialize(nullptr);
 
 	while (GetMessage(&msg, nullptr, 0, 0))
 	{
@@ -43,6 +44,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 		}
 	}
 
+	CoUninitialize();
 	return (int)msg.wParam;
 }
 

@@ -98,10 +98,14 @@ int ExeDDrawLoadTexture_Result(DWORD cbData, PVOID lpData)
 	if (SUCCEEDED(hr))
 	{
 		ComPtr<IDXGIResource> resource;
-		_ddrawLoadTexture_Texture->QueryInterface(&resource);
-		HANDLE handle = NULL;
-		resource->GetSharedHandle(&handle);
-		_ddrawLoadTexture_Handle = (unsigned int)handle;
+		hr = _ddrawLoadTexture_Texture->QueryInterface(&resource);
+
+		if (SUCCEEDED(hr))
+		{
+			HANDLE handle = NULL;
+			hr = resource->GetSharedHandle(&handle);
+			_ddrawLoadTexture_Handle = (unsigned int)handle;
+		}
 	}
 
 	return hr;
